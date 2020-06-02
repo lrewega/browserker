@@ -1,5 +1,7 @@
 package browserk
 
+import "crypto/md5"
+
 // revive:disable:var-naming
 
 type PluginEventType int8
@@ -20,6 +22,7 @@ const (
 )
 
 type PluginEvent struct {
+	ID        []byte
 	Type      PluginEventType
 	URL       string
 	Nav       *Navigation
@@ -27,7 +30,21 @@ type PluginEvent struct {
 	EventData *PluginEventData
 }
 
+func (e *PluginEvent) Hash() []byte {
+	if e.ID != nil {
+		return e.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte{byte(e.Type)})
+	hash.Write([]byte(e.URL))
+	hash.Write(e.Nav.ID)
+
+	e.ID = hash.Sum(nil)
+	return e.ID
+}
+
 type PluginEventData struct {
+	ID                      []byte
 	HTTPRequest             *HTTPRequest
 	HTTPResponse            *HTTPResponse
 	InterceptedHTTPRequest  *InterceptedHTTPRequest
@@ -40,6 +57,17 @@ type PluginEventData struct {
 func HTTPRequestPluginEvent(bctx *Context, URL string, nav *Navigation, request *HTTPRequest) *PluginEvent {
 	evt := newPluginEvent(bctx, URL, nav, EvtHTTPRequest)
 	evt.EventData = &PluginEventData{HTTPRequest: request}
+	hash := md5.New()
+	hash.Write([]byte(request.Type))
+	hash.Write([]byte(request.Request.Method))
+	hash.Write([]byte(request.Request.Url))
+	hash.Write([]byte(request.Request.UrlFragment))
+
+	if request.Request.HasPostData {
+		hash.Write([]byte(request.Request.PostData))
+	}
+
+	evt.EventData.ID = hash.Sum(nil)
 	return evt
 }
 

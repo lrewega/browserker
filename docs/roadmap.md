@@ -4,6 +4,22 @@ Iterate quickly, get small things working as soon as possible to show progress.
 
 ### Goals
 
-- [ ] Get browser hooked up and store results as graph
-- [ ] Get minimal crawling working and storing results
-- [ ] Add more goals
+- [x] Get browser hooked up and store results as graph
+- [x] Get minimal crawling working and storing results
+- [x] Auto fill forms
+- [x] Get passive plugins working
+- [x] Get JS based plugins (via goja) working
+- [ ] Implement reporter system for reporting flaws
+- [ ] Implement uniqueness for reports
+- [ ] Implement injast for treating request params as an AST (JSON/XML/x-www-url-encoded etc)
+- [ ] Get active plugin attacks working
+- [ ] Implement uniqueness for plugin events (host, path, file, query)
+- [ ] Get authentication working
+- [ ] Get custom authentication scripts working
+- [ ] Handle failures in navigations better
+- [ ] Get page uniqueness working
+- [ ] Get 404 detection working
+- [ ] Hook common JS functions (window.print, window.open etc)
+- [ ] Handle frames better
+- [ ] Handle SPAs better (vuejs, react etc) hook routers etc
+- [ ] Get websocket events/attacks working

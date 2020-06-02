@@ -55,7 +55,7 @@ type Tab struct {
 
 // NewTab to use
 func NewTab(bctx *browserk.Context, gcdBrowser *gcd.Gcd, tab *gcd.ChromeTarget) *Tab {
-	id := rand.Int63() // TODO: generate random or something
+	id := rand.Int63()
 	t := &Tab{t: tab}
 
 	t.ctx = bctx

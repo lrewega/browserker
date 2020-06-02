@@ -41,6 +41,7 @@ func (u Unique) Response() bool {
 type PluginStorer interface {
 	Init() error
 	AddEvent(evt *PluginEvent)
+	AddReport(report *Report)
 	IsUnique(evt *PluginEvent) Unique
 	Close() error
 }
