@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"os"
 
 	badger "github.com/dgraph-io/badger/v2"
@@ -44,13 +45,82 @@ func (s *PluginStore) Init() error {
 }
 
 // IsUnique checks if a plugin event is unique and returns a bitmask of uniqueness
+// TODO: implement
 func (s *PluginStore) IsUnique(evt *browserk.PluginEvent) browserk.Unique {
+	var err error
+	var uniqueKey bytes.Buffer
+	uniqueKey.Write([]byte{})
+	err = s.Store.Update(func(txn *badger.Txn) error {
+		key := MakeKey(evt.ID, "uniq_evt")
+		_, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			txn.Set(key, enc)
+		} else {
+			log.Error().Str("", "").Msg("this event already exists")
+		}
+		return errors.Wrap(err, "adding event")
+	})
+
+	// TODO: retry on transaction conflict errors
+	if err != nil {
+		log.Error().Err(err).Msg("failed to adding event uniqueness")
+		return browserk.UniqueHost | browserk.UniquePath | browserk.UniqueFile | browserk.UniquePage | browserk.UniqueRequest | browserk.UniqueResponse
+	}
+
 	return browserk.UniqueHost | browserk.UniquePath | browserk.UniqueFile | browserk.UniquePage | browserk.UniqueRequest | browserk.UniqueResponse
 }
 
-// AddEvent to the plugin store
-func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) {
+func (s *PluginStore) makeUniqueEventKeys(evt *browserk.PluginEvent) {
+	keys := make(map[string][]byte, 0)
 
+	for _, uniqueType := range []string{"host", "path", "file", "page", "request", "response"} {
+		var key = &bytes.Buffer{}
+		key.WriteByte(byte(evt.Type))
+
+		switch evt.Type {
+		case browserk.EvtCookie:
+		case browserk.EvtConsole:
+		case browserk.EvtHTTPRequest:
+		case browserk.EvtHTTPResponse:
+		case browserk.EvtInterceptedHTTPRequest:
+		case browserk.EvtInterceptedHTTPResponse:
+		case browserk.EvtJSResponse:
+		case browserk.EvtStorage:
+		case browserk.EvtURL:
+		case browserk.EvtWebSocketRequest:
+		case browserk.EvtWebSocketResponse:
+		}
+		keys[uniqueType] = key.Bytes()
+	}
+}
+
+// AddEvent to the plugin store
+func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) bool {
+	var err error
+
+	enc, err := EncodeStruct(evt)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to encode event")
+		return false
+	}
+
+	err = s.Store.Update(func(txn *badger.Txn) error {
+		key := MakeKey(evt.ID, "pevt")
+		_, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			txn.Set(key, enc)
+		} else {
+			log.Error().Str("", "").Msg("this event already exists")
+		}
+		return errors.Wrap(err, "adding event")
+	})
+
+	// TODO: retry on transaction conflict errors
+	if err != nil {
+		log.Error().Err(err).Msg("failed to adding event")
+		return false
+	}
+	return true
 }
 
 // AddReport to the plugin store
@@ -59,7 +129,7 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 	report.Result = nil // we can look this up from the crawl graph no need to re-store it
 	enc, err := EncodeStruct(report)
 	if err != nil {
-		log.Error().Err(err).Msg("uanble to encode report")
+		log.Error().Err(err).Msg("unable to encode report")
 		return
 	}
 	err = s.Store.Update(func(txn *badger.Txn) error {
@@ -68,7 +138,7 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 		if err == badger.ErrKeyNotFound {
 			txn.Set(key, enc)
 		} else {
-			log.Error().Str("", "").Msg("this report already exists")
+			log.Error().Msgf("this report already exists: %#v", report)
 		}
 		return errors.Wrap(err, "adding report")
 	})
@@ -76,6 +146,7 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to adding report")
 	}
+	log.Info().Msgf("added new report: %#v", report)
 }
 
 // Close the plugin store

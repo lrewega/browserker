@@ -40,7 +40,7 @@ func (u Unique) Response() bool {
 // PluginStorer handles uniqueness and state for plugins
 type PluginStorer interface {
 	Init() error
-	AddEvent(evt *PluginEvent)
+	AddEvent(evt *PluginEvent) bool
 	AddReport(report *Report)
 	IsUnique(evt *PluginEvent) Unique
 	Close() error

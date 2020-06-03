@@ -46,4 +46,7 @@ func (h *Plugin) Ready(browser browserk.Browser) (bool, error) {
 // OnEvent handles passive events
 func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 	log.Info().Msg("GOT HEADER EVENT")
+	if evt.Type != browserk.EvtHTTPResponse {
+		return
+	}
 }

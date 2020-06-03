@@ -7,10 +7,18 @@ import (
 )
 
 type Evidence struct {
+	ID     []byte
+	String string
 }
 
 func (e *Evidence) Hash() []byte {
-	return []byte("")
+	if e.ID != nil {
+		return e.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(e.String))
+	e.ID = hash.Sum(nil)
+	return e.ID
 }
 
 type Report struct {
@@ -19,10 +27,11 @@ type Report struct {
 	CWE         int
 	Description string
 	Remediation string
+	Nav         *Navigation
 	Result      *NavigationResult
 	NavResultID []byte
 	Evidence    *Evidence
-	reported    time.Time
+	Reported    time.Time
 }
 
 func (r *Report) Hash() []byte {
@@ -32,7 +41,7 @@ func (r *Report) Hash() []byte {
 	hash := md5.New()
 	hash.Write([]byte(r.CheckID))
 	hash.Write([]byte{byte(r.CWE)})
-	if r.Result.ID != nil {
+	if r.Result != nil && r.Result.ID != nil {
 		r.NavResultID = r.Result.ID
 		hash.Write(r.Result.ID)
 		hash.Write(r.Result.NavigationID)
