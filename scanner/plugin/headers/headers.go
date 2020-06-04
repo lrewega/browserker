@@ -52,8 +52,10 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 	resp := evt.Response()
 	if resp.Type == "Document" {
 		if v, exist := resp.Response.Headers["x-content-type-options"]; !exist {
+			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
 			evt.BCtx.Reporter.Add(createReport(evt))
 		} else if v != "nosniff" {
+			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
 			evt.BCtx.Reporter.Add(createReport(evt))
 		}
 	}
