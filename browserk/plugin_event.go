@@ -48,6 +48,34 @@ func (e *PluginEvent) Hash() []byte {
 	return e.ID
 }
 
+func (e *PluginEvent) Request() *HTTPRequest {
+	return e.EventData.HTTPRequest
+}
+
+func (e *PluginEvent) Response() *HTTPResponse {
+	return e.EventData.HTTPResponse
+}
+
+func (e *PluginEvent) Console() *ConsoleEvent {
+	return e.EventData.Console
+}
+
+func (e *PluginEvent) Cookie() *Cookie {
+	return e.EventData.Cookie
+}
+
+func (e *PluginEvent) Storage() *StorageEvent {
+	return e.EventData.Storage
+}
+
+func (e *PluginEvent) InterceptedHTTPRequest() *InterceptedHTTPRequest {
+	return e.EventData.InterceptedHTTPRequest
+}
+
+func (e *PluginEvent) InterceptedHTTPResponse() *InterceptedHTTPResponse {
+	return e.EventData.InterceptedHTTPResponse
+}
+
 type PluginEventData struct {
 	ID                      []byte
 	HTTPRequest             *HTTPRequest

@@ -43,6 +43,7 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		leasedBrowserIDs: make(map[int64]struct{}),
 		idMutex:          &sync.RWMutex{},
 		navCh:            make(chan []*browserk.Navigation, cfg.NumBrowsers),
+		reporter:         report.New(crawl, pluginStore),
 		readyCh:          make(chan struct{}),
 	}
 }

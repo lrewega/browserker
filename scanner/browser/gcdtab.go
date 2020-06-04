@@ -48,9 +48,9 @@ type Tab struct {
 	lastNodeChangeTimeVal atomic.Value           // timestamp of when the last node change occurred atomic because multiple go routines will modify
 	domChangeHandler      DomChangeHandlerFunc   // allows the caller to be notified of DOM change events.
 	docWasUpdated         atomic.Value           // for tracking if an execution caused a new page load/transition
-
-	frameMutex *sync.RWMutex
-	frames     map[string]int // frames
+	nav                   *browserk.Navigation
+	frameMutex            *sync.RWMutex
+	frames                map[string]int // frames
 }
 
 // NewTab to use
@@ -101,10 +101,16 @@ func (t *Tab) Close() {
 }
 
 // ExecuteAction for this browser, calling js handler after it is called
-func (t *Tab) ExecuteAction(ctx context.Context, act *browserk.Action) ([]byte, bool, error) {
+func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]byte, bool, error) {
 	var err error
 	var ele *Element
 	causedLoad := false
+	t.nav = nav
+	defer func() {
+		t.nav = nil
+	}()
+
+	act := nav.Action
 	// Call JSBefore hooks
 	t.ctx.NextJSBefore(t)
 

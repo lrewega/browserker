@@ -34,7 +34,7 @@ func (h *Plugin) Config() *browserk.PluginConfig {
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenResponses: true,
-		ExecutionType:   browserk.ExecAlways,
+		ExecutionType:   browserk.ExecOncePath,
 	}
 }
 
@@ -49,5 +49,28 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 	if evt.Type != browserk.EvtHTTPResponse {
 		return
 	}
+	resp := evt.Response()
+	if resp.Type == "Document" {
+		if v, exist := resp.Response.Headers["x-content-type-options"]; !exist {
+			evt.BCtx.Reporter.Add(createReport(evt))
+		} else if v != "nosniff" {
+			evt.BCtx.Reporter.Add(createReport(evt))
+		}
+	}
+}
 
+func createReport(evt *browserk.PluginEvent) *browserk.Report {
+	report := &browserk.Report{
+		CheckID:     "1",
+		CWE:         1,
+		Description: "Missing x-content-type-nosniff",
+		Remediation: "Add the header dummy",
+		Nav:         evt.Nav,
+		Evidence: &browserk.Evidence{
+			ID:     nil,
+			String: "",
+		},
+	}
+	report.Hash()
+	return report
 }

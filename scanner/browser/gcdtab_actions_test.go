@@ -40,12 +40,14 @@ func TestActionClick(t *testing.T) {
 	}
 
 	for _, ele := range eles {
+		nav := &browserk.Navigation{}
 		act := &browserk.Action{
 			Type:    browserk.ActLeftClick,
 			Element: ele,
 		}
+		nav.Action = act
 
-		_, causedLoad, err := b.ExecuteAction(ctx, act)
+		_, causedLoad, err := b.ExecuteAction(ctx, nav)
 		if err != nil {
 			t.Fatalf("error executing click: %s\n", err)
 		}
