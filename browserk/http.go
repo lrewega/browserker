@@ -1,11 +1,14 @@
 package browserk
 
 import (
+	"crypto/md5"
+
 	"github.com/wirepair/gcd/gcdapi"
 )
 
 // HTTPRequest contains all information regarding a network request
 type HTTPRequest struct {
+	ID               []byte                   `json:"id"`
 	RequestId        string                   `json:"requestId"`                  // Request identifier.
 	LoaderId         string                   `json:"loaderId"`                   // Loader identifier. Empty string if the request is fetched from worker.
 	DocumentURL      string                   `json:"documentURL"`                // URL of the document this request is loaded for.
@@ -19,8 +22,22 @@ type HTTPRequest struct {
 	HasUserGesture   bool                     `json:"hasUserGesture,omitempty"`   // Whether the request is initiated by a user gesture. Defaults to false.
 }
 
+func (h *HTTPRequest) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Request.Method)) // TODO: make this better
+	hash.Write([]byte(h.Request.Url))
+	hash.Write([]byte(h.Request.UrlFragment))
+	hash.Write([]byte(h.DocumentURL))
+	h.ID = hash.Sum(nil)
+	return h.ID
+}
+
 // HTTPResponse contains all information regarding a network response
 type HTTPResponse struct {
+	ID        []byte                  `json:"id"`
 	RequestId string                  `json:"requestId"`           // Request identifier.
 	LoaderId  string                  `json:"loaderId"`            // Loader identifier. Empty string if the request is fetched from worker.
 	Timestamp float64                 `json:"timestamp"`           // Timestamp.
@@ -31,8 +48,21 @@ type HTTPResponse struct {
 	BodyHash  []byte                  `json:"body_hash,omitempty"` // sha1 hash of body data
 }
 
+func (h *HTTPResponse) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Response.MimeType)) // TODO: make this better
+	hash.Write([]byte(h.Response.Url))
+	hash.Write(h.BodyHash)
+	h.ID = hash.Sum(nil)
+	return h.ID
+}
+
 // InterceptedHTTPRequest contains all information regarding an intercepted request
 type InterceptedHTTPRequest struct {
+	ID             []byte                     `json:"id"`
 	RequestId      string                     `json:"requestId"`                 // Each request the page makes will have a unique id.
 	Request        *gcdapi.NetworkRequest     `json:"request"`                   // The details of the request.
 	FrameId        string                     `json:"frameId"`                   // The id of the frame that initiated the request.
@@ -43,8 +73,21 @@ type InterceptedHTTPRequest struct {
 	Modified *HTTPModifiedRequest
 }
 
+func (h *InterceptedHTTPRequest) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Request.Method)) // TODO: make this better
+	hash.Write([]byte(h.Request.Url))
+	hash.Write([]byte(h.Request.UrlFragment))
+	h.ID = hash.Sum(nil)
+	return h.ID
+}
+
 // HTTPModifiedRequest allow modifications
 type HTTPModifiedRequest struct {
+	ID        []byte                     `json:"id"`
 	RequestId string                     `json:"requestId"`          // An id the client received in requestPaused event.
 	Url       string                     `json:"url,omitempty"`      // If set, the request url will be modified in a way that's not observable by page.
 	Method    string                     `json:"method,omitempty"`   // If set, the request method is overridden.
@@ -52,8 +95,21 @@ type HTTPModifiedRequest struct {
 	Headers   []*gcdapi.FetchHeaderEntry `json:"headers,omitempty"`  // If set, overrides the request headers.
 }
 
+func (h *HTTPModifiedRequest) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Method)) // TODO: make this better
+	hash.Write([]byte(h.Url))
+	hash.Write([]byte(h.PostData))
+	h.ID = hash.Sum(nil)
+	return h.ID
+}
+
 // InterceptedHTTPResponse to pass to middleware and allow modifications to Modified
 type InterceptedHTTPResponse struct {
+	ID                  []byte                     `json:"id"`
 	RequestId           string                     `json:"requestId"`                     // Each request the page makes will have a unique id.
 	Request             *gcdapi.NetworkRequest     `json:"request"`                       // The details of the request.
 	FrameId             string                     `json:"frameId"`                       // The id of the frame that initiated the request.
@@ -67,12 +123,37 @@ type InterceptedHTTPResponse struct {
 	Modified            *HTTPModifiedResponse
 }
 
+func (h *InterceptedHTTPResponse) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Request.Method)) // TODO: make this better
+	hash.Write([]byte(h.Request.Url))
+	hash.Write([]byte(h.Request.UrlFragment))
+	hash.Write([]byte(h.ResourceType))
+	h.ID = hash.Sum(nil)
+	return h.ID
+}
+
 // HTTPModifiedResponse contains the modified http response data
 type HTTPModifiedResponse struct {
+	ID                    []byte                     `json:"id"`
 	RequestId             string                     `json:"requestId"`
 	ResponseCode          int                        `json:"responseCode"`                    // An HTTP response code.
 	ResponseHeaders       []*gcdapi.FetchHeaderEntry `json:"responseHeaders,omitempty"`       // Response headers.
 	BinaryResponseHeaders string                     `json:"binaryResponseHeaders,omitempty"` // Alternative way of specifying response headers as a \0-separated series of name: value pairs. Prefer the above method unless you need to represent some non-UTF8 values that can't be transmitted over the protocol as text.
 	Body                  []byte                     `json:"body,omitempty"`                  // A response body.
 	ResponsePhrase        string                     `json:"responsePhrase,omitempty"`        // A textual representation of responseCode. If absent, a standard phrase matching responseCode is used.
+}
+
+func (h *HTTPModifiedResponse) Hash() []byte {
+	if h.ID != nil {
+		return h.ID
+	}
+	hash := md5.New()
+	hash.Write([]byte(h.Body)) // TODO: make this better
+	hash.Write([]byte(h.ResponsePhrase))
+	h.ID = hash.Sum(nil)
+	return h.ID
 }

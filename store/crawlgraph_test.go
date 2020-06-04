@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/store"
@@ -216,5 +215,4 @@ func TestCrawlAddResults(t *testing.T) {
 	if res.DOM != "<html>nav result</html>" {
 		t.Fatalf("expected %s got [%s]", "<html>nav result</html>", res.DOM)
 	}
-	spew.Dump(res)
 }

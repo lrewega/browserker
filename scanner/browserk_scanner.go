@@ -40,9 +40,11 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		cfg:              cfg,
 		pluginStore:      pluginStore,
 		crawlGraph:       crawl,
-		reporter:         report.New(),
 		leasedBrowserIDs: make(map[int64]struct{}),
 		idMutex:          &sync.RWMutex{},
+		navCh:            make(chan []*browserk.Navigation, cfg.NumBrowsers),
+		reporter:         report.New(crawl, pluginStore),
+		readyCh:          make(chan struct{}),
 	}
 }
 
@@ -101,8 +103,6 @@ func (b *Browserk) Init(ctx context.Context) error {
 	b.mainContext.PluginServicer = pluginService
 
 	log.Info().Int("num_browsers", b.cfg.NumBrowsers).Int("max_depth", b.cfg.MaxDepth).Msg("Initializing...")
-	b.navCh = make(chan []*browserk.Navigation, b.cfg.NumBrowsers)
-	b.readyCh = make(chan struct{})
 
 	log.Logger.Info().Msg("initializing attack graph")
 	if err := b.pluginStore.Init(); err != nil {
@@ -114,6 +114,7 @@ func (b *Browserk) Init(ctx context.Context) error {
 		return err
 	}
 
+	b.reporter = report.New(b.crawlGraph, b.pluginStore)
 	b.formHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
 
 	b.initNavigation()

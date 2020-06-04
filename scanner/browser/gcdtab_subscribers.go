@@ -226,7 +226,7 @@ func (t *Tab) subscribeStorageEvents() {
 				Type:           browserk.StorageAddedEvt,
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", nil, evt))
+			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", t.nav, evt))
 			t.container.AddStorageEvent(evt)
 		}
 	})
@@ -244,7 +244,7 @@ func (t *Tab) subscribeStorageEvents() {
 				Type:           browserk.StorageUpdatedEvt,
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", nil, evt))
+			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", t.nav, evt))
 			t.container.AddStorageEvent(evt)
 		}
 	})
@@ -265,7 +265,7 @@ func (t *Tab) subscribeConsoleEvents() {
 				Observed: time.Now(),
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, nil, evt))
+			t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, t.nav, evt))
 			t.container.AddConsoleEvent(evt)
 		}
 	})
@@ -296,7 +296,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		}
 		req := GCDRequestToBrowserk(message)
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, nil, req))
+		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, t.nav, req))
 
 		if message.Params.Type == "Document" {
 			//t.ctx.Log.Info().Str("request_id", message.Params.RequestId).Msg("is Document request")
@@ -309,7 +309,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			resp := GCDResponseToBrowserk(fake, body)
 
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, req.Request.Url, nil, resp))
+			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, req.Request.Url, t.nav, resp))
 			t.container.AddResponse(resp)
 		}
 		t.container.AddRequest(req)
@@ -353,7 +353,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		resp := GCDResponseToBrowserk(message, body)
 
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, nil, resp))
+		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.nav, resp))
 
 		t.container.AddResponse(resp)
 		t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")

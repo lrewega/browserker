@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner"
@@ -54,9 +53,6 @@ func TestCrawler(t *testing.T) {
 	}
 	defer leaser.Cleanup()
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
-	bCtx.Log = &zerolog.Logger{}
-	bCtx.FormHandler = crawler.NewCrawlerFormHandler(&browserk.DefaultFormValues)
 
 	called := false
 
@@ -158,15 +154,20 @@ func TestCrawler(t *testing.T) {
 	}
 
 	for _, crawlTest := range toTest {
+		p, srv := testServer("/result/formResult", crawlTest.formHandler)
+		defer srv.Shutdown(ctx)
+
+		target := fmt.Sprintf(crawlTest.url, p)
+		targetURL, _ := url.Parse(target)
+		bCtx := mock.MakeMockContext(ctx, targetURL)
+		bCtx.FormHandler = crawler.NewCrawlerFormHandler(&browserk.DefaultFormValues)
+		bCtx.Scope = scanner.NewScopeService(targetURL)
+
 		b, port, err := pool.Take(bCtx)
 		if err != nil {
 			t.Fatalf("error taking browser: %s\n", err)
 		}
-		p, srv := testServer("/result/formResult", crawlTest.formHandler)
-		defer srv.Shutdown(ctx)
-		target := fmt.Sprintf(crawlTest.url, p)
-		targetURL, _ := url.Parse(target)
-		bCtx.Scope = scanner.NewScopeService(targetURL)
+
 		crawl := crawler.New(&browserk.Config{})
 		t.Logf("going to %s\n", target)
 		act := browserk.NewLoadURLAction(target)

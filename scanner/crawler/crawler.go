@@ -54,7 +54,7 @@ func (b *BrowserkCrawler) Process(bctx *browserk.Context, browser browserk.Brows
 	navCtx, cancel := context.WithTimeout(bctx.Ctx, time.Second*15)
 	defer cancel()
 	beforeAction := time.Now()
-	_, result.CausedLoad, err = browser.ExecuteAction(navCtx, entry.Action)
+	_, result.CausedLoad, err = browser.ExecuteAction(navCtx, entry)
 	if err != nil {
 		result.WasError = true
 		return result, nil, err
@@ -62,6 +62,11 @@ func (b *BrowserkCrawler) Process(bctx *browserk.Context, browser browserk.Brows
 
 	// capture results
 	b.buildResult(result, beforeAction, browser)
+
+	// dispatch new cookie event
+	for _, cookie := range result.Cookies {
+		bctx.PluginServicer.DispatchEvent(browserk.CookiePluginEvent(bctx, result.EndURL, entry, cookie))
+	}
 
 	// find new potential navigation entries (if isFinal)
 	potentialNavs := make([]*browserk.Navigation, 0)

@@ -1,5 +1,7 @@
 package browserk
 
+import "net/url"
+
 // Scope of requests
 type Scope int8
 
@@ -20,4 +22,5 @@ type ScopeService interface {
 	Check(uri string) Scope
 	CheckRelative(base, relative string) Scope
 	ResolveBaseHref(baseHref, candidate string) Scope
+	GetTarget() *url.URL
 }

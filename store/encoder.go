@@ -58,6 +58,11 @@ func EncodeTime(t time.Time) ([]byte, error) {
 	return msgpack.Marshal(t)
 }
 
+// EncodeStruct the whole dang thing
+func EncodeStruct(v interface{}) ([]byte, error) {
+	return msgpack.Marshal(v)
+}
+
 // DecodeNavigation takes a transaction and a nodeID and returns a navigation object or err
 func DecodeNavigation(txn *badger.Txn, predicates []*NavGraphField, nodeID []byte) (*browserk.Navigation, error) {
 	nav := &browserk.Navigation{}

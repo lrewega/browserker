@@ -5,9 +5,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/browser"
@@ -38,7 +38,8 @@ func TestStartBrowsers(t *testing.T) {
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
+	target, _ := url.Parse("http://example.com")
+	bCtx := mock.MakeMockContext(ctx, target)
 	b, _, err := pool.Take(bCtx)
 	if err != nil {
 		t.Fatalf("error taking browser: %s\n", err)
@@ -49,8 +50,8 @@ func TestStartBrowsers(t *testing.T) {
 		t.Fatalf("error getting url %s\n", err)
 	}
 
-	msgs, _ := b.GetMessages()
-	spew.Dump(msgs)
+	//msgs, _ := b.GetMessages()
+	//spew.Dump(msgs)
 }
 
 func TestHookRequests(t *testing.T) {
@@ -61,7 +62,8 @@ func TestHookRequests(t *testing.T) {
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
+	target, _ := url.Parse("http://example.com")
+	bCtx := mock.MakeMockContext(ctx, target)
 
 	hook := func(c *browserk.Context, b browserk.Browser, i *browserk.InterceptedHTTPRequest) {
 		t.Logf("inside hook!")
@@ -79,8 +81,8 @@ func TestHookRequests(t *testing.T) {
 		t.Fatalf("error getting url %s\n", err)
 	}
 
-	msgs, _ := b.GetMessages()
-	spew.Dump(msgs)
+	//msgs, _ := b.GetMessages()
+	//spew.Dump(msgs)
 }
 
 func TestGetElements(t *testing.T) {
@@ -91,7 +93,8 @@ func TestGetElements(t *testing.T) {
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
+	target, _ := url.Parse("https://angularjs.org")
+	bCtx := mock.MakeMockContext(ctx, target)
 
 	b, _, err := pool.Take(bCtx)
 	if err != nil {
@@ -104,7 +107,10 @@ func TestGetElements(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting elements: %s\n", err)
 	}
-	spew.Dump(ele)
+	if ele == nil {
+		t.Fatalf("expected form elements")
+	}
+	//spew.Dump(ele)
 }
 
 func TestGcdWindows(t *testing.T) {
@@ -114,23 +120,25 @@ func TestGcdWindows(t *testing.T) {
 	}
 	defer leaser.Cleanup()
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
 	p, srv := testServer()
 	defer srv.Shutdown(ctx)
 
-	url := fmt.Sprintf("http://localhost:%s/window_main.html", p)
-
+	u := fmt.Sprintf("http://localhost:%s/window_main.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
 	b, _, err := pool.Take(bCtx)
 	if err != nil {
 		t.Fatalf("error taking browser: %s\n", err)
 	}
 
-	err = b.Navigate(ctx, url)
+	err = b.Navigate(ctx, u)
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
 	msgs, _ := b.GetMessages()
-	spew.Dump(msgs)
+	if msgs == nil {
+		t.Fatalf("expected msgs")
+	}
 }
 
 func TestBaseHref(t *testing.T) {
@@ -140,21 +148,25 @@ func TestBaseHref(t *testing.T) {
 	}
 	defer leaser.Cleanup()
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
+
 	p, srv := testServer()
 	defer srv.Shutdown(ctx)
 
-	url := fmt.Sprintf("http://localhost:%s/basehref.html", p)
+	u := fmt.Sprintf("http://localhost:%s/basehref.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
 
 	b, _, err := pool.Take(bCtx)
 	if err != nil {
 		t.Fatalf("error taking browser: %s\n", err)
 	}
 
-	err = b.Navigate(ctx, url)
+	err = b.Navigate(ctx, u)
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
 	eles, _ := b.FindElements("base")
-	spew.Dump(eles)
+	if eles == nil {
+		t.Fatalf("expected eles")
+	}
 }

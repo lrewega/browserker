@@ -10,8 +10,11 @@ type PluginStore struct {
 	IsUniqueFn     func(evt *browserk.PluginEvent) browserk.Unique
 	IsUniqueCalled bool
 
-	AddEventFn     func(evt *browserk.PluginEvent)
+	AddEventFn     func(evt *browserk.PluginEvent) bool
 	AddEventCalled bool
+
+	AddReportFn     func(report *browserk.Report)
+	AddReportCalled bool
 
 	CloseFn     func() error
 	CloseCalled bool
@@ -30,9 +33,15 @@ func (s *PluginStore) IsUnique(evt *browserk.PluginEvent) browserk.Unique {
 }
 
 // AddEvent to the plugin store
-func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) {
+func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) bool {
 	s.AddEventCalled = true
-	s.AddEventFn(evt)
+	return s.AddEventFn(evt)
+}
+
+// AddReport to the plugin store
+func (s *PluginStore) AddReport(report *browserk.Report) {
+	s.AddReportCalled = true
+	s.AddReportFn(report)
 }
 
 // Close the plugin store
@@ -49,10 +58,17 @@ func MakeMockPluginStore() *PluginStore {
 	p.CloseFn = func() error {
 		return nil
 	}
+
 	p.IsUniqueFn = func(evt *browserk.PluginEvent) browserk.Unique {
 		return browserk.UniqueHost | browserk.UniquePath | browserk.UniqueFile | browserk.UniquePage | browserk.UniqueRequest | browserk.UniqueResponse
 	}
-	p.AddEventFn = func(evt *browserk.PluginEvent) {
+
+	p.AddEventFn = func(evt *browserk.PluginEvent) bool {
+		return true
+	}
+
+	p.AddReportFn = func(report *browserk.Report) {
+
 	}
 	return p
 }

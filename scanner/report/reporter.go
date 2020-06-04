@@ -7,20 +7,20 @@ import (
 )
 
 type Reporter struct {
-	reports map[string]map[string]*browserk.Report
+	store      browserk.PluginStorer
+	crawlGraph browserk.CrawlGrapher
 }
 
-func New() *Reporter {
-	return &Reporter{reports: make(map[string]map[string]*browserk.Report, 0)}
+func New(crawlGraph browserk.CrawlGrapher, store browserk.PluginStorer) *Reporter {
+	return &Reporter{store: store}
 }
 
 func (r *Reporter) Add(report *browserk.Report) {
-	key := report.VulnID + report.Evidence.Hash()
-	if _, exist := r.reports[report.VulnID]; exist {
-		r.reports[report.VulnID][key] = report
-	}
-	r.reports[report.VulnID] = make(map[string]*browserk.Report)
-	r.reports[report.VulnID][key] = report
+	r.store.AddReport(report)
+}
+
+func (r *Reporter) Get(reportID []byte) *browserk.Report {
+	return nil
 }
 
 func (r *Reporter) Print(writer io.Writer) {
