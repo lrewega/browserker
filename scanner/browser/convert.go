@@ -67,7 +67,7 @@ func ElementToHTMLFormElement(ele *Element) *browserk.HTMLFormElement {
 // GCDRequestToBrowserk NetworkRequestWillBeSentEvent -> HTTPRequest
 func GCDRequestToBrowserk(req *gcdapi.NetworkRequestWillBeSentEvent) *browserk.HTTPRequest {
 	p := req.Params
-	return &browserk.HTTPRequest{
+	r := &browserk.HTTPRequest{
 		RequestId:        p.RequestId,
 		LoaderId:         p.LoaderId,
 		DocumentURL:      p.DocumentURL,
@@ -80,6 +80,8 @@ func GCDRequestToBrowserk(req *gcdapi.NetworkRequestWillBeSentEvent) *browserk.H
 		FrameId:          p.FrameId,
 		HasUserGesture:   p.HasUserGesture,
 	}
+	r.Hash()
+	return r
 }
 
 // GCDResponseToBrowserk convert resp with body
@@ -89,7 +91,7 @@ func GCDResponseToBrowserk(resp *gcdapi.NetworkResponseReceivedEvent, body []byt
 	h := sha1.New()
 	h.Write(body)
 
-	return &browserk.HTTPResponse{
+	r := &browserk.HTTPResponse{
 		RequestId: p.RequestId,
 		LoaderId:  p.LoaderId,
 		Timestamp: p.Timestamp,
@@ -99,6 +101,8 @@ func GCDResponseToBrowserk(resp *gcdapi.NetworkResponseReceivedEvent, body []byt
 		Body:      body,
 		BodyHash:  h.Sum(nil),
 	}
+	r.Hash()
+	return r
 }
 
 // GCDFetchRequestToIntercepted FetchRequestPausedEvent -> InterceptedHTTPRequest
@@ -127,7 +131,7 @@ func GCDFetchRequestToIntercepted(m *gcdapi.FetchRequestPausedEvent, container *
 		}
 	}
 
-	return &browserk.InterceptedHTTPRequest{
+	i := &browserk.InterceptedHTTPRequest{
 		RequestId:      p.RequestId,
 		Request:        req,
 		FrameId:        p.FrameId,
@@ -142,12 +146,14 @@ func GCDFetchRequestToIntercepted(m *gcdapi.FetchRequestPausedEvent, container *
 			Headers:   nil,
 		},
 	}
+	i.Hash()
+	return i
 }
 
 // GCDFetchResponseToIntercepted FetchRequestPausedEvent -> InterceptedHTTPResponse
 func GCDFetchResponseToIntercepted(m *gcdapi.FetchRequestPausedEvent, body string, encoded bool) *browserk.InterceptedHTTPResponse {
 	p := m.Params
-	return &browserk.InterceptedHTTPResponse{
+	r := &browserk.InterceptedHTTPResponse{
 		RequestId:           p.RequestId,
 		Request:             p.Request,
 		FrameId:             p.FrameId,
@@ -165,6 +171,8 @@ func GCDFetchResponseToIntercepted(m *gcdapi.FetchRequestPausedEvent, body strin
 			ResponsePhrase:  "",
 		},
 	}
+	r.Hash()
+	return r
 }
 
 // GCDCookieToBrowserk NetworkCookie -> Cookie

@@ -49,4 +49,5 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 	if evt.Type != browserk.EvtHTTPResponse {
 		return
 	}
+
 }

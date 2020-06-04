@@ -68,6 +68,11 @@ func (s *ScopeService) AddExcludedURIs(inputs []string) {
 	}
 }
 
+// GetTarget returns the parsed target as url.URL
+func (s *ScopeService) GetTarget() *url.URL {
+	return s.target
+}
+
 // Check a url to see if it's in scope
 func (s *ScopeService) Check(uri string) browserk.Scope {
 	lowered := strings.ToLower(uri)

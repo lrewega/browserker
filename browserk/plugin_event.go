@@ -24,12 +24,13 @@ const (
 )
 
 type PluginEvent struct {
-	ID        []byte
-	Type      PluginEventType
-	URL       string
-	Nav       *Navigation
-	BCtx      *Context
-	EventData *PluginEventData
+	ID         []byte
+	Type       PluginEventType
+	URL        string
+	Nav        *Navigation
+	BCtx       *Context
+	EventData  *PluginEventData
+	Uniqueness Unique
 }
 
 func (e *PluginEvent) Hash() []byte {

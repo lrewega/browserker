@@ -111,6 +111,7 @@ func (s *Service) listenForEvents() {
 		select {
 		case evt := <-s.eventCh:
 			u := s.pluginStore.IsUnique(evt)
+			evt.Uniqueness = u
 			if u.Host() {
 				s.hostPlugins.Call(evt)
 			}

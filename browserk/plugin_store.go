@@ -8,6 +8,8 @@ const (
 	UniqueHost Unique = 1 << iota
 	UniquePath
 	UniqueFile
+	UniqueQuery
+	UniqueFragment
 	UniquePage
 	UniqueRequest
 	UniqueResponse
@@ -23,6 +25,14 @@ func (u Unique) Path() bool {
 
 func (u Unique) File() bool {
 	return u&UniqueFile != 0
+}
+
+func (u Unique) Query() bool {
+	return u&UniqueQuery != 0
+}
+
+func (u Unique) Fragment() bool {
+	return u&UniqueFragment != 0
 }
 
 func (u Unique) Page() bool {

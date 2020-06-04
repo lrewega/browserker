@@ -2,6 +2,7 @@ package browser_test
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"gitlab.com/browserker/browserk"
@@ -18,18 +19,18 @@ func TestActionClick(t *testing.T) {
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
-	bCtx := mock.Context(ctx)
 	p, srv := testServer()
 	defer srv.Shutdown(ctx)
 
-	url := fmt.Sprintf("http://localhost:%s/events.html", p)
-
+	u := fmt.Sprintf("http://localhost:%s/events.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
 	b, _, err := pool.Take(bCtx)
 	if err != nil {
 		t.Fatalf("error taking browser: %s\n", err)
 	}
 
-	err = b.Navigate(ctx, url)
+	err = b.Navigate(ctx, u)
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}

@@ -103,7 +103,7 @@ func MakeMockMessages() []*browserk.HTTPMessage {
 					UrlFragment: "",
 					Method:      "GET",
 					Headers: map[string]interface{}{
-						"": nil,
+						"accept": "text/html",
 					},
 					PostData:         "",
 					HasPostData:      false,
@@ -129,7 +129,7 @@ func MakeMockMessages() []*browserk.HTTPMessage {
 					Status:     200,
 					StatusText: "OK",
 					Headers: map[string]interface{}{
-						"": nil,
+						"content-type": "text/html",
 					},
 					HeadersText: "",
 					MimeType:    "text/html",
