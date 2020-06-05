@@ -420,7 +420,6 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	}
 
 	if !hasBody(p.ResponseHeaders) {
-		//spew.Dump(p)
 		respParams.ResponseHeaders = p.ResponseHeaders
 		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return

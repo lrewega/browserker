@@ -49,15 +49,7 @@ Active Plugins are directly handed the navigation actions done by a crawler and 
 
 Passive Plugins register listeners for the types of data they want (storage events, network events, cookie events) and a passive manager filters out duplicates then dispatches new events to them to process.
 
-## Crawling
-
-Crawling data is stored as a graph with properities of visited or not. This will allow for using the graph as a queue for edges
-to traverse to find new actions/pages.
-
-- Page/Action should have a status property for a state machine, with timers (maybe store a timestamp for SM) for the event that actions fail and a fail count to 'give up'
-  - Potential
-  - Queued
-  - Visited
+Uniqueness is important here because we don't want to inundate plugins with the same events over and over again. Each event type, and a unique set of properties for that event is hashed together to create keys for: host, path, file, query, fragment, request and response. This allows us to only do a O(1) look up (per uniqueness check) and return a bitmask of uniqueness types. The plugin manager can then dispatch events to plugins which have their execution policy set to whatever uniqueness level they defined.
 
 ## Authentication and Session Management
 
@@ -68,6 +60,15 @@ Supporting things like JWT should be easy (we can inject whatever we want into b
 
 TODO: What should plugins _get_? A list of injection points? A page? A browser? Register for specific events? Needs access to responses.
 Needs ability to read response for _their_ injected request.
+
+Current thinking is to replay a crawl navigation, then on the final step generate an HTML/JS page with a series of xhr/fetch functions which we can tag to be intercepted. The DevTools Fetch API would be enacted to trap the request and modify to whatever the plugin wanted.
+
+There are some questions though:
+
+1. Should we execute the _entire_ navigation path _every_ time? This is super expensive but will reduce state related issues where an attack may fail unless path A -> B -> C is followed in proper succession (think anti-CSRF tokens). Maybe replay the navigation 1 time per plugin, then have each plugin attack. Maybe have some sort of heuristic detect if we should replay the entire path again.
+2. Detect anti-CSRF tokens and replay only the necessary steps.
+3. If possible, generate JS functions that attack directly via XHR/Whatever.
+4. Call out to a standard Go http.Client and attack from that, bypassing the browser. This will work on API/REST calls, but requires us to track session state and pass it along, also adds more complexity.
 
 ### Parsing Requests
 
