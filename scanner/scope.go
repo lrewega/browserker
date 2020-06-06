@@ -73,45 +73,44 @@ func (s *ScopeService) GetTarget() *url.URL {
 	return s.target
 }
 
-// Check a url to see if it's in scope
-func (s *ScopeService) Check(uri string) browserk.Scope {
-	lowered := strings.ToLower(uri)
-	host := s.target.Hostname()
+// GetTargetHost returns the parsed target host only as url.URL
+func (s *ScopeService) GetTargetHost() *url.URL {
+	targetHost, _ := url.Parse(s.target.Scheme + "://" + s.target.Host)
+	return targetHost
+}
 
-	if strings.HasPrefix(lowered, "http") {
-		u, err := url.Parse(lowered)
-		if err != nil {
-			log.Warn().Err(err).Str("uri", lowered).Msg("failed to parse URI returning out of scope")
-			return browserk.OutOfScope
-		}
-		host = u.Hostname()
-		lowered = u.Path
-	} else if strings.HasPrefix(lowered, "//") {
-		u, err := url.Parse("http:" + lowered)
-		if err != nil {
-			log.Warn().Err(err).Str("uri", lowered).Msg("failed to parse URI returning out of scope")
-			return browserk.OutOfScope
-		}
-		host = u.Hostname()
-		lowered = u.Path
-	} else if !strings.HasPrefix(lowered, "/") {
-		lowered = "/" + lowered
+// Check a url to see if it's in scope
+func (s *ScopeService) Check(target *url.URL) browserk.Scope {
+	host := s.target.Hostname()
+	if target.Host != "" && target.Host != s.target.Host {
+		return s.CheckRelative(target.Host, target.Path)
 	}
-	return s.CheckRelative(host, lowered)
+	return s.CheckRelative(host, target.Path)
 }
 
 // ResolveBaseHref for html document links
 func (s *ScopeService) ResolveBaseHref(baseHref, candidate string) browserk.Scope {
 	var scope browserk.Scope
+
+	u, err := url.Parse(candidate)
+	if err != nil {
+		return browserk.OutOfScope
+	}
+
 	if strings.HasPrefix(candidate, "http") {
-		scope = s.Check(candidate)
+		scope = s.Check(u)
 	} else {
-		if baseHref != "" && strings.HasPrefix(baseHref, "http") {
-			if !strings.HasSuffix(baseHref, "/") {
-				baseHref += "/"
+		base := s.target
+		if baseHref != "" {
+			base, err = url.Parse(baseHref)
+			if err != nil {
+				base = s.target
+			}
+			if base.Host != u.Host {
+				log.Info().Msgf("%s != %s\n", base.Host, u.Host)
 			}
 		}
-		scope = s.Check(baseHref + candidate)
+		scope = s.Check(base.ResolveReference(u))
 	}
 	return scope
 }

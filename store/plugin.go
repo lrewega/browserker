@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	badger "github.com/dgraph-io/badger/v2"
 	"github.com/pkg/errors"
@@ -53,6 +52,10 @@ func (s *PluginStore) IsUnique(evt *browserk.PluginEvent) browserk.Unique {
 	var err error
 	var uniqueness browserk.Unique
 	uniqueKeys := s.makeUniqueEventKeys(evt)
+	if uniqueKeys == nil {
+		// URL is not valid, probably data or something, return empty uniqueness
+		return uniqueness
+	}
 
 	err = s.Store.Update(func(txn *badger.Txn) error {
 		for uniqueKey, keyVal := range uniqueKeys {
@@ -94,14 +97,23 @@ func (s *PluginStore) IsUnique(evt *browserk.PluginEvent) browserk.Unique {
 
 func (s *PluginStore) makeUniqueEventKeys(evt *browserk.PluginEvent) map[string][]byte {
 	keys := make(map[string][]byte, 0)
-	target := evt.BCtx.Scope.GetTarget()
+	target := evt.BCtx.Scope.GetTargetHost()
 
 	var eventURL = evt.URL
-	if !strings.HasPrefix(evt.URL, "http") && !strings.HasPrefix(evt.URL, "//") {
-		eventURL = target.Scheme + "://" + target.Host + evt.URL
+	u, err := url.Parse(eventURL)
+	if err != nil {
+		return nil
 	}
-	u, _ := url.Parse(eventURL)
-	host := u.Scheme + "://" + target.Host
+
+	// if the evt url is relative like: / just resolve it to the base target url.
+	if u.Host == "" {
+		u = target.ResolveReference(u)
+	} else {
+		// otherwise, clean it so we don't have /../ or // and whatever
+		u = u.ResolveReference(u)
+	}
+
+	host := u.Scheme + "://" + u.Host
 	// TODO: filepath.Dir may not be the best choice here, keep that in mind
 	path := host + filepath.Dir(u.Path)
 	file := host + u.Path

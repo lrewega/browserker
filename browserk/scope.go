@@ -19,8 +19,9 @@ type ScopeService interface {
 	AddScope(inputs []string, scope Scope)
 	AddExcludedURIs(inputs []string)
 	ExcludeForms(idsOrNames []string)
-	Check(uri string) Scope
-	CheckRelative(base, relative string) Scope
+	Check(uri *url.URL) Scope
+	CheckRelative(host, relative string) Scope
 	ResolveBaseHref(baseHref, candidate string) Scope
 	GetTarget() *url.URL
+	GetTargetHost() *url.URL
 }

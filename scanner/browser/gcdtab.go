@@ -178,14 +178,19 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	}
 
 	if t.IsTransitioning() {
-		t.waitReady(ctx, t.stabilityTimeout)
+		t.ctx.Log.Debug().Str("action", act.String()).Msg("IsTransitioning after action")
+		if err := t.waitStable(ctx, t.stabilityTimeout); err == ErrTimedOut {
+			t.ctx.Log.Debug().Str("action", act.String()).Msg("Still transitioning after stability timeout, calling stop load")
+			t.t.Page.StopLoading()
+		}
 	}
-	// Call JSAfter hooks
 
+	// Call JSAfter hooks
 	t.ctx.NextJSAfter(t)
 	if docUpdated, ok := t.docWasUpdated.Load().(bool); ok {
 		causedLoad = docUpdated
 	}
+	t.ctx.Log.Debug().Str("action", act.String()).Msg("ExecuteAction complete")
 
 	return nil, causedLoad, err
 }
@@ -193,7 +198,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 // FillForm for an action
 // TODO: handle checkbox, radio, selects etc
 func (t *Tab) FillForm(act *browserk.Action) error {
-	t.ctx.Log.Info().Msg("filling form")
+	t.ctx.Log.Info().Msg("filling form:")
 	if act.Form == nil {
 		t.ctx.Log.Info().Msg("form was nil")
 		return &ErrInvalidElement{}
@@ -206,7 +211,6 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 
 	t.ctx.Log.Info().Msgf("found form we have %d child elements", len(act.Form.ChildElements))
 	form.ScrollTo()
-
 	var submitButton *Element
 	radioClicked := false
 	checkboxClicked := false
@@ -219,6 +223,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 		}
 		if formChild.Type == browserk.INPUT && formChild.Value != "" {
 			actualElement.Focus()
+			t.ctx.Log.Info().Str("type", browserk.HTMLTypeToStrMap[formChild.Type]).Str("value", formChild.Value).Msg("filling field")
 			if err := actualElement.SendKeys(formChild.Value); err != nil {
 				t.ctx.Log.Error().Err(err).Msg("failed to send keys")
 			}
@@ -246,6 +251,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 		}
 	}
 	if submitButton == nil {
+		t.ctx.Log.Warn().Msg("Unable to submit form, could not find button")
 		return &ErrElementNotFound{}
 	}
 	t.ctx.Log.Info().Msgf("Submitting form... %s", submitButton.String())
@@ -316,7 +322,7 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 	} else {
 		for _, found := range foundElements {
 			h := ElementToHTMLElement(found)
-			t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
+			//t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
 			if bytes.Compare(h.Hash(), toFind.Hash()) == 0 && h.NodeDepth == toFind.Depth() {
 				t.ctx.Log.Info().Msg("found by nearly exact match")
 				return found, nil
@@ -373,16 +379,23 @@ func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
 
 	for _, form := range elements {
 		f := ElementToHTMLFormElement(form)
-
-		childNodes, _ := form.GetChildNodeIds()
-		for _, childID := range childNodes {
-			child, _ := t.getElementByNodeID(childID)
-			child.WaitForReady()
-			f.ChildElements = append(f.ChildElements, ElementToHTMLElement(child))
-		}
+		t.getFormChildNodes(f, form)
 		fElements = append(fElements, f)
 	}
 	return fElements, nil
+}
+
+func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) {
+	childNodes, _ := ele.GetChildNodeIds()
+	if childNodes == nil {
+		return
+	}
+	for _, childID := range childNodes {
+		child, _ := t.getElementByNodeID(childID)
+		child.WaitForReady()
+		f.ChildElements = append(f.ChildElements, ElementToHTMLElement(child))
+		t.getFormChildNodes(f, child)
+	}
 }
 
 // GetMessages that occurred since last called
@@ -428,9 +441,6 @@ func (t *Tab) GetNavURL() string {
 
 // WaitReady waits for the page to load, DOM to be stable, and no network traffic in progress
 func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
-	ticker := time.NewTicker(150 * time.Millisecond)
-	defer ticker.Stop()
-
 	navTimer := time.After(45 * time.Second)
 	// wait navigation to complete.
 	t.ctx.Log.Info().Msg("waiting for nav to complete")
@@ -439,13 +449,21 @@ func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
 		return ErrNavigationTimedOut
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-t.ctx.Ctx.Done():
+		return t.ctx.Ctx.Err()
 	case <-t.exitCh:
 		return errors.New("exiting")
 	case reason := <-t.crashedCh:
 		return errors.Wrap(ErrTabCrashed, reason)
 	case <-t.navigationCh:
 	}
+	return t.waitStable(ctx, stableAfter)
+}
 
+// waitStable waits for the DOM & network requests to stabilize
+func (t *Tab) waitStable(ctx context.Context, stableAfter time.Duration) error {
+	ticker := time.NewTicker(150 * time.Millisecond)
+	defer ticker.Stop()
 	stableTimer := time.After(5 * time.Second)
 
 	// wait for DOM & network stability
@@ -456,6 +474,8 @@ func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
 			return errors.Wrap(ErrTabCrashed, reason)
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-t.ctx.Ctx.Done():
+			return t.ctx.Ctx.Err()
 		case <-t.exitCh:
 			return ErrTabClosing
 		case <-stableTimer:
@@ -1242,6 +1262,7 @@ func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
 	t.t.Security.Enable()
 	t.t.Console.Enable()
 	t.t.Debugger.Enable(-1)
+	t.t.Page.SetInterceptFileChooserDialog(true)
 
 	t.t.Network.EnableWithParams(&gcdapi.NetworkEnableParams{
 		MaxPostDataSize:       -1,

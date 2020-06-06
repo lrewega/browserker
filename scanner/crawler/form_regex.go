@@ -152,5 +152,5 @@ var CommentTitleRe = regexp.MustCompile("title|sub(ject)")
 var CommentRe = regexp.MustCompile("comment|reply|answer|message|text|msg|resp(ponse)")
 
 var NetworkMaskRe = regexp.MustCompile("netmask|network_mask|subnet(_mask)")
-var IPAddressRe = regexp.MustCompile("ip(_addr)|ip_address|gateway|ipv4.+")
-var IPV6AddressRe = regexp.MustCompile("ipv6(_addr)|ipv6_address|ipv6.+")
+var IPAddressRe = regexp.MustCompile("ip|ip(_addr)|ip_address|gateway|ipv4.+")
+var IPV6AddressRe = regexp.MustCompile("ipv6|ipv6(_addr)|ipv6_address|ipv6.+")
