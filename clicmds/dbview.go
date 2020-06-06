@@ -31,7 +31,8 @@ func DBViewFlags() []cli.Flag {
 }
 
 func DBView(ctx *cli.Context) error {
-	crawl := store.NewCrawlGraph(ctx.String("datadir"))
+	cfg := &browserk.Config{MaxDepth: 100}
+	crawl := store.NewCrawlGraph(cfg, ctx.String("datadir"))
 	if err := crawl.Init(); err != nil {
 		log.Error().Err(err).Msg("failed to init database for viewing")
 		return err

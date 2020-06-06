@@ -9,9 +9,11 @@ import (
 	"gitlab.com/browserker/store"
 )
 
+var testConfig = mock.MakeMockConfig()
+
 func TestCrawlNavExists(t *testing.T) {
 	os.RemoveAll("testdata/crawl")
-	g := store.NewCrawlGraph("testdata/crawl")
+	g := store.NewCrawlGraph(testConfig, "testdata/crawl")
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -34,7 +36,7 @@ func TestCrawlNavExists(t *testing.T) {
 
 func TestCrawlOpenClose(t *testing.T) {
 	os.RemoveAll("testdata/oc")
-	g := store.NewCrawlGraph("testdata/oc")
+	g := store.NewCrawlGraph(testConfig, "testdata/oc")
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -55,7 +57,7 @@ func TestCrawlOpenClose(t *testing.T) {
 	testGetNavResults(t, g)
 	g.Close()
 	t.Log("REOPENING DB")
-	g = store.NewCrawlGraph("testdata/oc")
+	g = store.NewCrawlGraph(testConfig, "testdata/oc")
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -71,7 +73,7 @@ func TestCrawlOpenClose(t *testing.T) {
 
 func TestCrawlGraph(t *testing.T) {
 	os.RemoveAll("testdata/crawl")
-	g := store.NewCrawlGraph("testdata/crawl")
+	g := store.NewCrawlGraph(testConfig, "testdata/crawl")
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -107,7 +109,7 @@ func TestCrawlAddMultiple(t *testing.T) {
 	path := "testdata/multi/crawl"
 	os.RemoveAll(path)
 
-	g := store.NewCrawlGraph(path)
+	g := store.NewCrawlGraph(testConfig, path)
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -133,7 +135,7 @@ func TestCrawlAddNavigations(t *testing.T) {
 	path := "testdata/navis/crawl"
 	os.RemoveAll(path)
 
-	g := store.NewCrawlGraph(path)
+	g := store.NewCrawlGraph(testConfig, path)
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}
@@ -194,7 +196,7 @@ func TestCrawlAddResults(t *testing.T) {
 	path := "testdata/results/crawl"
 	os.RemoveAll(path)
 
-	g := store.NewCrawlGraph(path)
+	g := store.NewCrawlGraph(testConfig, path)
 	if err := g.Init(); err != nil {
 		t.Fatalf("error init graph: %s\n", err)
 	}

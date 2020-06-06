@@ -32,3 +32,8 @@ This is not fool-proof, as a backup measure we also store navigations (again uni
 Obviously a crawler must be able to click elements, and input values into elements which require input. A user configurable set of input field values can be supplied for various topics (address/name/credit card etc). When extracting forms and before generating new navigation entries, the form is analyzed for context specific information.
 
 For example it looks if an input element has an associated label and combines the name/id/label information into a string and attempts to match it against a set of regexes. In other cases where input elements have a strict type defined (datetime/email etc) it's quite easy for us to supply a legitimate value. Once all the input fields have been analyzed and values set, the data is added to the next navigation entry and stored in the graphdb for later retrieval by the crawler.
+
+### TODO:
+
+- [ ] Handle window.open (probably just hook the event and add it as a new crawl navigation entry)
+- [ ] Detect anti-CSRF tokens and mark it as a part of a Navigation

@@ -18,6 +18,7 @@ type NavGraphField struct {
 }
 
 type CrawlGraph struct {
+	cfg                 *browserk.Config
 	GraphStore          *badger.DB
 	filepath            string
 	navPredicates       []*NavGraphField
@@ -25,8 +26,8 @@ type CrawlGraph struct {
 }
 
 // NewCrawlGraph creates a new crawl graph and request store
-func NewCrawlGraph(filepath string) *CrawlGraph {
-	return &CrawlGraph{filepath: filepath}
+func NewCrawlGraph(cfg *browserk.Config, filepath string) *CrawlGraph {
+	return &CrawlGraph{cfg: cfg, filepath: filepath}
 }
 
 // Init the crawl graph and request store
@@ -270,16 +271,12 @@ func (g *CrawlGraph) GetNavigationResults() ([]*browserk.NavigationResult, error
 	return navs, err
 }
 
-// Find navigation entries by a state. iff byState == setState will we not update the
-// state (and time stamp) returns a slice of a slice of all navigations on how to get
-// to the final navigation state (TODO: Optimize with determining graph edges)
-func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavState, limit int64) [][]*browserk.Navigation {
+func (g *CrawlGraph) FindWithResults(ctx context.Context, byState, setState browserk.NavState, limit int64) [][]*browserk.NavigationWithResult {
 	// make sure limit is sane
 	if limit <= 0 || limit > 1000 {
 		limit = 1000
 	}
-
-	entries := make([][]*browserk.Navigation, 0)
+	entries := make([][]*browserk.NavigationWithResult, 0)
 	if byState == setState {
 		err := g.GraphStore.View(func(txn *badger.Txn) error {
 			nodeIDs, err := StateIterator(txn, byState, limit)
@@ -291,7 +288,7 @@ func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavSta
 				return nil
 			}
 			log.Info().Msgf("Found new nodeIDs for nav, getting paths: %#v", nodeIDs)
-			entries, err = PathToNavIDs(txn, g.navPredicates, nodeIDs)
+			entries, err = g.PathToNavIDsWithResults(txn, nodeIDs)
 			return err
 		})
 
@@ -315,7 +312,64 @@ func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavSta
 			if err != nil {
 				return err
 			}
-			entries, err = PathToNavIDs(txn, g.navPredicates, nodeIDs)
+			entries, err = g.PathToNavIDsWithResults(txn, nodeIDs)
+			return errors.Wrap(err, "path to navs")
+		})
+
+		// TODO: retry on transaction conflict errors
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get path to navs")
+		}
+	}
+	return entries
+}
+
+// Find navigation entries by a state. iff byState == setState will we not update the
+// state (and time stamp) returns a slice of a slice of all navigations on how to get
+// to the final navigation state (TODO: Optimize with determining graph edges)
+func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavState, limit int64) [][]*browserk.Navigation {
+	// make sure limit is sane
+	if limit <= 0 || limit > 1000 {
+		limit = 1000
+	}
+
+	entries := make([][]*browserk.Navigation, 0)
+	if byState == setState {
+		err := g.GraphStore.View(func(txn *badger.Txn) error {
+			nodeIDs, err := StateIterator(txn, byState, limit)
+			if err != nil {
+				return err
+			}
+			if nodeIDs == nil {
+				log.Info().Msgf("No new nodeIDs")
+				return nil
+			}
+			log.Info().Msgf("Found new nodeIDs for nav, getting paths: %#v", nodeIDs)
+			entries, err = g.PathToNavIDs(txn, nodeIDs)
+			return err
+		})
+
+		// TODO: retry on transaction conflict errors
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get path to navs")
+		}
+	} else {
+		err := g.GraphStore.Update(func(txn *badger.Txn) error {
+			nodeIDs, err := StateIterator(txn, byState, limit)
+			if err != nil {
+				return err
+			}
+
+			if nodeIDs == nil {
+				log.Info().Msgf("No new nodeIDs")
+				return nil
+			}
+
+			err = UpdateState(txn, setState, nodeIDs)
+			if err != nil {
+				return err
+			}
+			entries, err = g.PathToNavIDs(txn, nodeIDs)
 			return errors.Wrap(err, "path to navs")
 		})
 

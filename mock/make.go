@@ -13,7 +13,7 @@ func MakeMockConfig() *browserk.Config {
 		URL:             "http://localhost:8080/",
 		AllowedHosts:    []string{"localhost"},
 		NumBrowsers:     5,
-		MaxDepth:        5,
+		MaxDepth:        15,
 		FormData:        &browserk.DefaultFormValues,
 		DisabledPlugins: nil,
 	}
