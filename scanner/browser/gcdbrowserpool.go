@@ -42,7 +42,7 @@ var startupFlags = []string{
 	"--safebrowsing-disable-download-protection",
 	"--deterministic-fetch",
 	"--password-store=basic",
-	"--headless",
+	//"--headless",
 	"about:blank",
 }
 

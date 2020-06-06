@@ -51,7 +51,7 @@ func (b *BrowserkCrawler) Process(bctx *browserk.Context, browser browserk.Brows
 	}
 
 	// execute the action
-	navCtx, cancel := context.WithTimeout(bctx.Ctx, time.Second*15)
+	navCtx, cancel := context.WithTimeout(bctx.Ctx, time.Second*45)
 	defer cancel()
 	beforeAction := time.Now()
 	_, result.CausedLoad, err = browser.ExecuteAction(navCtx, entry)
@@ -118,6 +118,10 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 
 	if aElements, err := browser.FindElements("a"); err == nil {
 		for _, ele := range aElements {
+			// skip empty <a> tags
+			if ele.Attributes["href"] == "" {
+				continue
+			}
 			scope := bctx.Scope.ResolveBaseHref(baseHref, ele.Attributes["href"])
 			if scope == browserk.InScope {
 				diff.Add(browserk.A, ele.Hash())
@@ -179,6 +183,12 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 	bctx.Log.Debug().Int("link_count", len(aElements)).Msg("found links")
 	for _, a := range aElements {
+		href := a.GetAttribute(("href"))
+		// skip a elements that don't have an href field, if they have event listeners bound, FindInteractables will pick them up.
+		// for example <a name="something"> isn't worth clicking/going to.
+		if href == "" {
+			continue
+		}
 		scope := bctx.Scope.ResolveBaseHref(baseHref, a.GetAttribute("href"))
 		if scope == browserk.InScope && !diff.Has(browserk.A, a.Hash()) {
 			bctx.Log.Info().Str("baseHref", baseHref).Str("href", a.Attributes["href"]).Msg("in scope, adding")
@@ -230,6 +240,5 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 			}
 		}
 	}
-	// todo pull out additional clickable/whateverable elements
 	return navs
 }

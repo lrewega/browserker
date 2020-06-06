@@ -55,21 +55,109 @@ func TestCrawler(t *testing.T) {
 	ctx := context.Background()
 
 	called := false
-
-	simpleCallFunc := func(c *gin.Context) {
-		called = true
-		resp := "<html><body>You made it!</body></html>"
-		c.Writer.WriteHeader(http.StatusOK)
-		c.Writer.Write([]byte(resp))
-	}
-
+	/*
+		simpleCallFunc := func(c *gin.Context) {
+			called = true
+			resp := "<html><body>You made it!</body></html>"
+			c.Writer.WriteHeader(http.StatusOK)
+			c.Writer.Write([]byte(resp))
+		}
+	*/
 	toTest := [...]crawlerTests{
+		/*
+				{
+					func(c *gin.Context) {
+						fname, _ := c.GetQuery("fname")
+						lname, _ := c.GetQuery("lname")
+
+						if fname == "Test" && lname == "User" {
+							called = true
+						}
+
+						resp := "<html><body>You made it!</body></html>"
+						c.Writer.WriteHeader(http.StatusOK)
+						c.Writer.Write([]byte(resp))
+					},
+					"http://localhost:%s/forms/",
+				},
+				{
+					func(c *gin.Context) {
+						fname, _ := c.GetQuery("fname")
+						lname, _ := c.GetQuery("lname")
+						car, _ := c.GetQuery("cars")
+
+						if fname == "Test" && lname == "User" && car == "volvo" {
+							called = true
+						}
+
+						resp := "<html><body>You made it!</body></html>"
+						c.Writer.WriteHeader(http.StatusOK)
+						c.Writer.Write([]byte(resp))
+					},
+					"http://localhost:%s/forms/select.html",
+				},
+				{
+					func(c *gin.Context) {
+						fname, _ := c.GetQuery("fname")
+						lname, _ := c.GetQuery("lname")
+						rad, _ := c.GetQuery("rad")
+
+						if fname == "Test" && lname == "User" && rad == "rad1" {
+							called = true
+						}
+
+						resp := "<html><body>You made it!</body></html>"
+						c.Writer.WriteHeader(http.StatusOK)
+						c.Writer.Write([]byte(resp))
+					},
+					"http://localhost:%s/forms/radio.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmouseclick.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmousedblclick.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmousedown.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmouseenter.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmouseleave.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmouseout.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/onmouseup.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/keydown.html",
+				},
+				{
+					simpleCallFunc,
+					"http://localhost:%s/forms/keypress.html",
+				},
+			{
+				simpleCallFunc,
+				"http://localhost:%s/forms/keyup.html",
+			},
+		*/
 		{
 			func(c *gin.Context) {
-				fname, _ := c.GetQuery("fname")
-				lname, _ := c.GetQuery("lname")
-
-				if fname == "Test" && lname == "User" {
+				username, _ := c.GetPostForm("username")
+				password, _ := c.GetPostForm("password")
+				if username == "testuser" && password == "testP@assw0rd1" {
 					called = true
 				}
 
@@ -77,79 +165,7 @@ func TestCrawler(t *testing.T) {
 				c.Writer.WriteHeader(http.StatusOK)
 				c.Writer.Write([]byte(resp))
 			},
-			"http://localhost:%s/forms/",
-		},
-		{
-			func(c *gin.Context) {
-				fname, _ := c.GetQuery("fname")
-				lname, _ := c.GetQuery("lname")
-				car, _ := c.GetQuery("cars")
-
-				if fname == "Test" && lname == "User" && car == "volvo" {
-					called = true
-				}
-
-				resp := "<html><body>You made it!</body></html>"
-				c.Writer.WriteHeader(http.StatusOK)
-				c.Writer.Write([]byte(resp))
-			},
-			"http://localhost:%s/forms/select.html",
-		},
-		{
-			func(c *gin.Context) {
-				fname, _ := c.GetQuery("fname")
-				lname, _ := c.GetQuery("lname")
-				rad, _ := c.GetQuery("rad")
-
-				if fname == "Test" && lname == "User" && rad == "rad1" {
-					called = true
-				}
-
-				resp := "<html><body>You made it!</body></html>"
-				c.Writer.WriteHeader(http.StatusOK)
-				c.Writer.Write([]byte(resp))
-			},
-			"http://localhost:%s/forms/radio.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmouseclick.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmousedblclick.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmousedown.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmouseenter.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmouseleave.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmouseout.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmouseup.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/keydown.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/keypress.html",
-		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/keyup.html",
+			"http://localhost:%s/forms/login1.html",
 		},
 	}
 

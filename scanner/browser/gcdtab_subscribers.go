@@ -278,6 +278,10 @@ func (t *Tab) subscribeDialogEvents() {
 			t.t.Page.HandleJavaScriptDialog(true, "browserk")
 		}
 	})
+
+	t.t.Subscribe("Page.fileChooserOpened", func(target *gcd.ChromeTarget, payload []byte) {
+		t.ctx.Log.Info().Msgf("fileChooserOpened: %s\n", string(payload))
+	})
 }
 
 // TODO: Need to account for redirects since they use the same requestIDs and don't seem to allow retrieving their bodies

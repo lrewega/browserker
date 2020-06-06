@@ -17,7 +17,7 @@ type ScopeService struct {
 	ExcludeFormsFn     func(idsOrNames []string)
 	ExcludeFormsCalled bool
 
-	CheckFn     func(uri string) browserk.Scope
+	CheckFn     func(uri *url.URL) browserk.Scope
 	CheckCalled bool
 
 	CheckRelativeFn     func(base, relative string) browserk.Scope
@@ -28,6 +28,9 @@ type ScopeService struct {
 
 	GetTargetFn     func() *url.URL
 	GetTargetCalled bool
+
+	GetTargetHostFn     func() *url.URL
+	GetTargetHostCalled bool
 }
 
 // AddScope to the scope service
@@ -49,8 +52,14 @@ func (s *ScopeService) GetTarget() *url.URL {
 	return s.GetTargetFn()
 }
 
+// GetTargetHost returns the parsed target host as url.URL
+func (s *ScopeService) GetTargetHost() *url.URL {
+	s.GetTargetHostCalled = true
+	return s.GetTargetHostFn()
+}
+
 // Check a url to see if it's in scope
-func (s *ScopeService) Check(uri string) browserk.Scope {
+func (s *ScopeService) Check(uri *url.URL) browserk.Scope {
 	s.CheckCalled = true
 	return s.Check(uri)
 }
@@ -81,6 +90,11 @@ func MakeMockScopeService(target *url.URL) *ScopeService {
 	s := &ScopeService{}
 	s.GetTargetFn = func() *url.URL {
 		return target
+	}
+
+	s.GetTargetHostFn = func() *url.URL {
+		u, _ := url.Parse(target.Scheme + "://" + target.Host)
+		return u
 	}
 	return s
 }

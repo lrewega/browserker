@@ -64,7 +64,9 @@ func TestScope(t *testing.T) {
 		},
 	}
 	for _, in := range inputs {
-		ret := s.Check(in.in)
+		u, _ := url.Parse(in.in)
+		t.Logf("%v\n", u)
+		ret := s.Check(u)
 		if ret != in.expected {
 			t.Fatalf("%v did not match %v for %s\n", ret, in.expected, in.in)
 		}
@@ -92,7 +94,8 @@ func TestScope(t *testing.T) {
 	s.AddScope(ignored, browserk.OutOfScope)
 	s.AddExcludedURIs([]string{"/offscanpages/statistics.php"})
 	for _, in := range inputs {
-		ret := s.Check(in.in)
+		u, _ := url.Parse(in.in)
+		ret := s.Check(u)
 		if ret != in.expected {
 			t.Fatalf("%v did not match %v for %s\n", ret, in.expected, in.in)
 		}
@@ -103,5 +106,49 @@ func TestScope(t *testing.T) {
 			}
 		}
 
+	}
+}
+
+func TestResolveBaseHref(t *testing.T) {
+	target, _ := url.Parse("http://example.com")
+
+	allowed := []string{"example.com"}
+	ignored := []string{"bad.com"}
+	s := scanner.NewScopeService(target)
+	s.AddScope(allowed, browserk.InScope)
+	s.AddScope(ignored, browserk.OutOfScope)
+	s.AddExcludedURIs([]string{"/log-out", "/signout"})
+
+	var inputs = []struct {
+		baseHref string
+		in       string
+		expected browserk.Scope
+	}{
+		{
+			"",
+			"/forms/addAddress",
+			browserk.InScope,
+		},
+		{
+			"http://example.com",
+			"/",
+			browserk.InScope,
+		},
+		{
+			"http://bad.com",
+			"/",
+			browserk.OutOfScope,
+		},
+		{
+			"http://example.com",
+			"http://bad.com",
+			browserk.OutOfScope,
+		},
+	}
+	for _, in := range inputs {
+		ret := s.ResolveBaseHref(in.baseHref, in.in)
+		if ret != in.expected {
+			t.Fatalf("%v did not match %v for %s\n", ret, in.expected, in.in)
+		}
 	}
 }
