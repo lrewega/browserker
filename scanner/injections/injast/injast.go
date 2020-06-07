@@ -24,31 +24,32 @@ type (
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		NamePos Pos // identifier position
-		Name    string    // identifier name
+		NamePos Pos    // identifier position
+		Name    string // identifier name
 	}
 
 	// An IndexExpr node represents an expression followed by an index.
 	IndexExpr struct {
-		X      Expr      // expression
-		Lbrack Pos // position of "["
-		Index  Expr      // index expression
-		Rbrack Pos // position of "]"
+		X      Expr // expression
+		Lbrack Pos  // position of "["
+		Index  Expr // index expression
+		Rbrack Pos  // position of "]"
 	}
 
 	// A KeyValueExpr node represents (key : value) pairs
 	// in composite literals.
 	//
 	KeyValueExpr struct {
-		Key   Expr
-		Colon Pos // position of ":"
-		Value Expr
+		Key     Expr
+		Sep     Pos  // position of separator
+		SepChar rune // separator value
+		Value   Expr
 	}
 )
 
-func (*Ident) exprNode()          {}
-func (x *Ident) Pos() Pos    { return x.NamePos }
-func (x *Ident) End() Pos   { return Pos(int(x.NamePos) + len(x.Name)) }
+func (*Ident) exprNode()  {}
+func (x *Ident) Pos() Pos { return x.NamePos }
+func (x *Ident) End() Pos { return Pos(int(x.NamePos) + len(x.Name)) }
 func (id *Ident) String() string {
 	if id != nil {
 		return id.Name
@@ -56,10 +57,10 @@ func (id *Ident) String() string {
 	return "<nil>"
 }
 
-func (*IndexExpr) exprNode()      {}
-func (x *IndexExpr) Pos() Pos      { return x.X.Pos() }
-func (x *IndexExpr) End() Pos      { return x.Rbrack + 1 }
+func (*IndexExpr) exprNode()  {}
+func (x *IndexExpr) Pos() Pos { return x.X.Pos() }
+func (x *IndexExpr) End() Pos { return x.Rbrack + 1 }
 
-func (*KeyValueExpr) exprNode()   {}
-func (x *KeyValueExpr) Pos() Pos   { return x.Key.Pos() }
-func (x *KeyValueExpr) End() Pos   { return x.Value.End() }
+func (*KeyValueExpr) exprNode()  {}
+func (x *KeyValueExpr) Pos() Pos { return x.Key.Pos() }
+func (x *KeyValueExpr) End() Pos { return x.Value.End() }

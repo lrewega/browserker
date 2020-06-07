@@ -53,6 +53,8 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 		return
 	}
 	log.Info().Msg("GOT COOKIE EVENT")
+	h.httpCookieCheck(evt)
+	h.secureCookieCheck(evt)
 
 }
 

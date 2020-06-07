@@ -54,7 +54,7 @@ func DBView(ctx *cli.Context) error {
 					if m.Request == nil {
 						continue
 					}
-					fmt.Printf("URL visited: %s\n", m.Request.DocumentURL)
+					fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url)
 				}
 			}
 		}

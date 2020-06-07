@@ -21,28 +21,14 @@ func (b *BrowserkAttacker) Init() error {
 	return nil
 }
 
-func (b *BrowserkAttacker) Attack(bctx *browserk.Context, browser browserk.Browser, entry *browserk.Navigation, isFinal bool) (*browserk.NavigationResult, error) {
+func (b *BrowserkAttacker) Attack(bctx *browserk.Context, browser browserk.Browser, entry *browserk.NavigationWithResult, isFinal bool) (*browserk.NavigationResult, error) {
 	// execute the action
 	navCtx, cancel := context.WithTimeout(bctx.Ctx, time.Second*45)
 	defer cancel()
 
-	errors := make([]error, 0)
-	startURL, err := browser.GetURL()
+	_, _, err := browser.ExecuteAction(navCtx, entry.Navigation)
 	if err != nil {
-		errors = append(errors, err)
-	}
-
-	result := &browserk.NavigationResult{
-		ID:           nil,
-		NavigationID: entry.ID,
-		StartURL:     startURL,
-		Errors:       errors,
-	}
-
-	_, result.CausedLoad, err = browser.ExecuteAction(navCtx, entry)
-	if err != nil {
-		result.WasError = true
-		return result, err
+		return nil, err
 	}
 	return nil, nil
 }

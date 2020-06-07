@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"gitlab.com/browserker/browserk"
+	"gitlab.com/browserker/scanner/attack"
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
@@ -26,6 +27,7 @@ type Browserk struct {
 	browsers     browserk.BrowserPool
 	formHandler  browserk.FormHandler
 	navCh        chan []*browserk.Navigation
+	attackCh     chan []*browserk.NavigationWithResult
 	readyCh      chan struct{}
 	stateMonitor *time.Ticker
 	mainContext  *browserk.Context
@@ -43,6 +45,7 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		leasedBrowserIDs: make(map[int64]struct{}),
 		idMutex:          &sync.RWMutex{},
 		navCh:            make(chan []*browserk.Navigation, cfg.NumBrowsers),
+		attackCh:         make(chan []*browserk.NavigationWithResult, cfg.NumBrowsers),
 		reporter:         report.New(crawl, pluginStore),
 		readyCh:          make(chan struct{}),
 	}
@@ -174,13 +177,27 @@ func (b *Browserk) Start() error {
 		log.Info().Msg("searching for new navigation entries")
 		entries := b.crawlGraph.Find(b.mainContext.Ctx, browserk.NavUnvisited, browserk.NavInProcess, int64(b.cfg.NumBrowsers))
 		if entries == nil || len(entries) == 0 && b.browsers.Leased() == 0 {
-			log.Info().Msg("no more crawler entries or active browsers")
-			time.Sleep(time.Second * 60)
-			return nil
+			log.Info().Msg("no more crawler entries or active browsers, activating attack phase")
+			break
+
 		}
 		log.Info().Int("entries", len(entries)).Msg("Found entries")
 		for _, nav := range entries {
 			b.navCh <- nav
+		}
+		log.Info().Msg("Waiting for crawler to complete")
+		<-b.readyCh
+	}
+
+	for {
+		entries := b.crawlGraph.FindWithResults(b.mainContext.Ctx, browserk.NavVisited, browserk.NavInProcess, int64(b.cfg.NumBrowsers))
+		if entries == nil || len(entries) == 0 && b.browsers.Leased() == 0 {
+			log.Info().Msg("no more crawler entries or active browsers, scan complete")
+			return nil
+		}
+		log.Info().Int("entries", len(entries)).Msg("Found entries")
+		for _, nav := range entries {
+			b.attackCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
 		<-b.readyCh
@@ -200,7 +217,9 @@ func (b *Browserk) processEntries() {
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing nav")
 			go b.crawl(nav)
 			log.Info().Msg("Crawler to complete")
-			//
+		case nav := <-b.attackCh:
+			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing attack nav")
+			go b.attack(nav)
 		}
 	}
 }
@@ -258,6 +277,32 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 			navCtx.Log.Error().Err(err).Msg("failed to add result")
 		}
 	}
+	navCtx.Log.Info().Msg("closing browser")
+	browser.Close()
+	b.browsers.Return(navCtx.Ctx, port)
+	b.readyCh <- struct{}{}
+}
+
+func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
+	navCtx := b.mainContext.Copy()
+
+	browser, port, err := b.browsers.Take(navCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to take browser")
+		return
+	}
+
+	b.addLeased(browser.ID())
+	defer b.removeLeased(browser.ID())
+
+	attacker := attack.New(b.cfg)
+	if err := attacker.Init(); err != nil {
+		b.browsers.Return(navCtx.Ctx, port)
+		log.Error().Err(err).Msg("failed to init attacker")
+		return
+	}
+
+	
 	navCtx.Log.Info().Msg("closing browser")
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)

@@ -49,6 +49,7 @@ type Plugin interface {
 	ID() string
 	Config() *PluginConfig
 	Options() *PluginOpts
+	//Attack()
 	Ready(browser Browser) (bool, error) // ready for injection or whatever, ret true if injected
 	OnEvent(evt *PluginEvent)
 }

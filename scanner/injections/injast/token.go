@@ -3,6 +3,7 @@ package injast
 import (
 	"strconv"
 )
+
 // Token is the set of lexical tokens of the Go programming language.
 type Token int
 
@@ -15,33 +16,36 @@ const (
 	literal_beg
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
-	IDENT  // main
-	INT    // 12345
-	FLOAT  // 123.45
-	IMAG   // 123.45i
-	CHAR   // 'a'
-	STRING // "abc"
+	IDENT         // main
+	INT           // 12345
+	FLOAT         // 123.45
+	IMAG          // 123.45i
+	DOTDOT        // ..
+	SQUOTE_STRING // 'a'
+	DQUOTE_STRING // "abc"
 	literal_end
-	
+
 	delim_beg
-	ASSIGN // =
-	SLASH // /
-	AND     // &
-	LSS    // <
-	GTR    // >
-	LPAREN // (
-	LBRACK // [
-	LBRACE // {
-	COMMA  // ,
-	PERIOD // .
+	ASSIGN    // =
+	SLASH     // /
+	AND       // &
+	LSS       // <
+	GTR       // >
+	LPAREN    // (
+	LBRACK    // [
+	LBRACE    // {
+	COMMA     // ,
+	PERIOD    // .
 	RPAREN    // )
 	RBRACK    // ]
 	RBRACE    // }
 	SEMICOLON // ;
 	COLON     // :
-	SQUOTE // '
-	DQUOTE // "
-	BACKTICK // `
+	SQUOTE    // '
+	DQUOTE    // "
+	BACKTICK  // `
+	QUESTION  // ?
+	HASH      // #
 	delim_end
 )
 
@@ -49,31 +53,33 @@ var tokens = [...]string{
 	ILLEGAL: "ILLEGAL",
 	EOF:     "EOF",
 
-	IDENT:  "IDENT",
-	INT:    "INT",
-	FLOAT:  "FLOAT",
-	IMAG:   "IMAG",
-	CHAR:   "CHAR",
-	STRING: "STRING",
+	IDENT:         "IDENT",
+	INT:           "INT",
+	FLOAT:         "FLOAT",
+	IMAG:          "IMAG",
+	SQUOTE_STRING: "SQUOTE_STRING",
+	DQUOTE_STRING: "DQUOTE_STRING",
 
-	ASSIGN: "=",
-	SLASH: "/",
-	AND:     "&",
-	LSS:    "<",
-	GTR:    ">",
-	LPAREN: "(",
-	LBRACK: "[",
-	LBRACE: "{",
-	COMMA:  ",",
-	PERIOD: ".",
+	ASSIGN:    "=",
+	SLASH:     "/",
+	AND:       "&",
+	LSS:       "<",
+	GTR:       ">",
+	LPAREN:    "(",
+	LBRACK:    "[",
+	LBRACE:    "{",
+	COMMA:     ",",
+	PERIOD:    ".",
 	RPAREN:    ")",
 	RBRACK:    "]",
 	RBRACE:    "}",
 	SEMICOLON: ";",
 	COLON:     ":",
-	SQUOTE: "'",
-	DQUOTE: `"`,
-	BACKTICK: "`",
+	SQUOTE:    "'",
+	DQUOTE:    `"`,
+	BACKTICK:  "`",
+	QUESTION:  "?",
+	HASH:      "#",
 }
 
 // String returns the string corresponding to the token tok.
