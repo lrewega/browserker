@@ -12,6 +12,7 @@ type Mode int
 const (
 	Path Mode = iota
 	Query
+	Fragment
 	Headers
 	Body
 )
@@ -19,7 +20,7 @@ const (
 type Scanner struct {
 	src []byte // source
 
-	Mode Mode // mode (Query/Headers/Body)
+	mode Mode // mode (Query/Headers/Body)
 
 	// scanning state
 	ch       rune // current character
@@ -30,61 +31,79 @@ type Scanner struct {
 	ErrorCount int // number of errors encountered
 }
 
-func New(src []byte) *Scanner {
-	return &Scanner{src: src}
+func New() *Scanner {
+	return &Scanner{}
+}
+
+func (s *Scanner) Init(src []byte, mode Mode) {
+	s.src = src
+	s.mode = mode
+	s.offset = 0
+	s.rdOffset = 0
+	s.next()
 }
 
 func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
 	pos = injast.Pos(s.offset)
-	switch ch := s.ch; {
-	case isLetter(ch):
-		lit = s.scanLiteral()
-	case ch == '.' && rune(s.peek()) == '.':
-		tok, lit = injast.DOTDOT, ".."
-	default:
-		s.next() // always make progress
-		switch ch {
-		case '?':
-			tok = injast.QUESTION
-			lit = s.scanLiteral()
-		case '#':
-			tok = injast.HASH
+
+	switch s.mode {
+	case Path:
+		switch s.ch {
 		case '/':
 			tok = injast.SLASH
+		case '?':
+			tok = injast.QUESTION
+			s.mode = Query
+		case '#':
+			tok = injast.HASH
+			s.mode = Fragment
+		case ';':
+			tok = injast.SEMICOLON
+		case -1:
+			tok = injast.EOF
+		default:
+			tok, lit = injast.IDENT, s.scanLiteral()
+		}
+		if tok != injast.IDENT {
+			s.next()
+		}
+		return pos, tok, lit
+	case Query:
+		switch s.ch {
+		case -1:
+			tok = injast.EOF
+		case '&':
+			tok = injast.AND
 		case '=':
 			tok = injast.ASSIGN
+		case '#':
+			tok = injast.HASH
+			s.mode = Fragment
 		case '[':
 			tok = injast.LBRACK
 		case ']':
 			tok = injast.RBRACK
-		case '{':
-			tok = injast.LBRACE
-		case '}':
-			tok = injast.RBRACE
-		case '<':
-			tok = injast.LSS
-		case '>':
-			tok = injast.GTR
-		case ':':
-			tok = injast.COLON
-		case '\'':
-			tok = injast.SQUOTE
-		case '"':
-			tok = injast.DQUOTE
-		case '&':
-			tok = injast.DQUOTE
-		case ',':
-			tok = injast.COMMA
+		default:
+			tok, lit = injast.IDENT, s.scanLiteral()
 		}
+		if tok != injast.IDENT {
+			s.next()
+		}
+		return pos, tok, lit
 	}
+
 	return pos, tok, lit
 }
 
 func (s *Scanner) scanLiteral() string {
 	offs := s.offset
-	switch s.Mode {
+	switch s.mode {
 	case Path:
-		for !isPathToken(s.ch) {
+		for !isPathToken(s.ch) && s.ch != -1 {
+			s.next()
+		}
+	case Query:
+		for !isQueryToken(s.ch) && s.ch != -1 {
 			s.next()
 		}
 	default:
@@ -124,7 +143,11 @@ func (s *Scanner) next() {
 
 // Denotes the end of a path
 func isPathToken(ch rune) bool {
-	return ch == '/' || ch == '?' || ch == ';'
+	return ch == '/' || ch == '?' || ch == ';' || ch == '#'
+}
+
+func isQueryToken(ch rune) bool {
+	return ch == '=' || ch == '&'
 }
 
 func isLetter(ch rune) bool {
