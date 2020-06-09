@@ -16,13 +16,10 @@ const (
 	literal_beg
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
-	IDENT         // main
-	INT           // 12345
-	FLOAT         // 123.45
-	IMAG          // 123.45i
-	DOTDOT        // ..
-	SQUOTE_STRING // 'a'
-	DQUOTE_STRING // "abc"
+	IDENT // main
+	INT   // 12345
+	FLOAT // 123.45
+	IMAG  // 123.45i
 	literal_end
 
 	delim_beg
@@ -46,6 +43,7 @@ const (
 	BACKTICK  // `
 	QUESTION  // ?
 	HASH      // #
+	SPACE     // ' '
 	delim_end
 )
 
@@ -53,12 +51,10 @@ var tokens = [...]string{
 	ILLEGAL: "ILLEGAL",
 	EOF:     "EOF",
 
-	IDENT:         "IDENT",
-	INT:           "INT",
-	FLOAT:         "FLOAT",
-	IMAG:          "IMAG",
-	SQUOTE_STRING: "SQUOTE_STRING",
-	DQUOTE_STRING: "DQUOTE_STRING",
+	IDENT: "IDENT",
+	INT:   "INT",
+	FLOAT: "FLOAT",
+	IMAG:  "IMAG",
 
 	ASSIGN:    "=",
 	SLASH:     "/",
@@ -80,6 +76,7 @@ var tokens = [...]string{
 	BACKTICK:  "`",
 	QUESTION:  "?",
 	HASH:      "#",
+	SPACE:     " ",
 }
 
 // String returns the string corresponding to the token tok.
