@@ -5,11 +5,12 @@ import (
 
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/scanner"
+	"gitlab.com/browserker/scanner/injections/token"
 )
 
 type expected struct {
 	Pos injast.Pos
-	Tok injast.Token
+	Tok token.Token
 	Lit string
 }
 
@@ -22,107 +23,107 @@ func TestScan(t *testing.T) {
 		{
 			[]byte("/path1/path2/jlk?x=1"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, "path1"},
-				{6, injast.SLASH, ""},
-				{7, injast.IDENT, "path2"},
-				{12, injast.SLASH, ""},
-				{13, injast.IDENT, "jlk"},
-				{16, injast.QUESTION, ""},
-				{17, injast.IDENT, "x"},
-				{18, injast.ASSIGN, ""},
-				{19, injast.IDENT, "1"},
-				{20, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, "path1"},
+				{6, token.SLASH, ""},
+				{7, token.IDENT, "path2"},
+				{12, token.SLASH, ""},
+				{13, token.IDENT, "jlk"},
+				{16, token.QUESTION, ""},
+				{17, token.IDENT, "x"},
+				{18, token.ASSIGN, ""},
+				{19, token.IDENT, "1"},
+				{20, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/123"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, "123"},
-				{4, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, "123"},
+				{4, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/f_b/"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, "f_b"},
-				{4, injast.SLASH, ""},
-				{5, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, "f_b"},
+				{4, token.SLASH, ""},
+				{5, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/,f_b/"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, ",f_b"},
-				{5, injast.SLASH, ""},
-				{6, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, ",f_b"},
+				{5, token.SLASH, ""},
+				{6, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("#/,f_b/"),
 			[]expected{
-				{0, injast.HASH, ""},
-				{1, injast.SLASH, ""},
-				{2, injast.IDENT, ",f_b"},
-				{6, injast.SLASH, ""},
-				{7, injast.EOF, ""},
+				{0, token.HASH, ""},
+				{1, token.SLASH, ""},
+				{2, token.IDENT, ",f_b"},
+				{6, token.SLASH, ""},
+				{7, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/x?a[0]=1&a[1]=2"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, "x"},
-				{2, injast.QUESTION, ""},
-				{3, injast.IDENT, "a"},
-				{4, injast.LBRACK, ""},
-				{5, injast.IDENT, "0"},
-				{6, injast.RBRACK, ""},
-				{7, injast.ASSIGN, ""},
-				{8, injast.IDENT, "1"},
-				{9, injast.AND, ""},
-				{10, injast.IDENT, "a"},
-				{11, injast.LBRACK, ""},
-				{12, injast.IDENT, "1"},
-				{13, injast.RBRACK, ""},
-				{14, injast.ASSIGN, ""},
-				{15, injast.IDENT, "2"},
-				{16, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, "x"},
+				{2, token.QUESTION, ""},
+				{3, token.IDENT, "a"},
+				{4, token.LBRACK, ""},
+				{5, token.IDENT, "0"},
+				{6, token.RBRACK, ""},
+				{7, token.ASSIGN, ""},
+				{8, token.IDENT, "1"},
+				{9, token.AND, ""},
+				{10, token.IDENT, "a"},
+				{11, token.LBRACK, ""},
+				{12, token.IDENT, "1"},
+				{13, token.RBRACK, ""},
+				{14, token.ASSIGN, ""},
+				{15, token.IDENT, "2"},
+				{16, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("/x?a[0]=1&a[1]=2#/load"),
 			[]expected{
-				{0, injast.SLASH, ""},
-				{1, injast.IDENT, "x"},
-				{2, injast.QUESTION, ""},
-				{3, injast.IDENT, "a"},
-				{4, injast.LBRACK, ""},
-				{5, injast.IDENT, "0"},
-				{6, injast.RBRACK, ""},
-				{7, injast.ASSIGN, ""},
-				{8, injast.IDENT, "1"},
-				{9, injast.AND, ""},
-				{10, injast.IDENT, "a"},
-				{11, injast.LBRACK, ""},
-				{12, injast.IDENT, "1"},
-				{13, injast.RBRACK, ""},
-				{14, injast.ASSIGN, ""},
-				{15, injast.IDENT, "2"},
-				{16, injast.HASH, ""},
-				{17, injast.SLASH, ""},
-				{18, injast.IDENT, "load"},
-				{22, injast.EOF, ""},
+				{0, token.SLASH, ""},
+				{1, token.IDENT, "x"},
+				{2, token.QUESTION, ""},
+				{3, token.IDENT, "a"},
+				{4, token.LBRACK, ""},
+				{5, token.IDENT, "0"},
+				{6, token.RBRACK, ""},
+				{7, token.ASSIGN, ""},
+				{8, token.IDENT, "1"},
+				{9, token.AND, ""},
+				{10, token.IDENT, "a"},
+				{11, token.LBRACK, ""},
+				{12, token.IDENT, "1"},
+				{13, token.RBRACK, ""},
+				{14, token.ASSIGN, ""},
+				{15, token.IDENT, "2"},
+				{16, token.HASH, ""},
+				{17, token.SLASH, ""},
+				{18, token.IDENT, "load"},
+				{22, token.EOF, ""},
 			},
 		},
 	}
@@ -133,7 +134,7 @@ func TestScan(t *testing.T) {
 		i := 0
 		for {
 			pos, tok, lit := s.Scan()
-			if tok == injast.EOF {
+			if tok == token.EOF {
 				break
 			}
 			if pos != in.expected[i].Pos {
@@ -158,62 +159,62 @@ func TestScanBody(t *testing.T) {
 		{
 			[]byte("x=1&y=2"),
 			[]expected{
-				{0, injast.IDENT, "x"},
-				{1, injast.ASSIGN, ""},
-				{2, injast.IDENT, "1"},
-				{3, injast.AND, ""},
-				{4, injast.IDENT, "y"},
-				{5, injast.ASSIGN, ""},
-				{6, injast.IDENT, "2"},
-				{7, injast.EOF, ""},
+				{0, token.IDENT, "x"},
+				{1, token.ASSIGN, ""},
+				{2, token.IDENT, "1"},
+				{3, token.AND, ""},
+				{4, token.IDENT, "y"},
+				{5, token.ASSIGN, ""},
+				{6, token.IDENT, "2"},
+				{7, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("{\"asdf\": 1}"),
 			[]expected{
-				{0, injast.LBRACE, ""},
-				{1, injast.DQUOTE, ""},
-				{2, injast.IDENT, "asdf"},
-				{6, injast.DQUOTE, ""},
-				{7, injast.COLON, ""}, // skips 8 because whitespace
-				{9, injast.IDENT, "1"},
-				{10, injast.RBRACE, ""},
-				{11, injast.EOF, ""},
+				{0, token.LBRACE, ""},
+				{1, token.DQUOTE, ""},
+				{2, token.IDENT, "asdf"},
+				{6, token.DQUOTE, ""},
+				{7, token.COLON, ""}, // skips 8 because whitespace
+				{9, token.IDENT, "1"},
+				{10, token.RBRACE, ""},
+				{11, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("{\"asdf\": 1"),
 			[]expected{
-				{0, injast.IDENT, "{\"asdf\": 1"},
-				{9, injast.EOF, ""},
+				{0, token.IDENT, "{\"asdf\": 1"},
+				{9, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("<xml><hi>hello</hi></xml>"),
 			[]expected{
-				{0, injast.LSS, ""},
-				{1, injast.IDENT, "xml"},
-				{4, injast.GTR, ""},
-				{5, injast.LSS, ""},
-				{6, injast.IDENT, "hi"},
-				{8, injast.GTR, ""},
-				{9, injast.IDENT, "hello"},
-				{14, injast.LSS, ""},
-				{15, injast.SLASH, ""},
-				{16, injast.IDENT, "hi"},
-				{18, injast.GTR, ""},
-				{19, injast.LSS, ""},
-				{20, injast.SLASH, ""},
-				{21, injast.IDENT, "xml"},
-				{23, injast.GTR, ""},
-				{24, injast.EOF, ""},
+				{0, token.LSS, ""},
+				{1, token.IDENT, "xml"},
+				{4, token.GTR, ""},
+				{5, token.LSS, ""},
+				{6, token.IDENT, "hi"},
+				{8, token.GTR, ""},
+				{9, token.IDENT, "hello"},
+				{14, token.LSS, ""},
+				{15, token.SLASH, ""},
+				{16, token.IDENT, "hi"},
+				{18, token.GTR, ""},
+				{19, token.LSS, ""},
+				{20, token.SLASH, ""},
+				{21, token.IDENT, "xml"},
+				{23, token.GTR, ""},
+				{24, token.EOF, ""},
 			},
 		},
 		{
 			[]byte("<xml><hi>hello</hi></xml"),
 			[]expected{
-				{0, injast.IDENT, "<xml><hi>hello</hi></xml"},
-				{24, injast.EOF, ""},
+				{0, token.IDENT, "<xml><hi>hello</hi></xml"},
+				{24, token.EOF, ""},
 			},
 		},
 	}
@@ -224,7 +225,7 @@ func TestScanBody(t *testing.T) {
 		i := 0
 		for {
 			pos, tok, lit := s.Scan()
-			if tok == injast.EOF {
+			if tok == token.EOF {
 				break
 			}
 			if pos != in.expected[i].Pos {

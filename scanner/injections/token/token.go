@@ -1,4 +1,4 @@
-package injast
+package token
 
 import (
 	"strconv"

@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"gitlab.com/browserker/scanner/injections/injast"
+	"gitlab.com/browserker/scanner/injections/token"
 )
 
 // Mode of scanner (determines end of mode tokens)
@@ -42,6 +43,16 @@ func New() *Scanner {
 	return &Scanner{modeHistory: make([]Mode, 0)}
 }
 
+// Mode that the scanner is currently in
+func (s *Scanner) Mode() Mode {
+	return s.mode
+}
+
+// ModeHistory of the scanner
+func (s *Scanner) ModeHistory() []Mode {
+	return s.modeHistory
+}
+
 // Init the scanner with source and starting mode (Note: Mode may change during parsing)
 func (s *Scanner) Init(src []byte, mode Mode) {
 	s.src = src
@@ -51,7 +62,7 @@ func (s *Scanner) Init(src []byte, mode Mode) {
 	s.next()
 }
 
-func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
+func (s *Scanner) Scan() (pos injast.Pos, tok token.Token, lit string) {
 	s.skipWhitespace()
 	pos = injast.Pos(s.offset)
 
@@ -71,108 +82,108 @@ func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
 	case BodyXML:
 		tok, lit = s.scanBodyXML()
 	}
-	if tok != injast.IDENT {
+	if tok != token.IDENT {
 		s.next()
 	}
 	return pos, tok, lit
 }
 
 // scanPath for tokens or switch mode to Query or Fragment
-func (s *Scanner) scanPath() (tok injast.Token, lit string) {
+func (s *Scanner) scanPath() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '/':
-		tok = injast.SLASH
+		tok = token.SLASH
 	case '?':
-		tok = injast.QUESTION
+		tok = token.QUESTION
 		s.modeHistory = append(s.modeHistory, Path)
 		s.mode = Query
 	case '#':
-		tok = injast.HASH
+		tok = token.HASH
 		s.modeHistory = append(s.modeHistory, Path)
 		s.mode = Fragment
 	case ';':
-		tok = injast.SEMICOLON
+		tok = token.SEMICOLON
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }
 
 // scanQuery for tokens or switch mode to Fragment
-func (s *Scanner) scanQuery() (tok injast.Token, lit string) {
+func (s *Scanner) scanQuery() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '&':
-		tok = injast.AND
+		tok = token.AND
 	case '=':
-		tok = injast.ASSIGN
+		tok = token.ASSIGN
 	case '#':
-		tok = injast.HASH
+		tok = token.HASH
 		s.modeHistory = append(s.modeHistory, Query)
 		s.mode = Fragment
 	case '[':
-		tok = injast.LBRACK
+		tok = token.LBRACK
 	case ']':
-		tok = injast.RBRACK
+		tok = token.RBRACK
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }
 
 // scanFragment acts much like scanQuery since it's up to the developer
 // how they structure their app (some use it like a path, some like a query)
-func (s *Scanner) scanFragment() (tok injast.Token, lit string) {
+func (s *Scanner) scanFragment() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '/':
-		tok = injast.SLASH
+		tok = token.SLASH
 	case '&':
-		tok = injast.AND
+		tok = token.AND
 	case '=':
-		tok = injast.ASSIGN
+		tok = token.ASSIGN
 	case '#':
-		tok = injast.HASH
+		tok = token.HASH
 	case '[':
-		tok = injast.LBRACK
+		tok = token.LBRACK
 	case ']':
-		tok = injast.RBRACK
+		tok = token.RBRACK
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }
 
 // scanCookies for tokens
-func (s *Scanner) scanCookies() (tok injast.Token, lit string) {
+func (s *Scanner) scanCookies() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case ';':
-		tok = injast.SEMICOLON
+		tok = token.SEMICOLON
 	case '=':
-		tok = injast.ASSIGN
+		tok = token.ASSIGN
 	case ' ':
-		tok = injast.SPACE
+		tok = token.SPACE
 	case ',':
-		tok = injast.COMMA
+		tok = token.COMMA
 	}
 	return tok, lit
 }
 
 // scanBody for tokens and sniff for JSON or XML and update mode accordingly
-func (s *Scanner) scanBody() (tok injast.Token, lit string) {
+func (s *Scanner) scanBody() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '&':
-		tok = injast.AND
+		tok = token.AND
 	case '=':
-		tok = injast.ASSIGN
+		tok = token.ASSIGN
 	case '[':
 		if s.scanIsJSON('[') {
 			if s.offset != 0 {
@@ -182,18 +193,18 @@ func (s *Scanner) scanBody() (tok injast.Token, lit string) {
 			}
 			s.mode = BodyJSON
 		}
-		tok = injast.LBRACK
+		tok = token.LBRACK
 	case ']':
-		tok = injast.RBRACK
+		tok = token.RBRACK
 	case '<':
 		if s.scanIsXML() {
 			if s.offset != 0 {
 				s.modeHistory = append(s.modeHistory, s.mode)
 			}
 			s.mode = BodyXML
-			tok = injast.LSS
+			tok = token.LSS
 		} else {
-			tok, lit = injast.IDENT, s.scanLiteral()
+			tok, lit = token.IDENT, s.scanLiteral()
 		}
 	case '{':
 		if s.scanIsJSON('{') {
@@ -203,62 +214,62 @@ func (s *Scanner) scanBody() (tok injast.Token, lit string) {
 				s.modeHistory = append(s.modeHistory, s.mode)
 			}
 			s.mode = BodyJSON
-			tok = injast.LBRACE
+			tok = token.LBRACE
 		} else {
-			tok, lit = injast.IDENT, s.scanLiteral()
+			tok, lit = token.IDENT, s.scanLiteral()
 		}
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }
 
-func (s *Scanner) scanBodyJSON() (tok injast.Token, lit string) {
+func (s *Scanner) scanBodyJSON() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '{':
-		tok = injast.LBRACE
+		tok = token.LBRACE
 	case '}':
-		tok = injast.RBRACE
+		tok = token.RBRACE
 	case '[':
-		tok = injast.LBRACK
+		tok = token.LBRACK
 	case ']':
-		tok = injast.RBRACK
+		tok = token.RBRACK
 	case ':':
-		tok = injast.COLON
+		tok = token.COLON
 	case ',':
-		tok = injast.COMMA
+		tok = token.COMMA
 	case '\'':
-		tok = injast.SQUOTE
+		tok = token.SQUOTE
 	case '"':
-		tok = injast.DQUOTE
+		tok = token.DQUOTE
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }
 
-func (s *Scanner) scanBodyXML() (tok injast.Token, lit string) {
+func (s *Scanner) scanBodyXML() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
-		tok = injast.EOF
+		tok = token.EOF
 	case '<':
-		tok = injast.LSS
+		tok = token.LSS
 	case '>':
-		tok = injast.GTR
+		tok = token.GTR
 	case ':':
-		tok = injast.COLON
+		tok = token.COLON
 	case '\'':
-		tok = injast.SQUOTE
+		tok = token.SQUOTE
 	case '"':
-		tok = injast.DQUOTE
+		tok = token.DQUOTE
 	case '=':
-		tok = injast.ASSIGN
+		tok = token.ASSIGN
 	case '/':
-		tok = injast.SLASH
+		tok = token.SLASH
 	default:
-		tok, lit = injast.IDENT, s.scanLiteral()
+		tok, lit = token.IDENT, s.scanLiteral()
 	}
 	return tok, lit
 }

@@ -64,3 +64,31 @@ func (x *IndexExpr) End() Pos { return x.Rbrack + 1 }
 func (*KeyValueExpr) exprNode()  {}
 func (x *KeyValueExpr) Pos() Pos { return x.Key.Pos() }
 func (x *KeyValueExpr) End() Pos { return x.Value.End() }
+
+type URI struct {
+	Paths    []*Ident
+	Query    *Query
+	Fragment *Fragment
+}
+
+func NewURI() *URI {
+	return &URI{
+		Paths: make([]*Ident, 0),
+		Query: &Query{
+			Params: make([]*KeyValueExpr, 0),
+		},
+		Fragment: &Fragment{
+			Fields: make([]*Ident, 0),
+			Params: make([]*KeyValueExpr, 0),
+		},
+	}
+}
+
+type Query struct {
+	Params []*KeyValueExpr
+}
+
+type Fragment struct {
+	Fields []*Ident
+	Params []*KeyValueExpr
+}
