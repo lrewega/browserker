@@ -140,7 +140,7 @@ func TestScan(t *testing.T) {
 				t.Fatalf("[iter: %d] in: %s pos:%d did not match expected: %d\n", i, string(in.in), pos, in.expected[i].Pos)
 			}
 			if tok != in.expected[i].Tok {
-				t.Fatalf("[iter: %d] in: %s Tok:%d did not match expected: %d\n", i, string(in.in), tok, in.expected[i].Tok)
+				t.Fatalf("[iter: %d] in: %s Tok:%s did not match expected: %s\n", i, string(in.in), tok, in.expected[i].Tok)
 			}
 			if lit != in.expected[i].Lit {
 				t.Fatalf("[iter: %d] in: %s Lit:[%s] did not match expected: %s\n", i, string(in.in), lit, in.expected[i].Lit)
@@ -168,6 +168,54 @@ func TestScanBody(t *testing.T) {
 				{7, injast.EOF, ""},
 			},
 		},
+		{
+			[]byte("{\"asdf\": 1}"),
+			[]expected{
+				{0, injast.LBRACE, ""},
+				{1, injast.DQUOTE, ""},
+				{2, injast.IDENT, "asdf"},
+				{6, injast.DQUOTE, ""},
+				{7, injast.COLON, ""}, // skips 8 because whitespace
+				{9, injast.IDENT, "1"},
+				{10, injast.RBRACE, ""},
+				{11, injast.EOF, ""},
+			},
+		},
+		{
+			[]byte("{\"asdf\": 1"),
+			[]expected{
+				{0, injast.IDENT, "{\"asdf\": 1"},
+				{9, injast.EOF, ""},
+			},
+		},
+		{
+			[]byte("<xml><hi>hello</hi></xml>"),
+			[]expected{
+				{0, injast.LSS, ""},
+				{1, injast.IDENT, "xml"},
+				{4, injast.GTR, ""},
+				{5, injast.LSS, ""},
+				{6, injast.IDENT, "hi"},
+				{8, injast.GTR, ""},
+				{9, injast.IDENT, "hello"},
+				{14, injast.LSS, ""},
+				{15, injast.SLASH, ""},
+				{16, injast.IDENT, "hi"},
+				{18, injast.GTR, ""},
+				{19, injast.LSS, ""},
+				{20, injast.SLASH, ""},
+				{21, injast.IDENT, "xml"},
+				{23, injast.GTR, ""},
+				{24, injast.EOF, ""},
+			},
+		},
+		{
+			[]byte("<xml><hi>hello</hi></xml"),
+			[]expected{
+				{0, injast.IDENT, "<xml><hi>hello</hi></xml"},
+				{24, injast.EOF, ""},
+			},
+		},
 	}
 
 	s := scanner.New()
@@ -183,10 +231,10 @@ func TestScanBody(t *testing.T) {
 				t.Fatalf("[iter: %d] in: %s pos:%d did not match expected: %d\n", i, string(in.in), pos, in.expected[i].Pos)
 			}
 			if tok != in.expected[i].Tok {
-				t.Fatalf("[iter: %d] in: %s Tok:%d did not match expected: %d\n", i, string(in.in), tok, in.expected[i].Tok)
+				t.Fatalf("[iter: %d] in: %s Tok:%s did not match expected: %s\n", i, string(in.in), tok, in.expected[i].Tok)
 			}
 			if lit != in.expected[i].Lit {
-				t.Fatalf("[iter: %d] in: %s Lit:[%s] did not match expected: %s\n", i, string(in.in), lit, in.expected[i].Lit)
+				t.Fatalf("[iter: %d] in: %s Lit:[%s] did not match expected: [%s]\n", i, string(in.in), lit, in.expected[i].Lit)
 			}
 			i++
 		}

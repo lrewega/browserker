@@ -52,6 +52,7 @@ func (s *Scanner) Init(src []byte, mode Mode) {
 }
 
 func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
+	s.skipWhitespace()
 	pos = injast.Pos(s.offset)
 
 	switch s.mode {
@@ -66,7 +67,9 @@ func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
 	case Body:
 		tok, lit = s.scanBody()
 	case BodyJSON:
+		tok, lit = s.scanBodyJSON()
 	case BodyXML:
+		tok, lit = s.scanBodyXML()
 	}
 	if tok != injast.IDENT {
 		s.next()
@@ -74,6 +77,7 @@ func (s *Scanner) Scan() (pos injast.Pos, tok injast.Token, lit string) {
 	return pos, tok, lit
 }
 
+// scanPath for tokens or switch mode to Query or Fragment
 func (s *Scanner) scanPath() (tok injast.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -96,6 +100,7 @@ func (s *Scanner) scanPath() (tok injast.Token, lit string) {
 	return tok, lit
 }
 
+// scanQuery for tokens or switch mode to Fragment
 func (s *Scanner) scanQuery() (tok injast.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -118,6 +123,8 @@ func (s *Scanner) scanQuery() (tok injast.Token, lit string) {
 	return tok, lit
 }
 
+// scanFragment acts much like scanQuery since it's up to the developer
+// how they structure their app (some use it like a path, some like a query)
 func (s *Scanner) scanFragment() (tok injast.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -140,6 +147,7 @@ func (s *Scanner) scanFragment() (tok injast.Token, lit string) {
 	return tok, lit
 }
 
+// scanCookies for tokens
 func (s *Scanner) scanCookies() (tok injast.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -156,6 +164,7 @@ func (s *Scanner) scanCookies() (tok injast.Token, lit string) {
 	return tok, lit
 }
 
+// scanBody for tokens and sniff for JSON or XML and update mode accordingly
 func (s *Scanner) scanBody() (tok injast.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -166,25 +175,35 @@ func (s *Scanner) scanBody() (tok injast.Token, lit string) {
 		tok = injast.ASSIGN
 	case '[':
 		if s.scanIsJSON('[') {
-			s.mode = BodyJSON
 			if s.offset != 0 {
 				// only change history if we were in a x-www-url-encoded body first
 				// if we are the first byte then the entire request is probably JSON
-				s.modeHistory = append(s.modeHistory, Body)
+				s.modeHistory = append(s.modeHistory, s.mode)
 			}
+			s.mode = BodyJSON
 		}
 		tok = injast.LBRACK
 	case ']':
 		tok = injast.RBRACK
+	case '<':
+		if s.scanIsXML() {
+			if s.offset != 0 {
+				s.modeHistory = append(s.modeHistory, s.mode)
+			}
+			s.mode = BodyXML
+			tok = injast.LSS
+		} else {
+			tok, lit = injast.IDENT, s.scanLiteral()
+		}
 	case '{':
 		if s.scanIsJSON('{') {
-			s.mode = BodyJSON
-			tok = injast.LBRACE
 			if s.offset != 0 {
 				// only change history if we were in a x-www-url-encoded body first
 				// if we are the first byte then the entire request is probably JSON
-				s.modeHistory = append(s.modeHistory, Body)
+				s.modeHistory = append(s.modeHistory, s.mode)
 			}
+			s.mode = BodyJSON
+			tok = injast.LBRACE
 		} else {
 			tok, lit = injast.IDENT, s.scanLiteral()
 		}
@@ -194,11 +213,61 @@ func (s *Scanner) scanBody() (tok injast.Token, lit string) {
 	return tok, lit
 }
 
-// Checks if we are in a JSON object definition
+func (s *Scanner) scanBodyJSON() (tok injast.Token, lit string) {
+	switch s.ch {
+	case -1:
+		tok = injast.EOF
+	case '{':
+		tok = injast.LBRACE
+	case '}':
+		tok = injast.RBRACE
+	case '[':
+		tok = injast.LBRACK
+	case ']':
+		tok = injast.RBRACK
+	case ':':
+		tok = injast.COLON
+	case ',':
+		tok = injast.COMMA
+	case '\'':
+		tok = injast.SQUOTE
+	case '"':
+		tok = injast.DQUOTE
+	default:
+		tok, lit = injast.IDENT, s.scanLiteral()
+	}
+	return tok, lit
+}
+
+func (s *Scanner) scanBodyXML() (tok injast.Token, lit string) {
+	switch s.ch {
+	case -1:
+		tok = injast.EOF
+	case '<':
+		tok = injast.LSS
+	case '>':
+		tok = injast.GTR
+	case ':':
+		tok = injast.COLON
+	case '\'':
+		tok = injast.SQUOTE
+	case '"':
+		tok = injast.DQUOTE
+	case '=':
+		tok = injast.ASSIGN
+	case '/':
+		tok = injast.SLASH
+	default:
+		tok, lit = injast.IDENT, s.scanLiteral()
+	}
+	return tok, lit
+}
+
+// Checks if we are in a JSON object/array definition
 func (s *Scanner) scanIsJSON(open rune) bool {
 	// if we don't start with an open { or [ it's probably not JSON.
 	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
-	if s.peekBackwards() != '=' {
+	if s.offset != 0 && s.peekBackwards() != '=' {
 		return false
 	}
 	rdOffset := s.rdOffset
@@ -238,7 +307,50 @@ func (s *Scanner) scanIsJSON(open rune) bool {
 	}
 	// nope just random {'s i guess
 	s.rdOffset = rdOffset
+
+	if trackOpen == 0 {
+		return true
+	}
 	return false
+}
+
+func (s *Scanner) scanIsXML() bool {
+	// if we don't start with an open { or [ it's probably not JSON.
+	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
+	if s.offset != 0 && s.peekBackwards() != '=' {
+		return false
+	}
+	rdOffset := s.rdOffset
+	trackOpen := 1
+	for ; s.rdOffset < len(s.src); s.rdOffset++ {
+		switch s.peek() {
+		case '<':
+			trackOpen++
+		case '>':
+			trackOpen--
+		case 0:
+			// reached EOF so this was either a full on JSON request or the last
+			// body param was a JSON value (if trackOpen is 0)
+			if trackOpen == 0 {
+				s.rdOffset = rdOffset // reset the offset since we are just peeking
+				return true
+			}
+			break
+		}
+	}
+
+	if trackOpen == 0 {
+		return true
+	}
+	// nope just random <'s i guess
+	s.rdOffset = rdOffset
+	return false
+}
+
+func (s *Scanner) skipWhitespace() {
+	for s.ch == ' ' || s.ch == '\t' {
+		s.next()
+	}
 }
 
 func (s *Scanner) scanLiteral() string {
@@ -258,6 +370,18 @@ func (s *Scanner) scanLiteral() string {
 		}
 	case Cookies:
 		for !isCookieToken(s.ch) && s.ch != -1 {
+			s.next()
+		}
+	case Body:
+		for !isBody(s.ch) && s.ch != -1 {
+			s.next()
+		}
+	case BodyJSON:
+		for !isBodyJSON(s.ch) && s.ch != -1 {
+			s.next()
+		}
+	case BodyXML:
+		for !isBodyXML(s.ch) && s.ch != -1 {
 			s.next()
 		}
 	default:
@@ -319,6 +443,18 @@ func isFragmentToken(ch rune) bool {
 
 func isCookieToken(ch rune) bool {
 	return ch == ';' || ch == '=' || ch == ' ' || ch == ','
+}
+
+func isBody(ch rune) bool {
+	return ch == '&' || ch == '='
+}
+
+func isBodyJSON(ch rune) bool {
+	return ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ':' || ch == ',' || ch == '\'' || ch == '"'
+}
+
+func isBodyXML(ch rune) bool {
+	return ch == '<' || ch == '>' || ch == ':' || ch == '\'' || ch == '"' || ch == '=' || ch == '/'
 }
 
 func isLetter(ch rune) bool {
