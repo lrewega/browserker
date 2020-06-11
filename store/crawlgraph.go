@@ -33,7 +33,7 @@ func NewCrawlGraph(filepath string) *CrawlGraph {
 func (g *CrawlGraph) Init() error {
 	var err error
 
-	if err = os.MkdirAll(g.filepath, 0677); err != nil {
+	if err = os.MkdirAll(g.filepath, 0766); err != nil {
 		return err
 	}
 
