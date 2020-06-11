@@ -27,7 +27,7 @@ func NewPluginStore(filepath string) *PluginStore {
 func (s *PluginStore) Init() error {
 	var err error
 
-	if err = os.MkdirAll(s.filepath, 0677); err != nil {
+	if err = os.MkdirAll(s.filepath, 0766); err != nil {
 		return err
 	}
 
