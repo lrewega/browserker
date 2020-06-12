@@ -12,45 +12,33 @@ import (
 type Mode int
 
 const (
-	Path Mode = iota
-	Query
-	Fragment
+	URI Mode = iota
 	Headers
 	Cookies
 	Body
-	BodyJSON
-	BodyXML
 	MultipartBody
 )
 
 type Scanner struct {
 	src []byte // source
 
-	mode        Mode // mode (Query/Headers/Body)
-	modeHistory []Mode
+	mode Mode // mode (Query/Headers/Body)
 
 	// scanning state
 	ch       rune // current character
 	offset   int  // character offset
 	rdOffset int  // reading offset (position after current character)
 
-	// public state - ok to modify
-	ErrorCount int // number of errors encountered
 }
 
 // New token scanner
 func New() *Scanner {
-	return &Scanner{modeHistory: make([]Mode, 0)}
+	return &Scanner{}
 }
 
 // Mode that the scanner is currently in
 func (s *Scanner) Mode() Mode {
 	return s.mode
-}
-
-// ModeHistory of the scanner
-func (s *Scanner) ModeHistory() []Mode {
-	return s.modeHistory
 }
 
 // Init the scanner with source and starting mode (Note: Mode may change during parsing)
@@ -67,20 +55,12 @@ func (s *Scanner) Scan() (pos injast.Pos, tok token.Token, lit string) {
 	pos = injast.Pos(s.offset)
 
 	switch s.mode {
-	case Path:
-		tok, lit = s.scanPath()
-	case Query:
-		tok, lit = s.scanQuery()
-	case Fragment: // treat Fragments much like Query
-		tok, lit = s.scanFragment()
+	case URI:
+		tok, lit = s.scanURI()
 	case Cookies:
 		tok, lit = s.scanCookies()
 	case Body:
 		tok, lit = s.scanBody()
-	case BodyJSON:
-		tok, lit = s.scanBodyJSON()
-	case BodyXML:
-		tok, lit = s.scanBodyXML()
 	}
 	if tok != token.IDENT {
 		s.next()
@@ -89,7 +69,7 @@ func (s *Scanner) Scan() (pos injast.Pos, tok token.Token, lit string) {
 }
 
 // scanPath for tokens or switch mode to Query or Fragment
-func (s *Scanner) scanPath() (tok token.Token, lit string) {
+func (s *Scanner) scanURI() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
 		tok = token.EOF
@@ -97,57 +77,14 @@ func (s *Scanner) scanPath() (tok token.Token, lit string) {
 		tok = token.SLASH
 	case '?':
 		tok = token.QUESTION
-		s.modeHistory = append(s.modeHistory, Path)
-		s.mode = Query
 	case '#':
 		tok = token.HASH
-		s.modeHistory = append(s.modeHistory, Path)
-		s.mode = Fragment
 	case ';':
 		tok = token.SEMICOLON
-	default:
-		tok, lit = token.IDENT, s.scanLiteral()
-	}
-	return tok, lit
-}
-
-// scanQuery for tokens or switch mode to Fragment
-func (s *Scanner) scanQuery() (tok token.Token, lit string) {
-	switch s.ch {
-	case -1:
-		tok = token.EOF
 	case '&':
 		tok = token.AND
 	case '=':
 		tok = token.ASSIGN
-	case '#':
-		tok = token.HASH
-		s.modeHistory = append(s.modeHistory, Query)
-		s.mode = Fragment
-	case '[':
-		tok = token.LBRACK
-	case ']':
-		tok = token.RBRACK
-	default:
-		tok, lit = token.IDENT, s.scanLiteral()
-	}
-	return tok, lit
-}
-
-// scanFragment acts much like scanQuery since it's up to the developer
-// how they structure their app (some use it like a path, some like a query)
-func (s *Scanner) scanFragment() (tok token.Token, lit string) {
-	switch s.ch {
-	case -1:
-		tok = token.EOF
-	case '/':
-		tok = token.SLASH
-	case '&':
-		tok = token.AND
-	case '=':
-		tok = token.ASSIGN
-	case '#':
-		tok = token.HASH
 	case '[':
 		tok = token.LBRACK
 	case ']':
@@ -175,7 +112,7 @@ func (s *Scanner) scanCookies() (tok token.Token, lit string) {
 	return tok, lit
 }
 
-// scanBody for tokens and sniff for JSON or XML and update mode accordingly
+// scanBody for tokens (x-www-url-encoded, json, and xml)
 func (s *Scanner) scanBody() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -185,39 +122,27 @@ func (s *Scanner) scanBody() (tok token.Token, lit string) {
 	case '=':
 		tok = token.ASSIGN
 	case '[':
-		if s.scanIsJSON('[') {
-			if s.offset != 0 {
-				// only change history if we were in a x-www-url-encoded body first
-				// if we are the first byte then the entire request is probably JSON
-				s.modeHistory = append(s.modeHistory, s.mode)
-			}
-			s.mode = BodyJSON
-		}
 		tok = token.LBRACK
 	case ']':
 		tok = token.RBRACK
-	case '<':
-		if s.scanIsXML() {
-			if s.offset != 0 {
-				s.modeHistory = append(s.modeHistory, s.mode)
-			}
-			s.mode = BodyXML
-			tok = token.LSS
-		} else {
-			tok, lit = token.IDENT, s.scanLiteral()
-		}
 	case '{':
-		if s.scanIsJSON('{') {
-			if s.offset != 0 {
-				// only change history if we were in a x-www-url-encoded body first
-				// if we are the first byte then the entire request is probably JSON
-				s.modeHistory = append(s.modeHistory, s.mode)
-			}
-			s.mode = BodyJSON
-			tok = token.LBRACE
-		} else {
-			tok, lit = token.IDENT, s.scanLiteral()
-		}
+		tok = token.LBRACE
+	case '}':
+		tok = token.LBRACK
+	case '<':
+		tok = token.LSS
+	case '>':
+		tok = token.GTR
+	case ':':
+		tok = token.COLON
+	case '/':
+		tok = token.SLASH
+	case '"':
+		tok = token.DQUOTE
+	case '\'':
+		tok = token.SQUOTE
+	case ',':
+		tok = token.COMMA
 	default:
 		tok, lit = token.IDENT, s.scanLiteral()
 	}
@@ -274,17 +199,17 @@ func (s *Scanner) scanBodyXML() (tok token.Token, lit string) {
 	return tok, lit
 }
 
-// Checks if we are in a JSON object/array definition
-func (s *Scanner) scanIsJSON(open rune) bool {
+// ScanIsJSON Checks if we are in a JSON object/array definition
+func (s *Scanner) ScanIsJSON(open rune) bool {
 	// if we don't start with an open { or [ it's probably not JSON.
 	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
-	if s.offset != 0 && s.peekBackwards() != '=' {
+	if s.offset != 0 && s.PeekBackwards() != '=' {
 		return false
 	}
 	rdOffset := s.rdOffset
 	trackOpen := 1
 	for ; s.rdOffset < len(s.src); s.rdOffset++ {
-		switch s.peek() {
+		switch s.Peek() {
 		case '{':
 			if '{' == open {
 				trackOpen++
@@ -325,16 +250,17 @@ func (s *Scanner) scanIsJSON(open rune) bool {
 	return false
 }
 
-func (s *Scanner) scanIsXML() bool {
+// ScanIsXML checks if we are XML
+func (s *Scanner) ScanIsXML() bool {
 	// if we don't start with an open { or [ it's probably not JSON.
 	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
-	if s.offset != 0 && s.peekBackwards() != '=' {
+	if s.offset != 0 && s.PeekBackwards() != '=' {
 		return false
 	}
 	rdOffset := s.rdOffset
 	trackOpen := 1
 	for ; s.rdOffset < len(s.src); s.rdOffset++ {
-		switch s.peek() {
+		switch s.Peek() {
 		case '<':
 			trackOpen++
 		case '>':
@@ -367,16 +293,8 @@ func (s *Scanner) skipWhitespace() {
 func (s *Scanner) scanLiteral() string {
 	offs := s.offset
 	switch s.mode {
-	case Path:
-		for !isPathToken(s.ch) && s.ch != -1 {
-			s.next()
-		}
-	case Query:
-		for !isQueryToken(s.ch) && s.ch != -1 {
-			s.next()
-		}
-	case Fragment:
-		for !isFragmentToken(s.ch) && s.ch != -1 {
+	case URI:
+		for !isURIToken(s.ch) && s.ch != -1 {
 			s.next()
 		}
 	case Cookies:
@@ -385,14 +303,6 @@ func (s *Scanner) scanLiteral() string {
 		}
 	case Body:
 		for !isBody(s.ch) && s.ch != -1 {
-			s.next()
-		}
-	case BodyJSON:
-		for !isBodyJSON(s.ch) && s.ch != -1 {
-			s.next()
-		}
-	case BodyXML:
-		for !isBodyXML(s.ch) && s.ch != -1 {
 			s.next()
 		}
 	default:
@@ -404,18 +314,18 @@ func (s *Scanner) scanLiteral() string {
 	return string(s.src[offs:s.offset])
 }
 
-// peek returns the byte following the most recently read character without
-// advancing the scanner. If the scanner is at EOF, peek returns 0.
-func (s *Scanner) peek() byte {
+// Peek returns the byte following the most recently read character without
+// advancing the scanner. If the scanner is at EOF, Peek returns 0.
+func (s *Scanner) Peek() byte {
 	if s.rdOffset < len(s.src) {
 		return s.src[s.rdOffset]
 	}
 	return 0
 }
 
-// peek returns the byte prior to the most recently read character without
+// PeekBackwards returns the byte prior to the most recently read character without
 // advancing the scanner. If the scanner is already at the first byte return 0
-func (s *Scanner) peekBackwards() byte {
+func (s *Scanner) PeekBackwards() byte {
 	if s.rdOffset-1 >= 0 {
 		return s.src[s.rdOffset-1]
 	}
@@ -440,16 +350,12 @@ func (s *Scanner) next() {
 }
 
 // Denotes the end of a path
-func isPathToken(ch rune) bool {
-	return ch == '/' || ch == '?' || ch == ';' || ch == '#'
+func isURIToken(ch rune) bool {
+	return ch == '/' || ch == '?' || ch == ';' || ch == '#' || isQueryToken(ch)
 }
 
 func isQueryToken(ch rune) bool {
 	return ch == '=' || ch == '&' || ch == '[' || ch == ']' || ch == '#'
-}
-
-func isFragmentToken(ch rune) bool {
-	return isQueryToken(ch) || ch == '/'
 }
 
 func isCookieToken(ch rune) bool {
@@ -457,7 +363,7 @@ func isCookieToken(ch rune) bool {
 }
 
 func isBody(ch rune) bool {
-	return ch == '&' || ch == '='
+	return ch == '&' || ch == '=' || isBodyJSON(ch) || isBodyXML(ch)
 }
 
 func isBodyJSON(ch rune) bool {

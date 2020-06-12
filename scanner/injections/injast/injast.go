@@ -67,6 +67,7 @@ func (x *KeyValueExpr) End() Pos { return x.Value.End() }
 
 type URI struct {
 	Paths    []*Ident
+	File     *Ident
 	Query    *Query
 	Fragment *Fragment
 }
@@ -74,11 +75,13 @@ type URI struct {
 func NewURI() *URI {
 	return &URI{
 		Paths: make([]*Ident, 0),
+		File:  &Ident{},
 		Query: &Query{
 			Params: make([]*KeyValueExpr, 0),
 		},
 		Fragment: &Fragment{
-			Fields: make([]*Ident, 0),
+			File:   &Ident{},
+			Paths:  make([]*Ident, 0),
 			Params: make([]*KeyValueExpr, 0),
 		},
 	}
@@ -89,6 +92,7 @@ type Query struct {
 }
 
 type Fragment struct {
-	Fields []*Ident
+	Paths  []*Ident
+	File   *Ident
 	Params []*KeyValueExpr
 }

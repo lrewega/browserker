@@ -130,7 +130,7 @@ func TestScan(t *testing.T) {
 
 	s := scanner.New()
 	for _, in := range inputs {
-		s.Init(in.in, scanner.Path)
+		s.Init(in.in, scanner.URI)
 		i := 0
 		for {
 			pos, tok, lit := s.Scan()
@@ -170,26 +170,6 @@ func TestScanBody(t *testing.T) {
 			},
 		},
 		{
-			[]byte("{\"asdf\": 1}"),
-			[]expected{
-				{0, token.LBRACE, ""},
-				{1, token.DQUOTE, ""},
-				{2, token.IDENT, "asdf"},
-				{6, token.DQUOTE, ""},
-				{7, token.COLON, ""}, // skips 8 because whitespace
-				{9, token.IDENT, "1"},
-				{10, token.RBRACE, ""},
-				{11, token.EOF, ""},
-			},
-		},
-		{
-			[]byte("{\"asdf\": 1"),
-			[]expected{
-				{0, token.IDENT, "{\"asdf\": 1"},
-				{9, token.EOF, ""},
-			},
-		},
-		{
 			[]byte("<xml><hi>hello</hi></xml>"),
 			[]expected{
 				{0, token.LSS, ""},
@@ -206,15 +186,8 @@ func TestScanBody(t *testing.T) {
 				{19, token.LSS, ""},
 				{20, token.SLASH, ""},
 				{21, token.IDENT, "xml"},
-				{23, token.GTR, ""},
-				{24, token.EOF, ""},
-			},
-		},
-		{
-			[]byte("<xml><hi>hello</hi></xml"),
-			[]expected{
-				{0, token.IDENT, "<xml><hi>hello</hi></xml"},
-				{24, token.EOF, ""},
+				{24, token.GTR, ""},
+				{25, token.EOF, ""},
 			},
 		},
 	}

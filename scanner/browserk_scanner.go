@@ -302,7 +302,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 		return
 	}
 
-	
 	navCtx.Log.Info().Msg("closing browser")
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
