@@ -35,7 +35,7 @@ type URIParser struct {
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)
-	u.uri = injast.NewURI()
+	u.uri = injast.NewURI([]byte(uri))
 	u.mode = Path
 	u.kvMode = keyMode
 	u.kvIndex = 0

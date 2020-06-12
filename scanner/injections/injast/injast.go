@@ -11,16 +11,10 @@ type Node interface {
 type Expr interface {
 	Node
 	exprNode()
+	String() string
 }
 
 type (
-	// A BadExpr node is a placeholder for expressions containing
-	// syntax errors for which no correct expression nodes can be
-	// created.
-	//
-	BadExpr struct {
-		From, To Pos // position range of bad expression
-	}
 
 	// An Ident node represents an identifier.
 	Ident struct {
@@ -54,45 +48,57 @@ func (id *Ident) String() string {
 	if id != nil {
 		return id.Name
 	}
-	return "<nil>"
+	return ""
 }
 
 func (*IndexExpr) exprNode()  {}
 func (x *IndexExpr) Pos() Pos { return x.X.Pos() }
 func (x *IndexExpr) End() Pos { return x.Rbrack + 1 }
+func (x *IndexExpr) String() string {
+	s := x.X.String()
+	s += "["
+	s += x.Index.String()
+	s += "]"
+	return s
+}
 
 func (*KeyValueExpr) exprNode()  {}
 func (x *KeyValueExpr) Pos() Pos { return x.Key.Pos() }
 func (x *KeyValueExpr) End() Pos { return x.Value.End() }
-
-type URI struct {
-	Paths    []*Ident
-	File     *Ident
-	Query    *Query
-	Fragment *Fragment
+func (x *KeyValueExpr) String() string {
+	s := x.Key.String()
+	s += string(x.SepChar)
+	s += x.Value.String()
+	return s
 }
 
-func NewURI() *URI {
-	return &URI{
-		Paths: make([]*Ident, 0),
-		File:  &Ident{},
-		Query: &Query{
-			Params: make([]*KeyValueExpr, 0),
-		},
-		Fragment: &Fragment{
-			File:   &Ident{},
-			Paths:  make([]*Ident, 0),
-			Params: make([]*KeyValueExpr, 0),
-		},
+func CopyExpr(e Expr) Expr {
+	switch t := e.(type) {
+	case *Ident:
+		return &Ident{NamePos: t.NamePos, Name: t.Name}
+	case *IndexExpr:
+		return CopyIndexExpr(t)
+	case *KeyValueExpr:
+		return CopyKeyValueExpr(t)
+	default:
+		return nil
 	}
 }
 
-type Query struct {
-	Params []*KeyValueExpr
+func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
+	return &KeyValueExpr{
+		Key:     CopyExpr(kv.Key),
+		Sep:     kv.Sep,
+		SepChar: kv.SepChar,
+		Value:   CopyExpr(kv.Value),
+	}
 }
 
-type Fragment struct {
-	Paths  []*Ident
-	File   *Ident
-	Params []*KeyValueExpr
+func CopyIndexExpr(id *IndexExpr) *IndexExpr {
+	return &IndexExpr{
+		X:      CopyExpr(id.X),
+		Lbrack: id.Lbrack,
+		Index:  CopyExpr(id.Index),
+		Rbrack: id.Rbrack,
+	}
 }
