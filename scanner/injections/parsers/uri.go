@@ -71,6 +71,9 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			}
 		// case File: file is a one shot, added under case Path so no need to capture here
 		case Query:
+			if tok == token.QUESTION {
+				u.uri.QueryDelim = '?'
+			}
 			u.handleParams(tok, pos, lit, &u.uri.Query.Params)
 		case Fragment:
 			switch tok {
@@ -82,13 +85,13 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			case token.IDENT:
 				peek := u.s.Peek()
 				if peek == '?' || peek == '&' || peek == 0 {
-					u.uri.Fragment.File = &injast.Ident{
+					u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, &injast.Ident{
 						NamePos: pos,
 						Name:    lit,
-					}
+					})
 					continue
 				}
-				//prevTok := u.s.PeekBackwards()
+				u.kvIndex = 0 // reset kvIndex for fragment params
 				u.mode = FragmentQuery
 				u.handleParams(tok, pos, lit, &u.uri.Fragment.Params)
 			}
@@ -96,20 +99,11 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			if tok == token.SLASH {
 				continue
 			} else if tok.IsLiteral() {
-				peek := u.s.Peek()
+				u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, &injast.Ident{
+					NamePos: pos,
+					Name:    lit,
+				})
 
-				// if the next char is a ? & or EOF that means this ident is a file part
-				if peek == '?' || peek == '&' || peek == 0 {
-					u.uri.Fragment.File = &injast.Ident{
-						NamePos: pos,
-						Name:    lit,
-					}
-				} else {
-					u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, &injast.Ident{
-						NamePos: pos,
-						Name:    lit,
-					})
-				}
 			}
 		case FragmentQuery:
 			u.handleParams(tok, pos, lit, &u.uri.Fragment.Params)
@@ -200,6 +194,7 @@ func (u *URIParser) updateMode(tok token.Token) {
 	} else if u.mode == Fragment && tok == token.SLASH {
 		u.mode = FragmentPath
 	} else if u.mode == FragmentPath && tok == token.QUESTION {
+		u.kvIndex = 0 // reset index
 		u.mode = FragmentQuery
 	}
 }

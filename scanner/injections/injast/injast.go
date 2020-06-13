@@ -57,7 +57,9 @@ func (x *IndexExpr) End() Pos { return x.Rbrack + 1 }
 func (x *IndexExpr) String() string {
 	s := x.X.String()
 	s += "["
-	s += x.Index.String()
+	if x.Index != nil {
+		s += x.Index.String()
+	}
 	s += "]"
 	return s
 }

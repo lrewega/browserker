@@ -2,12 +2,13 @@ package injast
 
 // URI for injecting into URI/query/fragments
 type URI struct {
-	Paths    []*Ident
-	File     *Ident
-	Query    *Query
-	Fragment *Fragment
-	Original []byte
-	Modified []byte
+	Paths      []*Ident
+	File       *Ident
+	QueryDelim byte
+	Query      *Query
+	Fragment   *Fragment
+	Original   []byte
+	Modified   []byte
 }
 
 // NewURI for injection purposes
@@ -20,7 +21,6 @@ func NewURI(original []byte) *URI {
 			Params: make([]*KeyValueExpr, 0),
 		},
 		Fragment: &Fragment{
-			File:   &Ident{},
 			Paths:  make([]*Ident, 0),
 			Params: make([]*KeyValueExpr, 0),
 		},
@@ -29,7 +29,8 @@ func NewURI(original []byte) *URI {
 
 // Copy does a deep copy of the URI
 func (u *URI) Copy() *URI {
-	n := NewURI(u.Original)
+	orig := append([]byte(nil), u.Original...)
+	n := NewURI(orig)
 	if u.Paths != nil && len(u.Paths) > 0 {
 		n.Paths = make([]*Ident, len(u.Paths))
 		for i, path := range u.Paths {
@@ -41,15 +42,13 @@ func (u *URI) Copy() *URI {
 		n.File = &Ident{NamePos: u.File.NamePos, Name: u.File.Name}
 	}
 
+	n.QueryDelim = u.QueryDelim
+
 	if u.Query.Params != nil && len(u.Query.Params) > 0 {
 		n.Query.Params = make([]*KeyValueExpr, len(u.Query.Params))
 		for i, param := range u.Query.Params {
 			n.Query.Params[i] = CopyKeyValueExpr(param)
 		}
-	}
-
-	if u.Fragment.File != nil {
-		u.Fragment.File = &Ident{NamePos: u.Fragment.File.NamePos, Name: u.Fragment.File.Name}
 	}
 
 	if u.Fragment.Paths != nil && len(u.Fragment.Paths) > 0 {
@@ -71,44 +70,71 @@ func (u *URI) Copy() *URI {
 
 // String -ify the URI
 func (u *URI) String() string {
-	// we'll want to use the positional information to inject our changes, and then
-	// re-encode
-	/*
-		uri := u.PathOnly()
-		uri += u.FileOnly()
+	var lastPos Pos
 
-		if u.Query.Params != nil && len(u.Query.Params) > 0 {
-			uri += "?"
-			for i, p := range u.Query.Params {
-				uri += p.String()
-				if i+1 != len(u.Query.Params) {
-					uri += "&"
-				}
+	uri := "/"
+	lastPos++
+
+	if u.Paths != nil && len(u.Paths) > 0 {
+		for _, p := range u.Paths {
+			uri += p.String() + "/"
+			lastPos = p.End() + 1 // add 1 for slash
+		}
+	}
+
+	if u.File != nil && u.File.String() != "" {
+		uri += u.File.String()
+		lastPos = u.File.End()
+	}
+
+	if u.Query.Params != nil && len(u.Query.Params) > 0 {
+		// add everything between  lastPos and firstParam
+		firstParam := u.Query.Params[0].Pos()
+		uri += string(u.Original[lastPos:firstParam])
+
+		for i, p := range u.Query.Params {
+			uri += p.String()
+			if i+1 != len(u.Query.Params) {
+				uri += "&"
 			}
+			lastPos = p.End()
 		}
-		if u.Fragment.Paths != nil && len(u.Fragment.Paths) > 0 {
-			uri += "#"
-			for i, p := range u.Fragment.Paths {
-				uri += p.String()
-				if i+1 != len(u.Fragment.Paths) {
-					uri += "/"
-				}
+	}
+
+	if u.Fragment.Paths != nil && len(u.Fragment.Paths) > 0 {
+		// add everything between firstPath pos and lastPos
+		firstPath := u.Fragment.Paths[0].Pos()
+		uri += string(u.Original[lastPos:firstPath])
+
+		for i, p := range u.Fragment.Paths {
+			uri += p.String()
+			if i+1 != len(u.Fragment.Paths) {
+				uri += "/"
 			}
+			lastPos = p.End()
 		}
-		if u.Fragment.File != nil {
-			uri += u.Fragment.File.String()
-		}
-		// TODO: how to handle fragment params SepChar, right now assumes & like query
-		if u.Fragment.Params != nil && len(u.Fragment.Params) > 0 {
-			for i, p := range u.Fragment.Params {
-				uri += p.String()
-				if i+1 != len(u.Fragment.Params) {
-					uri += "&"
-				}
+	}
+
+	if u.Fragment.Params != nil && len(u.Fragment.Params) > 0 {
+		// add everything between firstPath pos and lastPos
+		firstParam := u.Fragment.Params[0].Pos()
+		uri += string(u.Original[lastPos:firstParam])
+		for i, p := range u.Fragment.Params {
+			if i != 0 {
+				uri += string(u.Original[lastPos:p.Pos()])
 			}
+			uri += p.String()
+			lastPos = p.End()
 		}
-	*/
-	return ""
+	}
+
+	// account for trailing delimiters
+	if int(lastPos) != len(u.Original) {
+		uri += string(u.Original[lastPos:len(u.Original)])
+	}
+
+	u.Modified = []byte(uri)
+	return uri
 }
 
 // PathOnly part as a string
@@ -138,6 +164,5 @@ type Query struct {
 // Fragment part of a URI
 type Fragment struct {
 	Paths  []*Ident
-	File   *Ident
 	Params []*KeyValueExpr
 }

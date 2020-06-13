@@ -42,7 +42,6 @@ func TestQuery(t *testing.T) {
 				},
 				Fragment: &injast.Fragment{
 					Paths:  nil,
-					File:   &injast.Ident{},
 					Params: nil,
 				},
 			},
@@ -79,8 +78,9 @@ func TestQuery(t *testing.T) {
 					},
 				},
 				Fragment: &injast.Fragment{
-					Paths:  nil,
-					File:   &injast.Ident{NamePos: 20, Name: "load"},
+					Paths: []*injast.Ident{
+						{NamePos: 20, Name: "load"},
+					},
 					Params: nil,
 				},
 			},
@@ -107,7 +107,6 @@ func TestQuery(t *testing.T) {
 				},
 				Fragment: &injast.Fragment{
 					Paths:  nil,
-					File:   &injast.Ident{},
 					Params: nil,
 				},
 			},
@@ -129,7 +128,6 @@ func TestQuery(t *testing.T) {
 				},
 				Fragment: &injast.Fragment{
 					Paths:  nil,
-					File:   &injast.Ident{},
 					Params: nil,
 				},
 			},
@@ -147,10 +145,10 @@ func TestQuery(t *testing.T) {
 							NamePos: 3,
 							Name:    "path",
 						},
-					},
-					File: &injast.Ident{
-						NamePos: 8,
-						Name:    "file",
+						{
+							NamePos: 8,
+							Name:    "file",
+						},
 					},
 					Params: nil,
 				},
@@ -163,9 +161,11 @@ func TestQuery(t *testing.T) {
 				File:  nil,
 				Query: &injast.Query{},
 				Fragment: &injast.Fragment{
-					File: &injast.Ident{
-						NamePos: 2,
-						Name:    "asdf",
+					Paths: []*injast.Ident{
+						{
+							NamePos: 2,
+							Name:    "asdf",
+						},
 					},
 					Params: nil,
 				},
@@ -178,7 +178,6 @@ func TestQuery(t *testing.T) {
 				File:  nil,
 				Query: &injast.Query{},
 				Fragment: &injast.Fragment{
-					File: &injast.Ident{},
 					Params: []*injast.KeyValueExpr{
 						{
 							Key:     &injast.Ident{NamePos: 2, Name: "asdf"},
@@ -197,7 +196,24 @@ func TestQuery(t *testing.T) {
 				File:  nil,
 				Query: &injast.Query{},
 				Fragment: &injast.Fragment{
-					File: &injast.Ident{},
+					Params: []*injast.KeyValueExpr{
+						{
+							Key:     &injast.Ident{NamePos: 3, Name: "asdf"},
+							Sep:     7,
+							SepChar: '=',
+							Value:   &injast.Ident{NamePos: 8, Name: "asdf"},
+						},
+					},
+				},
+			},
+		},
+		{
+			[]byte("/?#asdf=asdf"), // fragment 'as a query param' (empty query)
+			injast.URI{
+				Paths: nil,
+				File:  nil,
+				Query: &injast.Query{},
+				Fragment: &injast.Fragment{
 					Params: []*injast.KeyValueExpr{
 						{
 							Key:     &injast.Ident{NamePos: 3, Name: "asdf"},
@@ -251,7 +267,6 @@ func TestQuery(t *testing.T) {
 			res := uri.Fragment.Paths[i]
 			testCompareExpr(t, in.in, exp, res)
 		}
-		testCompareExpr(t, in.in, in.expected.Fragment.File, uri.Fragment.File)
 	}
 }
 
