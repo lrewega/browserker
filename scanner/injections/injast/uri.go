@@ -77,14 +77,23 @@ func (u *URI) String() string {
 
 	if u.Paths != nil && len(u.Paths) > 0 {
 		for _, p := range u.Paths {
+			u.updatePos(&lastPos, p)
+			// if a path has been sliced out, skip it but update our lastPos
+			if p.Modded && p.Mod == "" {
+				continue
+			}
 			uri += p.String() + "/"
-			lastPos = p.End() + 1 // add 1 for slash
+
+			lastPos++ // add 1 for slash
 		}
 	}
 
+	u.updatePos(&lastPos, u.File)
 	if u.File != nil && u.File.String() != "" {
-		uri += u.File.String()
-		lastPos = u.File.End()
+		// only add the file if it wasn't modified, or the Mod is not an empty string
+		if !u.File.Modded || u.File.Mod != "" {
+			uri += u.File.String()
+		}
 	}
 
 	if u.Query.Params != nil && len(u.Query.Params) > 0 {
@@ -97,7 +106,7 @@ func (u *URI) String() string {
 			if i+1 != len(u.Query.Params) {
 				uri += "&"
 			}
-			lastPos = p.End()
+			u.updatePos(&lastPos, p)
 		}
 	}
 
@@ -111,7 +120,7 @@ func (u *URI) String() string {
 			if i+1 != len(u.Fragment.Paths) {
 				uri += "/"
 			}
-			lastPos = p.End()
+			u.updatePos(&lastPos, p)
 		}
 	}
 
@@ -124,7 +133,7 @@ func (u *URI) String() string {
 				uri += string(u.Original[lastPos:p.Pos()])
 			}
 			uri += p.String()
-			lastPos = p.End()
+			u.updatePos(&lastPos, p)
 		}
 	}
 
@@ -135,6 +144,14 @@ func (u *URI) String() string {
 
 	u.Modified = []byte(uri)
 	return uri
+}
+
+// make sure Pos isn't 0 as injected nodes will have a 0 pos.
+func (u *URI) updatePos(pos *Pos, n Node) {
+	if n.Pos() == 0 {
+		return
+	}
+	*pos = n.End()
 }
 
 // PathOnly part as a string
@@ -154,6 +171,105 @@ func (u *URI) FileOnly() string {
 		return u.File.String()
 	}
 	return ""
+}
+
+// ReplaceFile with newFile name
+func (u *URI) ReplaceFile(newFile string) {
+	if u.File == nil {
+		u.File = &Ident{Name: ""}
+	}
+	u.File.Modify(newFile)
+}
+
+// ReplacePath with a new string
+func (u *URI) ReplacePath(path string, index int) bool {
+	return u.replaceIdent(u.Paths, path, index)
+}
+
+func (u *URI) ReplaceFragmentPath(path string, index int) bool {
+	return u.replaceIdent(u.Fragment.Paths, path, index)
+}
+
+func (u *URI) replaceIdent(idents []*Ident, path string, index int) bool {
+	if index < 0 || index > len(idents) {
+		return false
+	}
+	idents[index].Modify(path)
+	return true
+}
+
+// ReplaceParam finds the first occurance of original (as the key) and replaces it
+// with newKey and newVal
+func (u *URI) ReplaceParam(original, newKey, newVal string) bool {
+	return u.replaceParam(u.Query.Params, original, newKey, newVal)
+}
+
+// ReplaceFragmentParam finds the first occurance of original (as the key) and replaces it
+// with newKey and newVal for fragments
+func (u *URI) ReplaceFragmentParam(original, newKey, newVal string) bool {
+	return u.replaceParam(u.Fragment.Params, original, newKey, newVal)
+}
+
+func (u *URI) replaceParam(params []*KeyValueExpr, original, newKey, newVal string) bool {
+	for _, kv := range params {
+		if kv.Key.String() == original {
+			keyMod := true
+			if original != newKey {
+				keyMod = ReplaceExpr(kv, newKey, "key")
+			}
+			valMod := ReplaceExpr(kv, newVal, "value")
+			return keyMod && valMod
+		}
+	}
+	return false
+}
+
+// ReplaceParamByIndex attempts to directly access the query param by index and replace
+// instead of looking up the name
+func (u *URI) ReplaceParamByIndex(index int, newKey, newVal string) bool {
+	return u.replaceParamByIndex(u.Query.Params, index, newKey, newVal)
+}
+
+// ReplaceFragmentParamByIndex attempts to directly access the query param by index and replace
+// instead of looking up the name for fragments
+func (u *URI) ReplaceFragmentParamByIndex(index int, newKey, newVal string) bool {
+	return u.replaceParamByIndex(u.Fragment.Params, index, newKey, newVal)
+}
+
+func (u *URI) replaceParamByIndex(params []*KeyValueExpr, index int, newKey, newVal string) bool {
+	if index < 0 || index > len(params) {
+		return false
+	}
+
+	kv := params[index]
+	keyMod := ReplaceExpr(kv, newKey, "key")
+	valMod := ReplaceExpr(kv, newVal, "value")
+	return keyMod && valMod
+}
+
+// ReplaceIndexedParam replaces x[original]=1 with x[new]=1
+func (u *URI) ReplaceIndexedParam(original, newKey, newIndexVal, newVal string) bool {
+	return u.replaceIndexedParam(u.Query.Params, original, newKey, newIndexVal, newVal)
+}
+
+// ReplaceFragmentIndexedParam replaces x[original]=1 with x[new]=1
+func (u *URI) ReplaceFragmentIndexedParam(original, newKey, newIndexVal, newVal string) bool {
+	return u.replaceIndexedParam(u.Fragment.Params, original, newKey, newIndexVal, newVal)
+}
+
+func (u *URI) replaceIndexedParam(params []*KeyValueExpr, original, newKey, newIndexVal, newVal string) bool {
+	for _, kv := range params {
+		if kv.Key.String() == original {
+			keyMod := true
+			if original != newKey {
+				keyMod = ReplaceExpr(kv, newKey, "key")
+			}
+			indexMod := ReplaceExpr(kv.Key, newIndexVal, "index")
+			valMod := ReplaceExpr(kv, newVal, "value")
+			return keyMod && valMod && indexMod
+		}
+	}
+	return false
 }
 
 // Query part of a URI

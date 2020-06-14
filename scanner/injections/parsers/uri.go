@@ -92,6 +92,7 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 					continue
 				}
 				u.kvIndex = 0 // reset kvIndex for fragment params
+				u.kvMode = keyMode
 				u.mode = FragmentQuery
 				u.handleParams(tok, pos, lit, &u.uri.Fragment.Params)
 			}
@@ -194,7 +195,8 @@ func (u *URIParser) updateMode(tok token.Token) {
 	} else if u.mode == Fragment && tok == token.SLASH {
 		u.mode = FragmentPath
 	} else if u.mode == FragmentPath && tok == token.QUESTION {
-		u.kvIndex = 0 // reset index
+		u.kvIndex = 0      // reset index
+		u.kvMode = keyMode // reset kv mode to key
 		u.mode = FragmentQuery
 	}
 }

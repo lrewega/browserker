@@ -20,6 +20,8 @@ type (
 	Ident struct {
 		NamePos Pos    // identifier position
 		Name    string // identifier name
+		Mod     string
+		Modded  bool
 	}
 
 	// An IndexExpr node represents an expression followed by an index.
@@ -44,11 +46,22 @@ type (
 func (*Ident) exprNode()  {}
 func (x *Ident) Pos() Pos { return x.NamePos }
 func (x *Ident) End() Pos { return Pos(int(x.NamePos) + len(x.Name)) }
-func (id *Ident) String() string {
-	if id != nil {
-		return id.Name
+func (x *Ident) String() string {
+	if x != nil {
+		if x.Modded {
+			return x.Mod
+		}
+		return x.Name
 	}
 	return ""
+}
+
+// Modify sets a new field because End() and Pos() will be incorrect
+// if we modify the Name field. All access should call String()
+// so we can handle when a value is modified
+func (x *Ident) Modify(newValue string) {
+	x.Modded = true
+	x.Mod = newValue
 }
 
 func (*IndexExpr) exprNode()  {}
@@ -103,4 +116,27 @@ func CopyIndexExpr(id *IndexExpr) *IndexExpr {
 		Index:  CopyExpr(id.Index),
 		Rbrack: id.Rbrack,
 	}
+}
+
+func ReplaceExpr(e Expr, newVal, field string) bool {
+	switch t := e.(type) {
+	case *Ident:
+		t.Modify(newVal)
+		return true
+	case *IndexExpr:
+		if field == "key" {
+			return ReplaceExpr(t.X, newVal, field)
+		} else if field == "index" {
+			return ReplaceExpr(t.Index, newVal, field)
+		}
+	case *KeyValueExpr:
+		if field == "key" {
+			return ReplaceExpr(t.Key, newVal, field)
+		} else if field == "value" {
+			return ReplaceExpr(t.Value, newVal, field)
+		}
+	default:
+		return false
+	}
+	return false
 }

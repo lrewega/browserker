@@ -56,3 +56,246 @@ func TestURIString(t *testing.T) {
 		}
 	}
 }
+
+func TestReplaceFile(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in       string
+		newFile  string
+		expected string
+	}{
+		{
+			"/file?x=1",
+			"",
+			"/?x=1",
+		},
+		{
+			"/file?x=1",
+			"newfile",
+			"/newfile?x=1",
+		},
+		{
+			"/file/?x=1",
+			"newfile",
+			"/file/newfile?x=1",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplaceFile(input.newFile)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.in, u.String())
+		}
+	}
+}
+
+func TestReplacePath(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in       string
+		newPath  string
+		index    int
+		expected string
+	}{
+		{
+			"/path/?x=1",
+			"newpath",
+			0,
+			"/newpath/?x=1",
+		},
+		{
+			"/path1/path2/?x=1",
+			"newpath",
+			1,
+			"/path1/newpath/?x=1",
+		},
+		{
+			"/path1/path2/?x=1",
+			"newpath",
+			8,
+			"/path1/path2/?x=1",
+		},
+		{
+			"/path1/path2/path3/file?x=1",
+			"newpath",
+			1,
+			"/path1/newpath/path3/file?x=1",
+		},
+		{
+			"/path1/path2/path3/file?x=1",
+			"",
+			1,
+			"/path1/path3/file?x=1",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplacePath(input.newPath, input.index)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.in, u.String())
+		}
+	}
+}
+
+func TestReplaceParam(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in       string
+		original string
+		newKey   string
+		newVal   string
+		expected string
+	}{
+		{
+			"/file?x[0]=1",
+			"x[0]",
+			"y",
+			"zoop",
+			"/file?y[0]=zoop",
+		},
+		{
+			"/file?x=1",
+			"x",
+			"x",
+			"blah",
+			"/file?x=blah",
+		},
+		{
+			"/file?x=1",
+			"notexist",
+			"notexist",
+			"notexist",
+			"/file?x=1",
+		},
+		{
+			"/file?x[0]=1",
+			"x[0]",
+			"x",
+			"zoop",
+			"/file?x[0]=zoop",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplaceParam(input.original, input.newKey, input.newVal)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
+		}
+	}
+}
+
+func TestReplaceFragmentParam(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in       string
+		original string
+		newKey   string
+		newVal   string
+		expected string
+	}{
+		{
+			"/file?x[0]=1#x[0]=1",
+			"x[0]",
+			"y",
+			"zoop",
+			"/file?x[0]=1#y[0]=zoop",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplaceFragmentParam(input.original, input.newKey, input.newVal)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
+		}
+	}
+}
+
+func TestReplaceParamByIndex(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in       string
+		original int
+		newKey   string
+		newVal   string
+		expected string
+	}{
+		{
+			"/file?x[0]=1",
+			0,
+			"y",
+			"zoop",
+			"/file?y[0]=zoop",
+		},
+		{
+			"/file?x=1",
+			0,
+			"x",
+			"blah",
+			"/file?x=blah",
+		},
+		{
+			"/file?x=1&y=2",
+			1,
+			"newParam",
+			"newVal",
+			"/file?x=1&newParam=newVal",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplaceParamByIndex(input.original, input.newKey, input.newVal)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
+		}
+	}
+}
+
+func TestReplaceIndexedParam(t *testing.T) {
+	p := &parsers.URIParser{}
+	var inputs = []struct {
+		in          string
+		original    string
+		newKey      string
+		newIndexVal string
+		newVal      string
+		expected    string
+	}{
+		{
+			"/file?x[0]=1",
+			"x[0]",
+			"y",
+			"zoop",
+			"zoop",
+			"/file?y[zoop]=zoop",
+		},
+		{
+			"/file?x[0]=1",
+			"x[0]",
+			"x",
+			"zoop",
+			"1",
+			"/file?x[zoop]=1",
+		},
+		{
+			"/file?x[0]=1&x[1]=2",
+			"x[1]",
+			"x",
+			"zoop",
+			"newval",
+			"/file?x[0]=1&x[zoop]=newval",
+		},
+	}
+
+	for _, input := range inputs {
+		u, _ := p.Parse(input.in)
+		u.ReplaceIndexedParam(input.original, input.newKey, input.newIndexVal, input.newVal)
+		if u.String() != input.expected {
+			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
+		}
+	}
+}
