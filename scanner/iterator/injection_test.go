@@ -12,7 +12,7 @@ func TestInjectionIter(t *testing.T) {
 
 	msg := mock.MakeMockMessages()
 	req := msg[0].Request
-	req.Request.Url = "http://example:8080/some/path?x=1&y=2#/test"
+	req.Request.Url = "http://example:8080/some/path.js?x=1&y=2#/test" //
 
 	it := iterator.NewInjectionIter(req)
 	for it.Rewind(); it.Valid(); it.Next() {
@@ -24,4 +24,5 @@ func TestInjectionIter(t *testing.T) {
 		}
 		t.Logf("%s\n", name)
 	}
+	t.Fail()
 }

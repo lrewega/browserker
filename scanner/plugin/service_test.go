@@ -64,7 +64,6 @@ func TestDispatch(t *testing.T) {
 			ListenURL:        false,
 			ListenJS:         false,
 			ExecutionType:    0,
-			Mimes:            nil,
 			Injections:       nil,
 		}
 	}

@@ -13,6 +13,7 @@ import (
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
+	"gitlab.com/browserker/scanner/iterator"
 	"gitlab.com/browserker/scanner/plugin"
 	"gitlab.com/browserker/scanner/report"
 )
@@ -292,7 +293,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 	// InitContext
 	// Cursor for requests -> cursor for injection points?
 	// How do we limit which plugins get what they need for ExecutionTypes?
-	//
 	isFinal := false
 	for i, nav := range navs {
 		// we are on the last navigation of this path so we'll want to attack now
@@ -314,17 +314,26 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 
 		// Add GlobalHooks (stored xss function listener)
 		// Create request cursor
+		mIt := iterator.NewMessageIter(nav)
+		for mIt.Rewind(); mIt.Valid(); mIt.Next() {
+			req := mIt.Request()
+			injIt := iterator.NewInjectionIter(req)
+			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+				injection, _ := injIt.Name()
+				navCtx.Log.Debug().Msgf("url: %s injection: %s", req.Request.Url, injection)
+			}
+		}
 		// Create injection cursor
 
 		// if final -> InitContext
 
-		ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
-		browser.ExecuteAction(ctx, nav.Navigation)
+		//ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
+		//browser.ExecuteAction(ctx, nav.Navigation)
 
 		navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
 		browser.Close()
 		b.browsers.Return(navCtx.Ctx, port)
-		cancel()
+		//cancel()
 
 		b.removeLeased(browser.ID())
 	}

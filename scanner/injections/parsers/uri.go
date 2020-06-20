@@ -55,10 +55,16 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			} else if tok.IsLiteral() {
 				// peek backwards because the scanner is already primed for the next token
 				// calling peek would skip past the potential end of path/file delimiter
-				peek := u.s.PeekBackwards()
+				// for urls that immediately end
+				// eg: /path/file
+				peek := u.s.Peek()
+				// for urls that have query params, since we'll skip over the token
+				// eg: /path/file?x=1
+				peekBackwards := u.s.PeekBackwards()
 
 				// if the next char is a ?, ;, # or EOF that means this ident is a file part
-				if peek == '?' || peek == '#' || peek == ';' || peek == 0 {
+				if (peek == '?' || peek == '#' || peek == ';' || peek == 0) ||
+					(peekBackwards == '?' || peekBackwards == '#' || peekBackwards == ';' || peekBackwards == 0) {
 					f := &injast.Ident{
 						NamePos:  pos,
 						Name:     lit,

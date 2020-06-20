@@ -78,7 +78,7 @@ func (it *InjectionIterator) File() string {
 }
 
 func (it *InjectionIterator) Seek(index int) {
-	if index+1 >= len(it.locs) {
+	if index >= len(it.locs) {
 		it.currentInj = nil
 		return
 	}
