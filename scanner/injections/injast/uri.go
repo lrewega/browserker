@@ -7,6 +7,7 @@ type URI struct {
 	QueryDelim byte
 	Query      *Query
 	Fragment   *Fragment
+	Fields     []Expr
 	Original   []byte
 	Modified   []byte
 }
@@ -15,6 +16,7 @@ type URI struct {
 func NewURI(original []byte) *URI {
 	return &URI{
 		Original: original,
+		Fields:   make([]Expr, 0),
 		Paths:    make([]*Ident, 0),
 		File:     &Ident{},
 		Query: &Query{

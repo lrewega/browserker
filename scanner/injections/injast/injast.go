@@ -1,5 +1,7 @@
 package injast
 
+import "gitlab.com/browserker/browserk"
+
 type Pos int
 
 // All node types implement the Node interface.
@@ -12,34 +14,38 @@ type Expr interface {
 	Node
 	exprNode()
 	String() string
+	Loc() browserk.InjectionLocation
 }
 
 type (
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		NamePos Pos    // identifier position
-		Name    string // identifier name
-		Mod     string
-		Modded  bool
+		NamePos  Pos    // identifier position
+		Name     string // identifier name
+		Mod      string
+		Modded   bool
+		Location browserk.InjectionLocation
 	}
 
 	// An IndexExpr node represents an expression followed by an index.
 	IndexExpr struct {
-		X      Expr // expression
-		Lbrack Pos  // position of "["
-		Index  Expr // index expression
-		Rbrack Pos  // position of "]"
+		X        Expr // expression
+		Lbrack   Pos  // position of "["
+		Index    Expr // index expression
+		Rbrack   Pos  // position of "]"
+		Location browserk.InjectionLocation
 	}
 
 	// A KeyValueExpr node represents (key : value) pairs
 	// in composite literals.
 	//
 	KeyValueExpr struct {
-		Key     Expr
-		Sep     Pos  // position of separator
-		SepChar rune // separator value
-		Value   Expr
+		Key      Expr
+		Sep      Pos  // position of separator
+		SepChar  rune // separator value
+		Value    Expr
+		Location browserk.InjectionLocation
 	}
 )
 
@@ -55,6 +61,7 @@ func (x *Ident) String() string {
 	}
 	return ""
 }
+func (x *Ident) Loc() browserk.InjectionLocation { return x.Location }
 
 // Modify sets a new field because End() and Pos() will be incorrect
 // if we modify the Name field. All access should call String()
@@ -76,6 +83,7 @@ func (x *IndexExpr) String() string {
 	s += "]"
 	return s
 }
+func (x *IndexExpr) Loc() browserk.InjectionLocation { return x.Location }
 
 func (*KeyValueExpr) exprNode()  {}
 func (x *KeyValueExpr) Pos() Pos { return x.Key.Pos() }
@@ -86,11 +94,12 @@ func (x *KeyValueExpr) String() string {
 	s += x.Value.String()
 	return s
 }
+func (x *KeyValueExpr) Loc() browserk.InjectionLocation { return x.Location }
 
 func CopyExpr(e Expr) Expr {
 	switch t := e.(type) {
 	case *Ident:
-		return &Ident{NamePos: t.NamePos, Name: t.Name}
+		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location}
 	case *IndexExpr:
 		return CopyIndexExpr(t)
 	case *KeyValueExpr:
@@ -102,19 +111,21 @@ func CopyExpr(e Expr) Expr {
 
 func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
 	return &KeyValueExpr{
-		Key:     CopyExpr(kv.Key),
-		Sep:     kv.Sep,
-		SepChar: kv.SepChar,
-		Value:   CopyExpr(kv.Value),
+		Key:      CopyExpr(kv.Key),
+		Sep:      kv.Sep,
+		SepChar:  kv.SepChar,
+		Value:    CopyExpr(kv.Value),
+		Location: kv.Location,
 	}
 }
 
 func CopyIndexExpr(id *IndexExpr) *IndexExpr {
 	return &IndexExpr{
-		X:      CopyExpr(id.X),
-		Lbrack: id.Lbrack,
-		Index:  CopyExpr(id.Index),
-		Rbrack: id.Rbrack,
+		X:        CopyExpr(id.X),
+		Lbrack:   id.Lbrack,
+		Index:    CopyExpr(id.Index),
+		Rbrack:   id.Rbrack,
+		Location: id.Location,
 	}
 }
 

@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/scanner"
 	"gitlab.com/browserker/scanner/injections/token"
@@ -58,15 +59,21 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 
 				// if the next char is a ?, ;, # or EOF that means this ident is a file part
 				if peek == '?' || peek == '#' || peek == ';' || peek == 0 {
-					u.uri.File = &injast.Ident{
-						NamePos: pos,
-						Name:    lit,
+					f := &injast.Ident{
+						NamePos:  pos,
+						Name:     lit,
+						Location: browserk.InjectFile,
 					}
+					u.uri.File = f
+					u.uri.Fields = append(u.uri.Fields, f)
 				} else {
-					u.uri.Paths = append(u.uri.Paths, &injast.Ident{
-						NamePos: pos,
-						Name:    lit,
-					})
+					p := &injast.Ident{
+						NamePos:  pos,
+						Name:     lit,
+						Location: browserk.InjectPath,
+					}
+					u.uri.Paths = append(u.uri.Paths, p)
+					u.uri.Fields = append(u.uri.Fields, p)
 				}
 			}
 		// case File: file is a one shot, added under case Path so no need to capture here
@@ -74,7 +81,7 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			if tok == token.QUESTION {
 				u.uri.QueryDelim = '?'
 			}
-			u.handleParams(tok, pos, lit, &u.uri.Query.Params)
+			u.handleParams(tok, pos, lit, &u.uri.Query.Params, browserk.InjectQuery)
 		case Fragment:
 			switch tok {
 			case token.HASH:
@@ -85,44 +92,64 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 			case token.IDENT:
 				peek := u.s.Peek()
 				if peek == '?' || peek == '&' || peek == 0 {
-					u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, &injast.Ident{
-						NamePos: pos,
-						Name:    lit,
-					})
+					p := &injast.Ident{
+						NamePos:  pos,
+						Name:     lit,
+						Location: browserk.InjectFragmentPath,
+					}
+					u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, p)
+					u.uri.Fields = append(u.uri.Fields, p)
 					continue
 				}
 				u.kvIndex = 0 // reset kvIndex for fragment params
 				u.kvMode = keyMode
 				u.mode = FragmentQuery
-				u.handleParams(tok, pos, lit, &u.uri.Fragment.Params)
+				u.handleParams(tok, pos, lit, &u.uri.Fragment.Params, browserk.InjectFragment)
 			}
 		case FragmentPath:
 			if tok == token.SLASH {
 				continue
 			} else if tok.IsLiteral() {
-				u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, &injast.Ident{
-					NamePos: pos,
-					Name:    lit,
-				})
+				p := &injast.Ident{
+					NamePos:  pos,
+					Name:     lit,
+					Location: browserk.InjectFragmentPath,
+				}
+				u.uri.Fragment.Paths = append(u.uri.Fragment.Paths, p)
+				u.uri.Fields = append(u.uri.Fields, p)
 
 			}
 		case FragmentQuery:
-			u.handleParams(tok, pos, lit, &u.uri.Fragment.Params)
+			u.handleParams(tok, pos, lit, &u.uri.Fragment.Params, browserk.InjectFragment)
 		}
 	}
 }
 
-func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, params *[]*injast.KeyValueExpr) {
+func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, params *[]*injast.KeyValueExpr, loc browserk.InjectionLocation) {
+	paramLoc := browserk.InjectQueryName
+	if loc == browserk.InjectQuery && u.kvMode == keyMode {
+		paramLoc = browserk.InjectQueryName
+	} else if loc == browserk.InjectQuery && u.kvMode == valueMode {
+		paramLoc = browserk.InjectQueryValue
+	} else if loc == browserk.InjectFragment && u.kvMode == keyMode {
+		paramLoc = browserk.InjectFragmentName
+	} else if loc == browserk.InjectFragment && u.kvMode == valueMode {
+		paramLoc = browserk.InjectFragmentValue
+	}
+
 	switch tok {
 	case token.ASSIGN:
 		// /file?=asdf (invalid, but we must account for it)
 		if len(*params) == 0 {
-			*params = append(*params, &injast.KeyValueExpr{
-				Key:     &injast.Ident{NamePos: pos, Name: lit},
-				Sep:     0,
-				SepChar: 0,
-				Value:   nil,
-			})
+			kv := &injast.KeyValueExpr{
+				Key:      &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc},
+				Sep:      0,
+				SepChar:  0,
+				Value:    nil,
+				Location: loc,
+			}
+			*params = append(*params, kv)
+			u.uri.Fields = append(u.uri.Fields, kv)
 		}
 		(*params)[u.kvIndex].Sep = pos
 		(*params)[u.kvIndex].SepChar = '='
@@ -139,37 +166,52 @@ func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, pa
 	if u.kvMode == keyMode {
 		var key injast.Expr
 
-		key = &injast.Ident{NamePos: pos, Name: lit}
+		key = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 		peek := u.s.PeekBackwards()
 		if peek == '[' {
-			key = u.handleIndexExpr(pos, lit)
+			key = u.handleIndexExpr(pos, lit, loc)
 		}
-		*params = append(*params, &injast.KeyValueExpr{
-			Key:     key,
-			Sep:     0,
-			SepChar: 0,
-			Value:   nil,
-		})
+		kv := &injast.KeyValueExpr{
+			Key:      key,
+			Sep:      0,
+			SepChar:  0,
+			Value:    nil,
+			Location: loc,
+		}
+		*params = append(*params, kv)
+		u.uri.Fields = append(u.uri.Fields, kv)
 	} else {
-		(*params)[u.kvIndex].Value = &injast.Ident{NamePos: pos, Name: lit}
+		(*params)[u.kvIndex].Value = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 	}
 }
 
-func (u *URIParser) handleIndexExpr(originalPos injast.Pos, lit string) injast.Expr {
+func (u *URIParser) handleIndexExpr(originalPos injast.Pos, lit string, loc browserk.InjectionLocation) injast.Expr {
+	paramLoc := browserk.InjectQueryIndex
+
+	if loc == browserk.InjectFragment {
+		paramLoc = browserk.InjectFragmentIndex
+	}
+
 	expr := &injast.IndexExpr{
-		X:      &injast.Ident{NamePos: originalPos, Name: lit},
-		Lbrack: 0,
-		Index:  nil,
-		Rbrack: 0,
+		X:        &injast.Ident{NamePos: originalPos, Name: lit, Location: paramLoc},
+		Lbrack:   0,
+		Index:    nil,
+		Rbrack:   0,
+		Location: paramLoc,
 	}
 
 	notIndexExpr := lit
+
+	paramLoc = browserk.InjectQueryName
+	if loc == browserk.InjectFragment {
+		paramLoc = browserk.InjectFragmentName
+	}
 
 	for {
 		pos, tok, lit := u.s.Scan()
 		switch tok {
 		case token.EOF, token.ASSIGN:
-			return &injast.Ident{NamePos: originalPos, Name: notIndexExpr}
+			return &injast.Ident{NamePos: originalPos, Name: notIndexExpr, Location: paramLoc}
 		case token.LBRACK:
 			notIndexExpr += "["
 			expr.Lbrack = pos
@@ -178,7 +220,7 @@ func (u *URIParser) handleIndexExpr(originalPos injast.Pos, lit string) injast.E
 			expr.Rbrack = pos
 			return expr
 		default:
-			expr.Index = &injast.Ident{NamePos: pos, Name: lit}
+			expr.Index = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 			notIndexExpr += lit
 		}
 	}

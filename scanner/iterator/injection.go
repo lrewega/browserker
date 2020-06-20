@@ -14,24 +14,24 @@ type Injection struct {
 }
 
 type InjectionIterator struct {
-	req    *browserk.HTTPRequest
-	method injast.Expr
-	uri    *injast.URI
-	// headers *injast.Headers
-	// body *injast.Body
-	currentInj      injast.Expr
-	currentLoc      browserk.InjectionLocation
-	currentLocIndex int
-	invalidParse    bool
+	req          *browserk.HTTPRequest
+	method       injast.Expr
+	uri          *injast.URI
+	locs         []injast.Expr
+	currentInj   injast.Expr
+	currentIndex int
+	invalidParse bool
 }
 
-// NewMessageIter for iterating over requests in a navigation.
+// NewInjectionIter for iterating over requests in a navigation.
 // TODO: should parse the requests injection points so we only have to do it once
 func NewInjectionIter(req *browserk.HTTPRequest) *InjectionIterator {
 	it := &InjectionIterator{
-		req: req,
+		req:  req,
+		locs: make([]injast.Expr, 0),
 	}
-	it.method = &injast.Ident{Name: req.Request.Method, NamePos: 0}
+	it.method = &injast.Ident{Name: req.Request.Method, NamePos: 0, Location: browserk.InjectMethod}
+	it.locs = append(it.locs, it.method)
 	it.parseURI()
 	return it
 }
@@ -57,6 +57,7 @@ func (it *InjectionIterator) parseURI() {
 	if err != nil {
 		it.invalidParse = true
 	}
+	it.locs = append(it.locs, it.uri.Fields...)
 }
 
 func (it *InjectionIterator) Method() string {
@@ -76,92 +77,37 @@ func (it *InjectionIterator) File() string {
 	return it.uri.FileOnly()
 }
 
-func (it *InjectionIterator) Next() {
-	switch it.currentLoc {
-	case browserk.InjectMethod:
-		it.currentLoc = browserk.InjectPath
-		it.currentLocIndex = 0
-		it.currentInj = it.uri.Paths[0]
-	case browserk.InjectPath:
-		if it.currentLocIndex+1 >= len(it.uri.Paths) {
-			it.currentLoc = browserk.InjectFile
-			it.currentLocIndex = 0
-			it.currentInj = it.uri.File
-		} else {
-			it.currentLocIndex++
-			it.currentInj = it.uri.Paths[it.currentLocIndex]
-		}
-	case browserk.InjectFile:
-		if it.uri.HasParams() {
-			it.currentLoc = browserk.InjectQueryName
-			it.currentLocIndex = 0
-			it.currentInj = it.uri.Query.Params[0]
-		} else if it.uri.HasFragmentPath() {
-			it.skipToFragmentPath()
-		} else if it.uri.HasFragmentParams() {
-			it.skipToFragmentParams()
-		} else {
-			it.currentInj = nil
-		}
-	case browserk.InjectQueryName:
-		if it.currentLocIndex+1 >= len(it.uri.Query.Params) {
-			if it.uri.HasFragmentPath() {
-				it.skipToFragmentPath()
-			} else if it.uri.HasFragmentParams() {
-				it.skipToFragmentParams()
-			} else {
-				it.currentInj = nil
-			}
-		} else {
-			it.currentLocIndex++
-			it.currentInj = it.uri.Query.Params[it.currentLocIndex]
-		}
-	case browserk.InjectFragmentPath:
-		if it.currentLocIndex+1 >= len(it.uri.Fragment.Paths) {
-			if it.uri.HasFragmentParams() {
-				it.skipToFragmentParams()
-			} else {
-				it.currentInj = nil
-			}
-		} else {
-			it.currentLocIndex++
-			it.currentInj = it.uri.Fragment.Paths[it.currentLocIndex]
-		}
-	case browserk.InjectFragmentName:
-		if it.currentLocIndex+1 >= len(it.uri.Fragment.Params) {
-			it.currentInj = nil
-		} else {
-			it.currentLocIndex++
-			it.currentInj = it.uri.Fragment.Params[it.currentLocIndex]
-		}
-	default:
+func (it *InjectionIterator) Seek(index int) {
+	if index+1 >= len(it.locs) {
 		it.currentInj = nil
+		return
 	}
+	it.currentIndex = index
+	it.currentInj = it.locs[index]
 }
 
-func (it *InjectionIterator) skipToFragmentPath() {
-	it.currentLoc = browserk.InjectFragmentPath
-	it.currentLocIndex = 0
-	it.currentInj = it.uri.Fragment.Paths[0]
-}
-
-func (it *InjectionIterator) skipToFragmentParams() {
-	it.currentLoc = browserk.InjectFragmentName
-	it.currentLocIndex = 0
-	it.currentInj = it.uri.Fragment.Params[0]
+func (it *InjectionIterator) Next() {
+	it.Seek(it.currentIndex + 1)
 }
 
 func (it *InjectionIterator) Name() (string, browserk.InjectionLocation) {
-	// TODO: handle index params
-	switch it.currentLoc {
-	case browserk.InjectQueryName, browserk.InjectFragmentName:
-		k, _ := it.currentInj.(*injast.KeyValueExpr)
-		return k.Key.String(), it.currentLoc
-	case browserk.InjectQueryValue, browserk.InjectFragmentValue:
-		v, _ := it.currentInj.(*injast.KeyValueExpr)
-		return v.Value.String(), it.currentLoc
+	return it.currentInj.String(), it.currentInj.Loc()
+}
+
+func (it *InjectionIterator) Key() (string, browserk.InjectionLocation) {
+	v, ok := it.currentInj.(*injast.KeyValueExpr)
+	if !ok {
+		return "", 0
 	}
-	return it.currentInj.String(), it.currentLoc
+	return v.Key.String(), v.Location
+}
+
+func (it *InjectionIterator) Value() (string, browserk.InjectionLocation) {
+	v, ok := it.currentInj.(*injast.KeyValueExpr)
+	if !ok {
+		return "", 0
+	}
+	return v.Value.String(), v.Location
 }
 
 func (it *InjectionIterator) Valid() bool {
@@ -172,9 +118,8 @@ func (it *InjectionIterator) Valid() bool {
 }
 
 func (it *InjectionIterator) Rewind() {
-	it.currentLoc = browserk.InjectMethod
-	it.currentInj = it.method
-	it.currentLocIndex = 0
+	it.currentIndex = 0
+	it.Seek(it.currentIndex)
 }
 
 func stripHost(u string) string {

@@ -13,29 +13,36 @@ const (
 	InjectMethod InjectionLocation = 1 << iota
 	InjectPath
 	InjectFile
+	InjectQuery
 	InjectQueryName
 	InjectQueryValue
 	InjectQueryIndex
+	InjectFragment
 	InjectFragmentPath
 	InjectFragmentName
 	InjectFragmentValue
 	InjectFragmentIndex
+	InjectHeader
 	InjectHeaderName
 	InjectHeaderValue
+	InjectCookie
 	InjectCookieName
 	InjectCookieValue
+	InjectBody
 	InjectBodyName
 	InjectBodyValue
 	InjectBodyIndex
+	InjectJSON
 	InjectJSONName
 	InjectJSONValue
+	InjectXML
 	InjectXMLName
 	InjectXMLValue
 )
 
 const (
 	// InjectAll injects into literally any point we can
-	InjectAll InjectionLocation = InjectMethod | InjectPath | InjectFile | InjectQueryName | InjectQueryValue | InjectQueryIndex | InjectFragmentPath | InjectFragmentName | InjectFragmentValue | InjectFragmentIndex | InjectHeaderName | InjectHeaderValue | InjectCookieName | InjectCookieValue | InjectBodyName | InjectBodyValue | InjectBodyIndex | InjectJSONName | InjectJSONValue | InjectXMLName | InjectXMLValue
+	InjectAll InjectionLocation = InjectMethod | InjectPath | InjectFile | InjectQuery | InjectQueryName | InjectQueryValue | InjectQueryIndex | InjectFragment | InjectFragmentPath | InjectFragmentName | InjectFragmentValue | InjectFragmentIndex | InjectHeader | InjectHeaderName | InjectHeaderValue | InjectCookie | InjectCookieName | InjectCookieValue | InjectBody | InjectBodyName | InjectBodyValue | InjectBodyIndex | InjectJSON | InjectJSONName | InjectJSONValue | InjectXML | InjectXMLName | InjectXMLValue
 	// InjectCommon injects into common path/value parameters
-	InjectCommon InjectionLocation = InjectPath | InjectFile | InjectQueryValue | InjectFragmentPath | InjectFragmentValue | InjectHeaderValue | InjectCookieValue | InjectBodyValue | InjectJSONValue | InjectXMLValue
+	InjectCommon InjectionLocation = InjectPath | InjectFile | InjectQuery | InjectQueryValue | InjectFragmentPath | InjectFragmentValue | InjectHeaderValue | InjectCookieValue | InjectBody | InjectBodyValue | InjectJSON | InjectJSONValue | InjectXML | InjectXMLValue
 )

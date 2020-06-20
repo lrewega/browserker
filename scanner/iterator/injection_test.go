@@ -3,6 +3,7 @@ package iterator_test
 import (
 	"testing"
 
+	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/iterator"
 )
@@ -16,7 +17,11 @@ func TestInjectionIter(t *testing.T) {
 	it := iterator.NewInjectionIter(req)
 	for it.Rewind(); it.Valid(); it.Next() {
 		name, loc := it.Name()
-		t.Logf("%s %d\n", name, loc)
+		if loc == browserk.InjectQuery || loc == browserk.InjectFragment {
+			key, _ := it.Key()
+			val, _ := it.Value()
+			t.Logf("key: %s , val: %s\n", key, val)
+		}
+		t.Logf("%s\n", name)
 	}
-	t.Fail()
 }
