@@ -95,6 +95,15 @@ func (p *JSPlugin) Config() *browserk.PluginConfig {
 	return p.config
 }
 
+func (p *JSPlugin) InitContext(bctx *browserk.Context) {
+	p.vm.Set("context", bctx)
+
+	_, err := p.vm.RunString("plugin.InitContext(context)")
+	if err != nil {
+		log.Fatal().Err(err).Str("file", p.scriptFile).Msg("error running plugin.InitContext()")
+	}
+}
+
 // Options of the JS Plugin
 func (p *JSPlugin) Options() *browserk.PluginOpts {
 	if p.opts != nil {

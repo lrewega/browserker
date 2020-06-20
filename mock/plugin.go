@@ -12,6 +12,9 @@ type Plugin struct {
 	ConfigFn     func() *browserk.PluginConfig
 	ConfigCalled bool
 
+	InitContextFn     func(bctx *browserk.Context)
+	InitContextCalled bool
+
 	OptionsFn     func() *browserk.PluginOpts
 	OptionsCalled bool
 
@@ -31,10 +34,17 @@ func (p *Plugin) ID() string {
 	p.IDCalled = true
 	return p.IDFn()
 }
+
 func (p *Plugin) Config() *browserk.PluginConfig {
 	p.ConfigCalled = true
 	return p.ConfigFn()
 }
+
+func (p *Plugin) InitContext(bctx *browserk.Context) {
+	p.InitContextCalled = true
+	p.InitContextFn(bctx)
+}
+
 func (p *Plugin) Options() *browserk.PluginOpts {
 	p.OptionsCalled = true
 	return p.OptionsFn()
@@ -63,11 +73,14 @@ func MakeMockPlugin() *Plugin {
 
 	p.ConfigFn = func() *browserk.PluginConfig {
 		return &browserk.PluginConfig{
-			Class:    "",
-			Plugin:   "",
-			Language: "Go",
-			ID:       9,
+			Class:  "",
+			Plugin: "",
+			ID:     9,
 		}
+	}
+
+	p.InitContextFn = func(bctx *browserk.Context) {
+
 	}
 
 	p.OptionsFn = func() *browserk.PluginOpts {
@@ -84,7 +97,6 @@ func MakeMockPlugin() *Plugin {
 			ListenURL:        true,
 			ListenJS:         true,
 			ExecutionType:    browserk.ExecAlways,
-			Mimes:            nil,
 			Injections:       nil,
 		}
 	}

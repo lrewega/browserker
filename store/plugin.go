@@ -80,7 +80,7 @@ func (s *PluginStore) IsUnique(evt *browserk.PluginEvent) browserk.Unique {
 				}
 				txn.Set(key, evt.ID)
 			} else {
-				log.Error().Str("", "").Msg("this event already exists")
+				//log.Error().Str("", "").Msg("this event already exists")
 			}
 		}
 		return errors.Wrap(err, "adding event")

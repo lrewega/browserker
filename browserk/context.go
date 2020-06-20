@@ -30,7 +30,6 @@ type Context struct {
 	Scope          ScopeService
 	FormHandler    FormHandler
 	Reporter       Reporter
-	Injector       Injector
 	Crawl          CrawlGrapher
 	PluginServicer PluginServicer
 
@@ -58,7 +57,6 @@ func (c *Context) Copy() *Context {
 		Scope:           c.Scope,
 		FormHandler:     c.FormHandler,
 		Reporter:        c.Reporter,
-		Injector:        c.Injector,
 		Crawl:           c.Crawl,
 		PluginServicer:  c.PluginServicer,
 		jsBeforeHandler: c.jsBeforeHandler,

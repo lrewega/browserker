@@ -173,6 +173,18 @@ func (u *URI) FileOnly() string {
 	return ""
 }
 
+func (u *URI) HasParams() bool {
+	return u.Query.Params != nil && len(u.Query.Params) > 0
+}
+
+func (u *URI) HasFragmentPath() bool {
+	return u.Fragment.Paths != nil && len(u.Fragment.Paths) > 0
+}
+
+func (u *URI) HasFragmentParams() bool {
+	return u.Fragment.Params != nil && len(u.Fragment.Params) > 0
+}
+
 // ReplaceFile with newFile name
 func (u *URI) ReplaceFile(newFile string) {
 	if u.File == nil {

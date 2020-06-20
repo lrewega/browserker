@@ -30,6 +30,11 @@ func (h *Plugin) Config() *browserk.PluginConfig {
 	return nil
 }
 
+func (h *Plugin) InitContext(bctx *browserk.Context) {
+	// inject JS xss func
+	// bctx.AddReqHandler()
+}
+
 // Options for the plugin manager to take into consideration when dispatching
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{

@@ -18,7 +18,6 @@ func MakeMockContext(ctx context.Context, target *url.URL) *browserk.Context {
 		Scope:          MakeMockScopeService(target),
 		FormHandler:    nil,
 		Reporter:       nil,
-		Injector:       nil,
 		Crawl:          nil,
 	}
 }

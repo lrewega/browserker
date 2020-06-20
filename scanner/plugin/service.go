@@ -64,11 +64,11 @@ func (s *Service) getPluginsOfType(pluginType browserk.PluginExecutionType) *Con
 	switch pluginType {
 	case browserk.ExecOnce:
 		return s.hostPlugins
-	case browserk.ExecOncePath:
+	case browserk.ExecOncePerPath:
 		return s.pathPlugins
-	case browserk.ExecOnceFile:
+	case browserk.ExecOncePerFile:
 		return s.filePlugins
-	case browserk.ExecOncePerPage:
+	case browserk.ExecOncePerNavPath:
 		return s.pagePlugins
 	case browserk.ExecPerRequest:
 		return s.requestPlugins

@@ -30,5 +30,7 @@ func (b *BrowserkAttacker) Attack(bctx *browserk.Context, browser browserk.Brows
 	if err != nil {
 		return nil, err
 	}
+	// TODO: iterate over requests (need to filter duplicates)
+	//bctx.PluginServicer.
 	return nil, nil
 }

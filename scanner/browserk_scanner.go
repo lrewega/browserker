@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"gitlab.com/browserker/browserk"
-	"gitlab.com/browserker/scanner/attack"
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
@@ -101,7 +100,6 @@ func (b *Browserk) Init(ctx context.Context) error {
 	b.mainContext.Scope = b.scopeService(target)
 	b.mainContext.FormHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
 	b.mainContext.Reporter = b.reporter
-	b.mainContext.Injector = nil
 	b.mainContext.Crawl = b.crawlGraph
 	b.mainContext.PluginServicer = pluginService
 
@@ -283,29 +281,55 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	b.readyCh <- struct{}{}
 }
 
+// attack iterates over the plugin, giving it it's own browser since we need to add
+// the context specific to that plugin
 func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
-	navCtx := b.mainContext.Copy()
 
-	browser, port, err := b.browsers.Take(navCtx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to take browser")
-		return
-	}
+	// This logic should probably be in plugin.Service much like DispatchEvent is for passive
+	// events, DispatchNav for navigations? Plugin service holds request/injection cursors
+	// Handles the uniqueness checks (for determining if a plugin should even be called)
 
-	b.addLeased(browser.ID())
-	defer b.removeLeased(browser.ID())
+	// InitContext
+	// Cursor for requests -> cursor for injection points?
+	// How do we limit which plugins get what they need for ExecutionTypes?
+	//
+	isFinal := false
+	for i, nav := range navs {
+		// we are on the last navigation of this path so we'll want to attack now
+		if i == len(navs)-1 {
+			isFinal = true
+		}
+		navCtx := b.mainContext.Copy()
 
-	attacker := attack.New(b.cfg)
-	if err := attacker.Init(); err != nil {
+		browser, port, err := b.browsers.Take(navCtx)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to take browser")
+			return
+		}
+		logger := log.With().
+			Int64("browser_id", browser.ID()).
+			Logger()
+		navCtx.Log = &logger
+		b.addLeased(browser.ID())
+
+		// Add GlobalHooks (stored xss function listener)
+		// Create request cursor
+		// Create injection cursor
+
+		// if final -> InitContext
+
+		ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
+		browser.ExecuteAction(ctx, nav.Navigation)
+
+		navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
+		browser.Close()
 		b.browsers.Return(navCtx.Ctx, port)
-		log.Error().Err(err).Msg("failed to init attacker")
-		return
-	}
+		cancel()
 
-	navCtx.Log.Info().Msg("closing browser")
-	browser.Close()
-	b.browsers.Return(navCtx.Ctx, port)
+		b.removeLeased(browser.ID())
+	}
 	b.readyCh <- struct{}{}
+
 }
 
 // Stop the browsers

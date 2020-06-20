@@ -63,5 +63,4 @@ func (c *Container) Call(evt *browserk.PluginEvent) {
 			plugin.OnEvent(evt)
 		}
 	}
-
 }

@@ -65,7 +65,7 @@ const (
 	ExecOnce PluginExecutionType = iota
 	ExecOncePath
 	ExecOnceFile
-	ExecOncePerPage
+	ExecOncePerNavPath
 	ExecPerRequest
 	ExecAlways
 )

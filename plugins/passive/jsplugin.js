@@ -1,7 +1,7 @@
 var ExecOnce = 1;
-var ExecOncePath = 2;
-var ExecOnceFile = 3;
-var ExecOncePerPage = 4;
+var ExecOncePerPath = 2;
+var ExecOncePerFile = 3;
+var ExecOncePerNavPath = 4;
 var ExecPerRequest = 5;
 var ExecAlways = 6;
 

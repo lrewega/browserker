@@ -5,9 +5,9 @@ type PluginExecutionType int8
 
 const (
 	ExecOnce PluginExecutionType = iota
-	ExecOncePath
-	ExecOnceFile
-	ExecOncePerPage
+	ExecOncePerPath
+	ExecOncePerFile
+	ExecOncePerNavPath
 	ExecPerRequest
 	ExecAlways
 )
@@ -25,8 +25,10 @@ type PluginOpts struct {
 	ListenURL        bool                // listens for URL change/updates
 	ListenJS         bool                // listens to JS events
 	ExecutionType    PluginExecutionType // How often/when this plugin executes
-	Mimes            []string            // list of mime types this plugin will execute on if ExecutionType = ONLY_INJECTION
-	Injections       []string            // list of injection points this plugin will execute on
+	// list of injection points this plugin will execute on:
+	// (method, path, query_name, query_value, header_name, header_value, cookie_name, cookie_value, body_param, body_value,
+	// json_name, json_value, xml_name, xml_value, graphql_name, graphql_value
+	Injections []InjectionLocation
 }
 
 type PluginCheck struct {
@@ -37,19 +39,18 @@ type PluginCheck struct {
 }
 
 type PluginConfig struct {
-	Class    string
-	Plugin   string
-	Language string
-	ID       int
+	Class  string
+	Plugin string
+	ID     int
 }
 
 // Plugin events
 type Plugin interface {
 	Name() string
 	ID() string
+	InitContext(ctx *Context) // called once per path to allow initializing various hooks
 	Config() *PluginConfig
 	Options() *PluginOpts
-	//Attack()
-	Ready(browser Browser) (bool, error) // ready for injection or whatever, ret true if injected
+	Ready(browser Browser) (bool, error)
 	OnEvent(evt *PluginEvent)
 }
