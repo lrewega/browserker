@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/parsers"
 )
@@ -13,6 +14,35 @@ func TestQuery(t *testing.T) {
 		in       []byte
 		expected injast.URI
 	}{
+		{
+			[]byte("/path1/jlk?x=1"),
+			injast.URI{
+				Paths: []*injast.Ident{
+					{
+						NamePos: 1,
+						Name:    "path1",
+					},
+				},
+				File: &injast.Ident{
+					NamePos: 7,
+					Name:    "jlk",
+				},
+				Query: &injast.Query{
+					Params: []*injast.KeyValueExpr{
+						{
+							Key:     &injast.Ident{NamePos: 11, Name: "x"},
+							Sep:     12,
+							SepChar: '=',
+							Value:   &injast.Ident{NamePos: 13, Name: "1"},
+						},
+					},
+				},
+				Fragment: &injast.Fragment{
+					Paths:  nil,
+					Params: nil,
+				},
+			},
+		},
 		{
 			[]byte("/path1/path2/jlk?x=1"),
 			injast.URI{
@@ -270,7 +300,7 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-func testCompareExpr(t *testing.T, in []byte, exp, res injast.Expr) {
+func testCompareExpr(t *testing.T, in []byte, exp, res browserk.InjectionExpr) {
 	if exp == nil && res == nil {
 		return
 	}

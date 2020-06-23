@@ -1,15 +1,64 @@
 package injections
 
-import "gitlab.com/browserker/scanner/injections/injast"
+import (
+	"context"
 
-type Cursor struct {
-	// contains filtered or unexported fields
+	"gitlab.com/browserker/browserk"
+	"gitlab.com/browserker/scanner/iterator"
+)
+
+type BrowserkerInjector struct {
+	nav         *browserk.NavigationWithResult
+	browser     browserk.Browser
+	msgIterator *iterator.MessageIterator
+	injIterator *iterator.InjectionIterator
+	req         *browserk.HTTPRequest
+	bCtx        *browserk.Context
 }
 
-type ApplyFunc func(*Cursor) bool
+func New(bCtx *browserk.Context, browser browserk.Browser, nav *browserk.NavigationWithResult, msgIterator *iterator.MessageIterator, injIterator *iterator.InjectionIterator) *BrowserkerInjector {
+	return &BrowserkerInjector{
+		nav:         nav,
+		browser:     browser,
+		msgIterator: msgIterator,
+		injIterator: injIterator,
+		bCtx:        bCtx,
+	}
+}
 
-// TODO: Implement https://godoc.org/golang.org/x/tools/go/ast/astutil#Apply style rewriting
-// taking care of encoding of nested types (eg. xml inside of json)
-type Injector interface {
-	Apply(root injast.Node, pre, post ApplyFunc) (result injast.Node)
+func (i *BrowserkerInjector) BCtx() *browserk.Context {
+	return i.bCtx
+}
+
+func (i *BrowserkerInjector) Message() *browserk.HTTPMessage {
+	return i.msgIterator.Message().Copy()
+}
+
+func (i *BrowserkerInjector) InjectionExpr() browserk.InjectionExpr {
+	return i.injIterator.Expr()
+}
+func (i *BrowserkerInjector) Send(ctx context.Context) (*browserk.HTTPResponse, error) {
+	//i.injIterator.URI()
+	if i.msgIterator.Request().Type == "Document" {
+		// inject <form>
+
+		i.bCtx.Log.Debug().Msg("injecting form")
+	} else {
+		// inject xhr
+		i.bCtx.Log.Debug().Msg("injecting xhr")
+	}
+	return nil, nil
+}
+
+func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequest) (*browserk.HTTPResponse, error) {
+	//i.injIterator.URI()
+	if i.msgIterator.Request().Type == "Document" {
+		// inject <form>
+
+		i.bCtx.Log.Debug().Msg("injecting form")
+	} else {
+		// inject xhr
+		i.bCtx.Log.Debug().Msg("injecting xhr")
+	}
+	return nil, nil
 }

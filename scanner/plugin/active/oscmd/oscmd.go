@@ -1,7 +1,7 @@
-package cookies
+package oscmd
 
 import (
-	"github.com/rs/zerolog/log"
+	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -17,12 +17,12 @@ func New(service browserk.PluginServicer) *Plugin {
 
 // Name of the plugin
 func (h *Plugin) Name() string {
-	return "XSSPlugin"
+	return "OSCommandInjectionPlugin"
 }
 
 // ID unique to browserker
 func (h *Plugin) ID() string {
-	return "BR-A-0001"
+	return "BR-A-0002"
 }
 
 // Config for this plugin
@@ -31,30 +31,33 @@ func (h *Plugin) Config() *browserk.PluginConfig {
 }
 
 func (h *Plugin) InitContext(bctx *browserk.Context) {
-	// inject JS xss func
-	// bctx.AddReqHandler()
+
 }
 
 // Options for the plugin manager to take into consideration when dispatching
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		WriteRequests: true,
-		WriteJS:       true,
-		ListenConsole: true,
 		ExecutionType: browserk.ExecAlways,
+		Injections:    []browserk.InjectionLocation{browserk.InjectCommon},
 	}
 }
 
 // Ready to attack
 func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
+	// msg := injector.Message() // get original req/resp
+	expr := injector.InjectionExpr()
+
+	expr.Inject("some attack string", browserk.InjectValue)
+	// s.AddHeader... s.AddParams/Fragments etc
+	resp, err := injector.Send(injector.BCtx().Ctx)
+	if err != nil {
+
+	}
+	spew.Dump(resp)
 	return false, nil
 }
 
 // OnEvent handles passive events
 func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
-	if evt.Type != browserk.EvtConsole {
-		return
-	}
-	log.Info().Msg("GOT COOKIE EVENT")
-
 }

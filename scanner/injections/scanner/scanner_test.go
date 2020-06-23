@@ -3,13 +3,13 @@ package scanner_test
 import (
 	"testing"
 
-	"gitlab.com/browserker/scanner/injections/injast"
+	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/scanner"
 	"gitlab.com/browserker/scanner/injections/token"
 )
 
 type expected struct {
-	Pos injast.Pos
+	Pos browserk.InjectionPos
 	Tok token.Token
 	Lit string
 }

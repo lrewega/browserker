@@ -286,57 +286,66 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 // the context specific to that plugin
 func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 
-	// This logic should probably be in plugin.Service much like DispatchEvent is for passive
-	// events, DispatchNav for navigations? Plugin service holds request/injection cursors
-	// Handles the uniqueness checks (for determining if a plugin should even be called)
+	navCtx := b.mainContext.Copy()
 
-	// InitContext
-	// Cursor for requests -> cursor for injection points?
-	// How do we limit which plugins get what they need for ExecutionTypes?
+	browser, port, err := b.browsers.Take(navCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to take browser")
+		return
+	}
+	logger := log.With().
+		Int64("browser_id", browser.ID()).
+		Logger()
+	navCtx.Log = &logger
+	b.addLeased(browser.ID())
+
+	// TODO: Where to iterate over plugins? Keep in mind it'll need it's own navCtx for
+	// potential hooks
 	isFinal := false
 	for i, nav := range navs {
 		// we are on the last navigation of this path so we'll want to attack now
 		if i == len(navs)-1 {
 			isFinal = true
 		}
-		navCtx := b.mainContext.Copy()
-
-		browser, port, err := b.browsers.Take(navCtx)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to take browser")
-			return
-		}
-		logger := log.With().
-			Int64("browser_id", browser.ID()).
-			Logger()
-		navCtx.Log = &logger
-		b.addLeased(browser.ID())
 
 		// Add GlobalHooks (stored xss function listener)
-		// Create request cursor
-		mIt := iterator.NewMessageIter(nav)
-		for mIt.Rewind(); mIt.Valid(); mIt.Next() {
-			req := mIt.Request()
-			injIt := iterator.NewInjectionIter(req)
-			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
-				injection, _ := injIt.Name()
-				navCtx.Log.Debug().Msgf("url: %s injection: %s", req.Request.Url, injection)
+
+		if isFinal {
+
+			// Create request iterator
+			mIt := iterator.NewMessageIter(nav)
+			for mIt.Rewind(); mIt.Valid(); mIt.Next() {
+				// TODO: hash and store this for uniqueness otherwise we'll attack the same resources over
+				// and over unnecessarily.
+				req := mIt.Request()
+				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
+				// alternatively, generate a new request from the browser and match that and replace everything...
+
+				// Create injection iterator
+				injIt := iterator.NewInjectionIter(req)
+				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+					injection, loc := injIt.Value()
+					if loc == browserk.InjectQuery || loc == browserk.InjectFragment {
+						k, _ := injIt.Key()
+						v, _ := injIt.Value()
+						navCtx.Log.Debug().Msgf("url: %s injection: name: %s value: %s", req.Request.Url, k, v)
+					} else {
+						navCtx.Log.Debug().Msgf("url: %s injection: %s", req.Request.Url, injection)
+					}
+				}
 			}
 		}
-		// Create injection cursor
 
-		// if final -> InitContext
+		ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
+		browser.ExecuteAction(ctx, nav.Navigation)
+		cancel()
 
-		//ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
-		//browser.ExecuteAction(ctx, nav.Navigation)
-
-		navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
-		browser.Close()
-		b.browsers.Return(navCtx.Ctx, port)
-		//cancel()
-
-		b.removeLeased(browser.ID())
 	}
+	navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
+	browser.Close()
+	b.browsers.Return(navCtx.Ctx, port)
+
+	b.removeLeased(browser.ID())
 	b.readyCh <- struct{}{}
 
 }

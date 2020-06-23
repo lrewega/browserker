@@ -2,27 +2,12 @@ package injast
 
 import "gitlab.com/browserker/browserk"
 
-type Pos int
-
-// All node types implement the Node interface.
-type Node interface {
-	Pos() Pos // position of first character belonging to the node
-	End() Pos // position of first character immediately after the node
-}
-
-type Expr interface {
-	Node
-	exprNode()
-	String() string
-	Loc() browserk.InjectionLocation
-}
-
 type (
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		NamePos  Pos    // identifier position
-		Name     string // identifier name
+		NamePos  browserk.InjectionPos // identifier position
+		Name     string                // identifier name
 		Mod      string
 		Modded   bool
 		Location browserk.InjectionLocation
@@ -30,10 +15,10 @@ type (
 
 	// An IndexExpr node represents an expression followed by an index.
 	IndexExpr struct {
-		X        Expr // expression
-		Lbrack   Pos  // position of "["
-		Index    Expr // index expression
-		Rbrack   Pos  // position of "]"
+		X        browserk.InjectionExpr // expression
+		Lbrack   browserk.InjectionPos  // position of "["
+		Index    browserk.InjectionExpr // index expression
+		Rbrack   browserk.InjectionPos  // position of "]"
 		Location browserk.InjectionLocation
 	}
 
@@ -41,17 +26,18 @@ type (
 	// in composite literals.
 	//
 	KeyValueExpr struct {
-		Key      Expr
-		Sep      Pos  // position of separator
-		SepChar  rune // separator value
-		Value    Expr
+		Key      browserk.InjectionExpr
+		Sep      browserk.InjectionPos // position of separator
+		SepChar  rune                  // separator value
+		Value    browserk.InjectionExpr
 		Location browserk.InjectionLocation
 	}
 )
 
-func (*Ident) exprNode()  {}
-func (x *Ident) Pos() Pos { return x.NamePos }
-func (x *Ident) End() Pos { return Pos(int(x.NamePos) + len(x.Name)) }
+func (x *Ident) Pos() browserk.InjectionPos { return x.NamePos }
+func (x *Ident) End() browserk.InjectionPos {
+	return browserk.InjectionPos(int(x.NamePos) + len(x.Name))
+}
 func (x *Ident) String() string {
 	if x != nil {
 		if x.Modded {
@@ -61,7 +47,6 @@ func (x *Ident) String() string {
 	}
 	return ""
 }
-func (x *Ident) Loc() browserk.InjectionLocation { return x.Location }
 
 // Modify sets a new field because End() and Pos() will be incorrect
 // if we modify the Name field. All access should call String()
@@ -71,9 +56,22 @@ func (x *Ident) Modify(newValue string) {
 	x.Mod = newValue
 }
 
-func (*IndexExpr) exprNode()  {}
-func (x *IndexExpr) Pos() Pos { return x.X.Pos() }
-func (x *IndexExpr) End() Pos { return x.Rbrack + 1 }
+// Loc of this identifier
+func (x *Ident) Loc() browserk.InjectionLocation { return x.Location }
+
+// Inject a nw value
+func (x *Ident) Inject(newValue string, injType browserk.InjectionType) bool {
+	x.Modify(newValue)
+	return true
+}
+
+func (x *Ident) Reset() {
+	x.Modded = false
+	x.Mod = ""
+}
+
+func (x *IndexExpr) Pos() browserk.InjectionPos { return x.X.Pos() }
+func (x *IndexExpr) End() browserk.InjectionPos { return x.Rbrack + 1 }
 func (x *IndexExpr) String() string {
 	s := x.X.String()
 	s += "["
@@ -83,11 +81,22 @@ func (x *IndexExpr) String() string {
 	s += "]"
 	return s
 }
+func (x *IndexExpr) Inject(newValue string, injType browserk.InjectionType) bool {
+	if injType == browserk.InjectIndex {
+		return x.Index.Inject(newValue, injType)
+	}
+	return x.X.Inject(newValue, injType)
+}
+
+func (x *IndexExpr) Reset() {
+	x.Index.Reset()
+	x.X.Reset()
+}
+
 func (x *IndexExpr) Loc() browserk.InjectionLocation { return x.Location }
 
-func (*KeyValueExpr) exprNode()  {}
-func (x *KeyValueExpr) Pos() Pos { return x.Key.Pos() }
-func (x *KeyValueExpr) End() Pos { return x.Value.End() }
+func (x *KeyValueExpr) Pos() browserk.InjectionPos { return x.Key.Pos() }
+func (x *KeyValueExpr) End() browserk.InjectionPos { return x.Value.End() }
 func (x *KeyValueExpr) String() string {
 	s := x.Key.String()
 	s += string(x.SepChar)
@@ -96,7 +105,27 @@ func (x *KeyValueExpr) String() string {
 }
 func (x *KeyValueExpr) Loc() browserk.InjectionLocation { return x.Location }
 
-func CopyExpr(e Expr) Expr {
+func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) bool {
+	if injType == browserk.InjectName {
+		x.Key.Inject(newValue, injType)
+	} else if injType == browserk.InjectValue {
+		x.Value.Inject(newValue, injType)
+	} else if injType == browserk.InjectIndex {
+		if index, ok := x.Key.(*IndexExpr); ok {
+			return index.Inject(newValue, injType)
+		}
+		return false
+	}
+
+	return true
+}
+
+func (x *KeyValueExpr) Reset() {
+	x.Key.Reset()
+	x.Value.Reset()
+}
+
+func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	switch t := e.(type) {
 	case *Ident:
 		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location}
@@ -127,27 +156,4 @@ func CopyIndexExpr(id *IndexExpr) *IndexExpr {
 		Rbrack:   id.Rbrack,
 		Location: id.Location,
 	}
-}
-
-func ReplaceExpr(e Expr, newVal, field string) bool {
-	switch t := e.(type) {
-	case *Ident:
-		t.Modify(newVal)
-		return true
-	case *IndexExpr:
-		if field == "key" {
-			return ReplaceExpr(t.X, newVal, field)
-		} else if field == "index" {
-			return ReplaceExpr(t.Index, newVal, field)
-		}
-	case *KeyValueExpr:
-		if field == "key" {
-			return ReplaceExpr(t.Key, newVal, field)
-		} else if field == "value" {
-			return ReplaceExpr(t.Value, newVal, field)
-		}
-	default:
-		return false
-	}
-	return false
 }

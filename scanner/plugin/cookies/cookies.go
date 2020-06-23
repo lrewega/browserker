@@ -47,7 +47,7 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 }
 
 // Ready to attack
-func (h *Plugin) Ready(browser browserk.Browser) (bool, error) {
+func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	return false, nil
 }
 

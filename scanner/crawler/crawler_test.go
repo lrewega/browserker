@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
@@ -55,104 +56,104 @@ func TestCrawler(t *testing.T) {
 	ctx := context.Background()
 
 	called := false
-	/*
-		simpleCallFunc := func(c *gin.Context) {
-			called = true
-			resp := "<html><body>You made it!</body></html>"
-			c.Writer.WriteHeader(http.StatusOK)
-			c.Writer.Write([]byte(resp))
-		}
-	*/
+
+	simpleCallFunc := func(c *gin.Context) {
+		called = true
+		resp := "<html><body>You made it!</body></html>"
+		c.Writer.WriteHeader(http.StatusOK)
+		c.Writer.Write([]byte(resp))
+	}
+
 	toTest := [...]crawlerTests{
-		/*
-				{
-					func(c *gin.Context) {
-						fname, _ := c.GetQuery("fname")
-						lname, _ := c.GetQuery("lname")
 
-						if fname == "Test" && lname == "User" {
-							called = true
-						}
+		{
+			func(c *gin.Context) {
+				fname, _ := c.GetQuery("fname")
+				lname, _ := c.GetQuery("lname")
 
-						resp := "<html><body>You made it!</body></html>"
-						c.Writer.WriteHeader(http.StatusOK)
-						c.Writer.Write([]byte(resp))
-					},
-					"http://localhost:%s/forms/",
-				},
-				{
-					func(c *gin.Context) {
-						fname, _ := c.GetQuery("fname")
-						lname, _ := c.GetQuery("lname")
-						car, _ := c.GetQuery("cars")
+				if fname == "Test" && lname == "User" {
+					called = true
+				}
 
-						if fname == "Test" && lname == "User" && car == "volvo" {
-							called = true
-						}
-
-						resp := "<html><body>You made it!</body></html>"
-						c.Writer.WriteHeader(http.StatusOK)
-						c.Writer.Write([]byte(resp))
-					},
-					"http://localhost:%s/forms/select.html",
-				},
-				{
-					func(c *gin.Context) {
-						fname, _ := c.GetQuery("fname")
-						lname, _ := c.GetQuery("lname")
-						rad, _ := c.GetQuery("rad")
-
-						if fname == "Test" && lname == "User" && rad == "rad1" {
-							called = true
-						}
-
-						resp := "<html><body>You made it!</body></html>"
-						c.Writer.WriteHeader(http.StatusOK)
-						c.Writer.Write([]byte(resp))
-					},
-					"http://localhost:%s/forms/radio.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmouseclick.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmousedblclick.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmousedown.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmouseenter.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmouseleave.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmouseout.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/onmouseup.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/keydown.html",
-				},
-				{
-					simpleCallFunc,
-					"http://localhost:%s/forms/keypress.html",
-				},
-			{
-				simpleCallFunc,
-				"http://localhost:%s/forms/keyup.html",
+				resp := "<html><body>You made it!</body></html>"
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
 			},
-		*/
+			"http://localhost:%s/forms/",
+		},
+		{
+			func(c *gin.Context) {
+				fname, _ := c.GetQuery("fname")
+				lname, _ := c.GetQuery("lname")
+				car, _ := c.GetQuery("cars")
+
+				if fname == "Test" && lname == "User" && car == "volvo" {
+					called = true
+				}
+
+				resp := "<html><body>You made it!</body></html>"
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			"http://localhost:%s/forms/select.html",
+		},
+		{
+			func(c *gin.Context) {
+				fname, _ := c.GetQuery("fname")
+				lname, _ := c.GetQuery("lname")
+				rad, _ := c.GetQuery("rad")
+
+				if fname == "Test" && lname == "User" && rad == "rad1" {
+					called = true
+				}
+
+				resp := "<html><body>You made it!</body></html>"
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			"http://localhost:%s/forms/radio.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmouseclick.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmousedblclick.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmousedown.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmouseenter.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmouseleave.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmouseout.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmouseup.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/keydown.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/keypress.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/keyup.html",
+		},
+
 		{
 			func(c *gin.Context) {
 				username, _ := c.GetPostForm("username")
@@ -197,11 +198,11 @@ func TestCrawler(t *testing.T) {
 			t.Fatal("did not find form nav action")
 		}
 
-		_, _, err = crawl.Process(bCtx, b, newNavs[0], true)
+		res, _, err := crawl.Process(bCtx, b, newNavs[0], true)
 		if err != nil {
 			t.Fatalf("failed to submit form %s\n", err)
 		}
-
+		spew.Dump(res)
 		if !called {
 			t.Fatalf("form was not submitted: %s\n", target)
 		}

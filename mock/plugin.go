@@ -18,7 +18,7 @@ type Plugin struct {
 	OptionsFn     func() *browserk.PluginOpts
 	OptionsCalled bool
 
-	ReadyFn     func(browser browserk.Browser) (bool, error) // ready for injection or whatever, ret true if injected
+	ReadyFn     func(injector browserk.Injector) (bool, error) // ready for injection or whatever, ret true if injected
 	ReadyCalled bool
 
 	OnEventFn     func(evt *browserk.PluginEvent)
@@ -50,9 +50,9 @@ func (p *Plugin) Options() *browserk.PluginOpts {
 	return p.OptionsFn()
 }
 
-func (p *Plugin) Ready(browser browserk.Browser) (bool, error) {
+func (p *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	p.ReadyCalled = true
-	return p.ReadyFn(browser)
+	return p.ReadyFn(injector)
 }
 
 func (p *Plugin) OnEvent(evt *browserk.PluginEvent) {

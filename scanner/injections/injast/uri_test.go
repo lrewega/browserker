@@ -65,6 +65,11 @@ func TestReplaceFile(t *testing.T) {
 		expected string
 	}{
 		{
+			"/file/?x=1",
+			"newfile",
+			"/file/newfile?x=1",
+		},
+		{
 			"/file?x=1",
 			"",
 			"/?x=1",
@@ -73,11 +78,6 @@ func TestReplaceFile(t *testing.T) {
 			"/file?x=1",
 			"newfile",
 			"/newfile?x=1",
-		},
-		{
-			"/file/?x=1",
-			"newfile",
-			"/file/newfile?x=1",
 		},
 	}
 

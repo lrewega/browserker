@@ -4,7 +4,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"gitlab.com/browserker/scanner/injections/injast"
+	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/token"
 )
 
@@ -50,9 +50,9 @@ func (s *Scanner) Init(src []byte, mode Mode) {
 	s.next()
 }
 
-func (s *Scanner) Scan() (pos injast.Pos, tok token.Token, lit string) {
+func (s *Scanner) Scan() (pos browserk.InjectionPos, tok token.Token, lit string) {
 	s.skipWhitespace()
-	pos = injast.Pos(s.offset)
+	pos = browserk.InjectionPos(s.offset)
 
 	switch s.mode {
 	case URI:

@@ -41,6 +41,10 @@ func (it *MessageIterator) Response() *browserk.HTTPResponse {
 	return it.currentMsg.Response
 }
 
+func (it *MessageIterator) Message() *browserk.HTTPMessage {
+	return it.currentMsg
+}
+
 func (it *MessageIterator) Valid() bool {
 	if it.currentMsg == nil {
 		return false

@@ -9,16 +9,16 @@ import (
 )
 
 type Injection struct {
-	Data *injast.Expr
+	Data *browserk.InjectionExpr
 	Loc  browserk.InjectionLocation
 }
 
 type InjectionIterator struct {
 	req          *browserk.HTTPRequest
-	method       injast.Expr
+	method       browserk.InjectionExpr
 	uri          *injast.URI
-	locs         []injast.Expr
-	currentInj   injast.Expr
+	locs         []browserk.InjectionExpr
+	currentInj   browserk.InjectionExpr
 	currentIndex int
 	invalidParse bool
 }
@@ -28,12 +28,17 @@ type InjectionIterator struct {
 func NewInjectionIter(req *browserk.HTTPRequest) *InjectionIterator {
 	it := &InjectionIterator{
 		req:  req,
-		locs: make([]injast.Expr, 0),
+		locs: make([]browserk.InjectionExpr, 0),
 	}
 	it.method = &injast.Ident{Name: req.Request.Method, NamePos: 0, Location: browserk.InjectMethod}
 	it.locs = append(it.locs, it.method)
 	it.parseURI()
 	return it
+}
+
+// Request returns a copy of the http request for modification?
+func (it *InjectionIterator) Request() *browserk.HTTPRequest {
+	return it.req.Copy()
 }
 
 func (it *InjectionIterator) parseURI() {
@@ -90,8 +95,8 @@ func (it *InjectionIterator) Next() {
 	it.Seek(it.currentIndex + 1)
 }
 
-func (it *InjectionIterator) Name() (string, browserk.InjectionLocation) {
-	return it.currentInj.String(), it.currentInj.Loc()
+func (it *InjectionIterator) Expr() browserk.InjectionExpr {
+	return it.currentInj
 }
 
 func (it *InjectionIterator) Key() (string, browserk.InjectionLocation) {
@@ -105,7 +110,7 @@ func (it *InjectionIterator) Key() (string, browserk.InjectionLocation) {
 func (it *InjectionIterator) Value() (string, browserk.InjectionLocation) {
 	v, ok := it.currentInj.(*injast.KeyValueExpr)
 	if !ok {
-		return "", 0
+		return it.currentInj.String(), it.currentInj.Loc()
 	}
 	return v.Value.String(), v.Location
 }

@@ -62,9 +62,19 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 				// eg: /path/file?x=1
 				peekBackwards := u.s.PeekBackwards()
 
-				// if the next char is a ?, ;, # or EOF that means this ident is a file part
-				if (peek == '?' || peek == '#' || peek == ';' || peek == 0) ||
+				// handle case of /file/?blah first
+				if peek == '?' && peekBackwards == '/' {
+					p := &injast.Ident{
+						NamePos:  pos,
+						Name:     lit,
+						Location: browserk.InjectPath,
+					}
+					u.uri.Paths = append(u.uri.Paths, p)
+					u.uri.Fields = append(u.uri.Fields, p)
+					// if the next char is a ?, ;, # or EOF that means this ident is a file part
+				} else if (peek == '?' || peek == '#' || peek == ';' || peek == 0) ||
 					(peekBackwards == '?' || peekBackwards == '#' || peekBackwards == ';' || peekBackwards == 0) {
+
 					f := &injast.Ident{
 						NamePos:  pos,
 						Name:     lit,
@@ -131,7 +141,7 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 	}
 }
 
-func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, params *[]*injast.KeyValueExpr, loc browserk.InjectionLocation) {
+func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit string, params *[]*injast.KeyValueExpr, loc browserk.InjectionLocation) {
 	paramLoc := browserk.InjectQueryName
 	if loc == browserk.InjectQuery && u.kvMode == keyMode {
 		paramLoc = browserk.InjectQueryName
@@ -170,7 +180,7 @@ func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, pa
 	}
 
 	if u.kvMode == keyMode {
-		var key injast.Expr
+		var key browserk.InjectionExpr
 
 		key = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 		peek := u.s.PeekBackwards()
@@ -191,7 +201,7 @@ func (u *URIParser) handleParams(tok token.Token, pos injast.Pos, lit string, pa
 	}
 }
 
-func (u *URIParser) handleIndexExpr(originalPos injast.Pos, lit string, loc browserk.InjectionLocation) injast.Expr {
+func (u *URIParser) handleIndexExpr(originalPos browserk.InjectionPos, lit string, loc browserk.InjectionLocation) browserk.InjectionExpr {
 	paramLoc := browserk.InjectQueryIndex
 
 	if loc == browserk.InjectFragment {

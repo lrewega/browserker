@@ -45,6 +45,7 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 	}
 }
 
+// Name todo remove this was for debugging js plugins
 func (s *Service) Name() string {
 	return "PluginService"
 }

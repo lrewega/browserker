@@ -1,5 +1,7 @@
 package injast
 
+import "gitlab.com/browserker/browserk"
+
 // URI for injecting into URI/query/fragments
 type URI struct {
 	Paths      []*Ident
@@ -7,7 +9,7 @@ type URI struct {
 	QueryDelim byte
 	Query      *Query
 	Fragment   *Fragment
-	Fields     []Expr
+	Fields     []browserk.InjectionExpr
 	Original   []byte
 	Modified   []byte
 }
@@ -16,7 +18,7 @@ type URI struct {
 func NewURI(original []byte) *URI {
 	return &URI{
 		Original: original,
-		Fields:   make([]Expr, 0),
+		Fields:   make([]browserk.InjectionExpr, 0),
 		Paths:    make([]*Ident, 0),
 		File:     &Ident{},
 		Query: &Query{
@@ -72,7 +74,7 @@ func (u *URI) Copy() *URI {
 
 // String -ify the URI
 func (u *URI) String() string {
-	var lastPos Pos
+	var lastPos browserk.InjectionPos
 
 	uri := "/"
 	lastPos++
@@ -149,7 +151,7 @@ func (u *URI) String() string {
 }
 
 // make sure Pos isn't 0 as injected nodes will have a 0 pos.
-func (u *URI) updatePos(pos *Pos, n Node) {
+func (u *URI) updatePos(pos *browserk.InjectionPos, n browserk.InjectionNode) {
 	if n.Pos() == 0 {
 		return
 	}
@@ -229,9 +231,10 @@ func (u *URI) replaceParam(params []*KeyValueExpr, original, newKey, newVal stri
 		if kv.Key.String() == original {
 			keyMod := true
 			if original != newKey {
-				keyMod = ReplaceExpr(kv, newKey, "key")
+				keyMod = kv.Inject(newKey, browserk.InjectName)
+
 			}
-			valMod := ReplaceExpr(kv, newVal, "value")
+			valMod := kv.Inject(newVal, browserk.InjectValue)
 			return keyMod && valMod
 		}
 	}
@@ -256,8 +259,8 @@ func (u *URI) replaceParamByIndex(params []*KeyValueExpr, index int, newKey, new
 	}
 
 	kv := params[index]
-	keyMod := ReplaceExpr(kv, newKey, "key")
-	valMod := ReplaceExpr(kv, newVal, "value")
+	keyMod := kv.Inject(newKey, browserk.InjectName)
+	valMod := kv.Inject(newVal, browserk.InjectValue)
 	return keyMod && valMod
 }
 
@@ -276,10 +279,11 @@ func (u *URI) replaceIndexedParam(params []*KeyValueExpr, original, newKey, newI
 		if kv.Key.String() == original {
 			keyMod := true
 			if original != newKey {
-				keyMod = ReplaceExpr(kv, newKey, "key")
+				keyMod = kv.Inject(newKey, browserk.InjectName)
 			}
-			indexMod := ReplaceExpr(kv.Key, newIndexVal, "index")
-			valMod := ReplaceExpr(kv, newVal, "value")
+			//indexMod := ReplaceExpr(kv.Key, newIndexVal, "index")
+			indexMod := kv.Inject(newIndexVal, browserk.InjectIndex)
+			valMod := kv.Inject(newVal, browserk.InjectValue)
 			return keyMod && valMod && indexMod
 		}
 	}

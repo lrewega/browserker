@@ -120,7 +120,12 @@ func (p *JSPlugin) Options() *browserk.PluginOpts {
 }
 
 // Ready for attack
-func (p *JSPlugin) Ready(browser browserk.Browser) (bool, error) {
+func (p *JSPlugin) Ready(injector browserk.Injector) (bool, error) {
+	p.vm.Set("injector", injector)
+	_, err := p.vm.RunString("plugin.Ready(injector)")
+	if err != nil {
+		log.Fatal().Err(err).Str("file", p.scriptFile).Msg("error running plugin.Ready()")
+	}
 	return false, nil
 }
 

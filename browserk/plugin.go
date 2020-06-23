@@ -51,6 +51,6 @@ type Plugin interface {
 	InitContext(ctx *Context) // called once per path to allow initializing various hooks
 	Config() *PluginConfig
 	Options() *PluginOpts
-	Ready(browser Browser) (bool, error)
+	Ready(injector Injector) (bool, error)
 	OnEvent(evt *PluginEvent)
 }

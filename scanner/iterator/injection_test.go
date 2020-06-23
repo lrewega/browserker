@@ -16,13 +16,18 @@ func TestInjectionIter(t *testing.T) {
 
 	it := iterator.NewInjectionIter(req)
 	for it.Rewind(); it.Valid(); it.Next() {
-		name, loc := it.Name()
+		name, loc := it.Value()
 		if loc == browserk.InjectQuery || loc == browserk.InjectFragment {
 			key, _ := it.Key()
 			val, _ := it.Value()
+			if val == "1" {
+				it.Expr().Inject("xss", browserk.InjectValue)
+			}
 			t.Logf("key: %s , val: %s\n", key, val)
+			if it.URI().String() != "/some/path.js?x=xss&y=2#/test" {
+				t.Fatalf("failed to inject value")
+			}
 		}
 		t.Logf("%s\n", name)
 	}
-	t.Fail()
 }
