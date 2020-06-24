@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
@@ -27,6 +28,9 @@ type Service struct {
 	requestPlugins  *Container
 	responsePlugins *Container
 	alwaysPlugins   *Container
+
+	respLock       *sync.RWMutex
+	respDispatcher map[string]chan *browserk.PluginEvent
 }
 
 // New plugin manager
@@ -42,6 +46,8 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 		requestPlugins:  NewContainer(),
 		responsePlugins: NewContainer(),
 		alwaysPlugins:   NewContainer(),
+		respLock:        &sync.RWMutex{},
+		respDispatcher:  make(map[string]chan *browserk.PluginEvent),
 	}
 }
 
@@ -96,6 +102,12 @@ func (s *Service) Init(ctx context.Context) error {
 	go s.listenForEvents()
 
 	return nil
+}
+
+func (s *Service) RegisterListener(matchID string, respCh chan *browserk.PluginEvent) {
+	s.respLock.Lock()
+	s.respDispatcher[matchID] = respCh
+	s.respLock.Unlock()
 }
 
 // DispatchEvent to interested listeners

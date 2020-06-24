@@ -13,7 +13,7 @@ type HTTPRequest struct {
 	RequestId        string                   `json:"requestId"`                  // Request identifier.
 	LoaderId         string                   `json:"loaderId"`                   // Loader identifier. Empty string if the request is fetched from worker.
 	DocumentURL      string                   `json:"documentURL"`                // URL of the document this request is loaded for.
-	Request          *gcdapi.NetworkRequest   `json:"request"`                    // Request data.
+	Request          *gcdapi.NetworkRequest   `json:"request"`                    // Request data from browser.
 	Timestamp        float64                  `json:"timestamp"`                  // Timestamp.
 	WallTime         float64                  `json:"wallTime"`                   // Timestamp.
 	Initiator        *gcdapi.NetworkInitiator `json:"initiator"`                  // Request initiator.
@@ -178,6 +178,24 @@ func (h *HTTPModifiedRequest) Copy() *HTTPModifiedRequest {
 		panic("failed to copy HTTPModifiedRequest: " + err.Error())
 	}
 	return c
+}
+
+func (h *HTTPModifiedRequest) SetHeaders(headers map[string]interface{}) {
+	if h.Headers == nil {
+		h.Headers = make([]*gcdapi.FetchHeaderEntry, 0)
+	}
+
+	for k, value := range headers {
+		switch v := value.(type) {
+		case string:
+			h.Headers = append(h.Headers, &gcdapi.FetchHeaderEntry{Name: k, Value: v})
+		case []string:
+			for _, header := range v {
+				h.Headers = append(h.Headers, &gcdapi.FetchHeaderEntry{Name: k, Value: header})
+			}
+		default:
+		}
+	}
 }
 
 // InterceptedHTTPResponse to pass to middleware and allow modifications to Modified

@@ -100,6 +100,24 @@ func (t *Tab) Close() {
 	close(t.exitCh)
 }
 
+func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
+	ctxID, err := t.t.Page.CreateIsolatedWorld(t.getTopFrameID(), "injection", true)
+	if err != nil {
+		return err
+	}
+	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\",credentials: \"include\"})", URI, method)
+	params := &gcdapi.RuntimeEvaluateParams{
+		Expression:            script,
+		ObjectGroup:           "injection",
+		IncludeCommandLineAPI: false,
+		Silent:                false,
+		ContextId:             ctxID,
+		Timeout:               60000,
+	}
+	_, _, err = t.t.Runtime.EvaluateWithParams(params)
+	return err
+}
+
 // ExecuteAction for this browser, calling js handler after it is called
 func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]byte, bool, error) {
 	var err error

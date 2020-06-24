@@ -49,7 +49,7 @@ type Context struct {
 	evtIndex    int8
 }
 
-// Copy the context services and handlers, but not indexes
+// Copy the context services and handlers, but not indexes and not the injector
 func (c *Context) Copy() *Context {
 	return &Context{
 		Ctx:             c.Ctx,
