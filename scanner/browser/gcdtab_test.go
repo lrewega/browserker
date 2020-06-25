@@ -6,8 +6,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/browser"
@@ -198,5 +201,75 @@ func TestFragment(t *testing.T) {
 	msg, _ := b.GetMessages()
 	if msg[0].Request.Request.UrlFragment != "#/test" {
 		t.Fatalf("expected fragment to include hash")
+	}
+}
+
+func TestInjectRequest(t *testing.T) {
+	pool := browser.NewGCDBrowserPool(1, leaser)
+	if err := pool.Init(); err != nil {
+		t.Fatalf("failed to init pool")
+	}
+	defer leaser.Cleanup()
+	ctx := context.Background()
+
+	p, srv := testServer()
+	defer srv.Shutdown(ctx)
+
+	u := fmt.Sprintf("http://localhost:%s/index.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
+	respCh := make(chan *browserk.InterceptedHTTPResponse)
+
+	bCtx.AddReqHandler(testInjectXHRReq(t, respCh, u+"?asdf=asdf", nil, "", []byte("")))
+
+	b, _, err := pool.Take(bCtx)
+	if err != nil {
+		t.Fatalf("error taking browser: %s\n", err)
+	}
+
+	err = b.Navigate(ctx, u)
+	if err != nil {
+		t.Fatalf("error getting url %s\n", err)
+	}
+	b.GetMessages()
+
+	t.Logf("Injecting request...")
+	if err := b.InjectRequest(ctx, "GET", "/someur.html"); err != nil {
+		t.Fatalf("error injecting request: %s\n", err)
+	}
+
+	r := <-respCh
+	t.Logf("GOT RESPONSE FROM CH:\n")
+	time.Sleep(time.Second * 5)
+	spew.Dump(r)
+}
+
+func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPResponse, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {
+	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) {
+		t.Logf("INTERCEPTED: %s = %s [%s]\n", i.RequestId, i.Request.Url, i.NetworkId)
+
+		//spew.Dump(i)
+		if !strings.HasSuffix(i.Request.Url, "someur.html") {
+			return
+		}
+		t.Logf("handling injection %s\n", i.Request.Url)
+		//spew.Dump(i)
+		i.Modified.Url = newURI
+		i.Modified.SetHeaders(headers)
+		i.Modified.PostData = body
+		bctx.AddRespHandler(func(respBctx *browserk.Context, respBrowser browserk.Browser, resp *browserk.InterceptedHTTPResponse) {
+			t.Logf("handling injection=========================network id: %s====================%s====%s=============", resp.NetworkId, resp.RequestId, i.RequestId)
+			//spew.Dump(resp)
+
+			if i != nil && resp != nil && resp.NetworkId == i.NetworkId {
+				select {
+				case <-respBctx.Ctx.Done():
+					return
+				case respCh <- resp:
+					t.Logf("GOT RESPONSE!")
+				}
+			}
+		})
+
 	}
 }

@@ -416,6 +416,7 @@ func (t *Tab) interceptedRequest(ctx *browserk.Context, message *gcdapi.FetchReq
 }
 
 func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRequestPausedEvent) {
+
 	p := message.Params
 
 	respParams := &gcdapi.FetchFulfillRequestParams{
@@ -432,7 +433,6 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	bodyStr, encoded, err := t.t.Fetch.GetResponseBody(p.RequestId)
 	if err != nil {
 		t.ctx.Log.Warn().Err(err).Str("request_id", p.RequestId).Msg("unable to get body")
-		//spew.Dump(p)
 		t.t.Fetch.ContinueRequestWithParams(&gcdapi.FetchContinueRequestParams{
 			RequestId: p.RequestId,
 		})
@@ -440,7 +440,6 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	}
 
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
-
 	ctx.NextResp(t, modified)
 
 	if modified.Modified.ResponseCode != 0 {

@@ -4,14 +4,16 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
 
 func MakeMockContext(ctx context.Context, target *url.URL) *browserk.Context {
-	log := &zerolog.Logger{}
+	logger := log.With().
+		Str("DEBUGURL", target.String()).
+		Logger()
 	return &browserk.Context{
-		Log:            log,
+		Log:            &logger,
 		Ctx:            ctx,
 		PluginServicer: MakeMockPluginServicer(),
 		Auth:           nil,

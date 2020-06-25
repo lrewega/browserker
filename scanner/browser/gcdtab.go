@@ -101,18 +101,24 @@ func (t *Tab) Close() {
 }
 
 func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
-	ctxID, err := t.t.Page.CreateIsolatedWorld(t.getTopFrameID(), "injection", true)
+	_, err := t.t.Page.CreateIsolatedWorld(t.getTopFrameID(), "injection", true)
 	if err != nil {
 		return err
 	}
-	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\",credentials: \"include\"})", URI, method)
+	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\", credentials: \"include\"})", URI, method)
+
+	/*script := fmt.Sprintf(`var x = new XMLHttpRequest();
+	x.addEventListener("load", reqListener);
+	x.open("%s", "%s");
+	x.send();`, method, URI)*/
+
 	params := &gcdapi.RuntimeEvaluateParams{
 		Expression:            script,
 		ObjectGroup:           "injection",
 		IncludeCommandLineAPI: false,
 		Silent:                false,
-		ContextId:             ctxID,
-		Timeout:               60000,
+		//ContextId:             ctxID,
+		Timeout: 60000,
 	}
 	_, _, err = t.t.Runtime.EvaluateWithParams(params)
 	return err

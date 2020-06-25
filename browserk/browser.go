@@ -31,6 +31,7 @@ type Browser interface {
 	FindInteractables() ([]*HTMLElement, error)
 	GetMessages() ([]*HTTPMessage, error)
 	Screenshot() (string, error)
+	InjectRequest(ctx context.Context, method, URI string) error
 	RefreshDocument()                                                         // reloads the document/elements
 	ExecuteAction(ctx context.Context, nav *Navigation) ([]byte, bool, error) // result, caused page load, err
 	Close()
