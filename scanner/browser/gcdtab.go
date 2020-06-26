@@ -100,17 +100,13 @@ func (t *Tab) Close() {
 	close(t.exitCh)
 }
 
+// InjectRequest from the browser, meant to be captured in a hook
 func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
 	_, err := t.t.Page.CreateIsolatedWorld(t.getTopFrameID(), "injection", true)
 	if err != nil {
 		return err
 	}
 	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\", credentials: \"include\"})", URI, method)
-
-	/*script := fmt.Sprintf(`var x = new XMLHttpRequest();
-	x.addEventListener("load", reqListener);
-	x.open("%s", "%s");
-	x.send();`, method, URI)*/
 
 	params := &gcdapi.RuntimeEvaluateParams{
 		Expression:            script,

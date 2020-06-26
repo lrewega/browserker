@@ -87,10 +87,7 @@ func (b *Browserk) Init(ctx context.Context) error {
 	}
 	cancelCtx, cancelFn := context.WithCancel(ctx)
 
-	b.mainContext = &browserk.Context{
-		Ctx:         cancelCtx,
-		CtxComplete: cancelFn,
-	}
+	b.mainContext = browserk.NewContext(cancelCtx, cancelFn)
 
 	pluginService := plugin.New(b.cfg, b.pluginStore)
 	if err := pluginService.Init(ctx); err != nil {
