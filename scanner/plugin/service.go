@@ -163,7 +163,7 @@ func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedH
 		return
 	}
 	delete(s.respDispatcher, requestID)
-	s.respLock.RUnlock()
+	s.respLock.Unlock()
 	t := time.NewTimer(time.Second * 5)
 
 	select {
