@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
@@ -30,7 +31,7 @@ type Service struct {
 	alwaysPlugins   *Container
 
 	respLock       *sync.RWMutex
-	respDispatcher map[string]chan *browserk.PluginEvent
+	respDispatcher map[string]chan<- *browserk.InterceptedHTTPResponse
 }
 
 // New plugin manager
@@ -47,7 +48,7 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 		responsePlugins: NewContainer(),
 		alwaysPlugins:   NewContainer(),
 		respLock:        &sync.RWMutex{},
-		respDispatcher:  make(map[string]chan *browserk.PluginEvent),
+		respDispatcher:  make(map[string]chan<- *browserk.InterceptedHTTPResponse),
 	}
 }
 
@@ -100,14 +101,7 @@ func (s *Service) Init(ctx context.Context) error {
 	}
 	s.importPlugins()
 	go s.listenForEvents()
-
 	return nil
-}
-
-func (s *Service) RegisterListener(matchID string, respCh chan *browserk.PluginEvent) {
-	s.respLock.Lock()
-	s.respDispatcher[matchID] = respCh
-	s.respLock.Unlock()
 }
 
 // DispatchEvent to interested listeners
@@ -147,6 +141,42 @@ func (s *Service) listenForEvents() {
 		case <-s.ctx.Done():
 			return
 		}
+	}
+}
+
+// RegisterForResponse registers the requestID to a channel for dispatching the response (used for injections)
+func (s *Service) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+	s.respLock.Lock()
+	s.respDispatcher[requestID] = respCh
+	s.respLock.Unlock()
+}
+
+// DispatchResponse to whomever registered for this requestID, deletes it from the map after access
+// returns immediately if it doesn't exist
+func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedHTTPResponse) {
+	var respCh chan<- *browserk.InterceptedHTTPResponse
+	var ok bool
+
+	s.respLock.Lock()
+	if respCh, ok = s.respDispatcher[requestID]; !ok {
+		s.respLock.Unlock()
+		return
+	}
+	delete(s.respDispatcher, requestID)
+	s.respLock.RUnlock()
+	t := time.NewTimer(time.Second * 5)
+
+	select {
+	case <-s.ctx.Done():
+		return
+	case respCh <- resp:
+		return
+	case <-t.C:
+		log.Warn().Str("url", resp.Request.Url).
+			Str("frameID", resp.FrameId).
+			Str("networkId", resp.NetworkId).
+			Msg("failed to dispatch resp in time")
+		return
 	}
 }
 

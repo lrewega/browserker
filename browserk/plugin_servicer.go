@@ -9,5 +9,7 @@ type PluginServicer interface {
 	Register(plugin Plugin)
 	Unregister(plugin Plugin)
 	DispatchEvent(evt *PluginEvent)
+	RegisterForResponse(requestID string, respCh chan<- *InterceptedHTTPResponse)
+	DispatchResponse(requestID string, resp *InterceptedHTTPResponse)
 	Store() PluginStorer
 }

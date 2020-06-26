@@ -440,6 +440,7 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	}
 
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
+	ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 	ctx.NextResp(t, modified)
 
 	if modified.Modified.ResponseCode != 0 {

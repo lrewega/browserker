@@ -22,6 +22,12 @@ type PluginServicer struct {
 
 	StoreFn     func() browserk.PluginStorer
 	StoreCalled bool
+
+	RegisterForResponseFn     func(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse)
+	RegisterForResponseCalled bool
+
+	DispatchResponseFn     func(requestID string, resp *browserk.InterceptedHTTPResponse)
+	DispatchResponseCalled bool
 }
 
 func (p *PluginServicer) Name() string {
@@ -52,6 +58,16 @@ func (p *PluginServicer) Store() browserk.PluginStorer {
 	return p.StoreFn()
 }
 
+func (p *PluginServicer) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+	p.RegisterForResponseCalled = true
+	p.RegisterForResponseFn(requestID, respCh)
+}
+
+func (p *PluginServicer) DispatchResponse(requestID string, resp *browserk.InterceptedHTTPResponse) {
+	p.DispatchResponseCalled = true
+	p.DispatchResponseFn(requestID, resp)
+}
+
 func MakeMockPluginServicer() *PluginServicer {
 	p := &PluginServicer{}
 	p.InitFn = func(ctx context.Context) error {
@@ -59,6 +75,7 @@ func MakeMockPluginServicer() *PluginServicer {
 	}
 
 	plugins := make(map[string]browserk.Plugin)
+	resps := make(map[string]chan<- *browserk.InterceptedHTTPResponse)
 	pLock := &sync.RWMutex{}
 
 	p.RegisterFn = func(plugin browserk.Plugin) {
@@ -79,6 +96,21 @@ func MakeMockPluginServicer() *PluginServicer {
 		for _, p := range plugins {
 			p.OnEvent(evt)
 		}
+	}
+
+	p.DispatchResponseFn = func(requestID string, resp *browserk.InterceptedHTTPResponse) {
+		pLock.RLock()
+		defer pLock.RUnlock()
+		if respCh, ok := resps[requestID]; ok {
+			delete(resps, requestID)
+			respCh <- resp.Copy()
+		}
+	}
+
+	p.RegisterForResponseFn = func(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+		pLock.RLock()
+		defer pLock.RUnlock()
+		resps[requestID] = respCh
 	}
 
 	p.StoreFn = func() browserk.PluginStorer {

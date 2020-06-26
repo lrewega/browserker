@@ -257,19 +257,6 @@ func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPRespons
 		i.Modified.Url = newURI
 		i.Modified.SetHeaders(headers)
 		i.Modified.PostData = body
-		bctx.AddRespHandler(func(respBctx *browserk.Context, respBrowser browserk.Browser, resp *browserk.InterceptedHTTPResponse) {
-			t.Logf("handling injection=========================network id: %s====================%s====%s=============", resp.NetworkId, resp.RequestId, i.RequestId)
-			//spew.Dump(resp)
-
-			if i != nil && resp != nil && resp.NetworkId == i.NetworkId {
-				select {
-				case <-respBctx.Ctx.Done():
-					return
-				case respCh <- resp:
-					t.Logf("GOT RESPONSE!")
-				}
-			}
-		})
-
+		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
 	}
 }
