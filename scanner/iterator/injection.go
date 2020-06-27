@@ -54,7 +54,7 @@ func (it *InjectionIterator) parseURI() {
 		return
 	}
 
-	uri := stripHost(it.req.Request.Url)
+	_, uri := SplitHost(it.req.Request.Url)
 	uri += it.req.Request.UrlFragment
 	p := &parsers.URIParser{}
 
@@ -127,7 +127,7 @@ func (it *InjectionIterator) Rewind() {
 	it.Seek(it.currentIndex)
 }
 
-func stripHost(u string) string {
+func SplitHost(u string) (string, string) {
 	uriStart := 0
 	slashCount := 0
 	for i := 0; i < len(u); i++ {
@@ -139,5 +139,5 @@ func stripHost(u string) string {
 			break
 		}
 	}
-	return u[uriStart:]
+	return u[:uriStart], u[uriStart:]
 }

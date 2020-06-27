@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
+	"gitlab.com/browserker/scanner/plugin/active/oscmd"
 	"gitlab.com/browserker/scanner/plugin/cookies"
 	"gitlab.com/browserker/scanner/plugin/headers"
 	"gitlab.com/browserker/scanner/plugin/storage"
@@ -84,6 +85,15 @@ func (s *Service) getPluginsOfType(pluginType browserk.PluginExecutionType) *Con
 		return s.alwaysPlugins
 	}
 	return nil
+}
+
+func (s *Service) Inject(mainContext *browserk.Context, injector browserk.Injector) {
+	s.hostPlugins.Inject(mainContext, injector)
+	s.pagePlugins.Inject(mainContext, injector)
+	s.filePlugins.Inject(mainContext, injector)
+	s.requestPlugins.Inject(mainContext, injector)
+	s.responsePlugins.Inject(mainContext, injector)
+	s.alwaysPlugins.Inject(mainContext, injector)
 }
 
 // Unregister the plugin based on type
@@ -184,6 +194,7 @@ func (s *Service) importPlugins() {
 	s.Register(cookies.New(s))
 	s.Register(headers.New(s))
 	s.Register(storage.New(s))
+	s.Register(oscmd.New(s))
 }
 
 func (s *Service) importJSPlugins() error {
@@ -193,7 +204,7 @@ func (s *Service) importJSPlugins() error {
 
 	plugins := make([]string, 0)
 	if err := filepath.Walk(s.cfg.JSPluginPath, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+		if info == nil || info.IsDir() {
 			return nil
 		}
 

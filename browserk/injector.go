@@ -78,7 +78,7 @@ const (
 // Injector handles injecting into target requests/pages using different methods
 type Injector interface {
 	Browser() Browser
-	BCtx() Context
+	BCtx() *Context
 	Message() *HTTPMessage
 	InjectionExpr() InjectionExpr
 	ReplacePath(newValue string, index int)
@@ -88,7 +88,7 @@ type Injector interface {
 	AddHeader(name, value string)
 	RemoveHeader(name string)
 	ReplaceBody(newBody []byte)
-	Send(ctx context.Context) (*HTTPResponse, error)
-	SendNew(ctx context.Context, req *HTTPRequest) (*HTTPResponse, error)
+	Send(ctx context.Context, withRender bool) (*InterceptedHTTPResponse, error)
+	SendNew(ctx context.Context, req *HTTPRequest, withRender bool) (*InterceptedHTTPResponse, error)
 	// BrowserSend ..? (for xss/plugins that send through the current page).
 }

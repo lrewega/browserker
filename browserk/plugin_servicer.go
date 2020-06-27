@@ -6,6 +6,7 @@ import "context"
 type PluginServicer interface {
 	Name() string
 	Init(ctx context.Context) error
+	Inject(mainContext *Context, injector Injector)
 	Register(plugin Plugin)
 	Unregister(plugin Plugin)
 	DispatchEvent(evt *PluginEvent)

@@ -74,7 +74,10 @@ func (g *CrawlGraph) discoverPredicates(f interface{}) []*NavGraphField {
 
 // AddNavigation entry into our graph and requests into request store if it's unique
 func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
-
+	if nav.Distance > g.cfg.MaxDepth {
+		log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it exceeds max depth")
+		return nil
+	}
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		existKey := MakeKey(nav.ID, "id")
 		_, err := txn.Get(existKey)
@@ -107,7 +110,10 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		for _, nav := range navs {
-
+			if nav.Distance > g.cfg.MaxDepth {
+				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it exceeds max depth")
+				return nil
+			}
 			existKey := MakeKey(nav.ID, "id")
 			_, err := txn.Get(existKey)
 			if err == nil {

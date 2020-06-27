@@ -48,14 +48,16 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	// msg := injector.Message() // get original req/resp
 	expr := injector.InjectionExpr()
 
-	expr.Inject("some attack string", browserk.InjectValue)
+	expr.Inject("ATTACK", browserk.InjectValue)
 	// s.AddHeader... s.AddParams/Fragments etc
-	resp, err := injector.Send(injector.BCtx().Ctx)
+	resp, err := injector.Send(injector.BCtx().Ctx, false)
 	if err != nil {
-
+		injector.BCtx().Log.Error().Err(err).Msg("failed to inject")
+		return false, nil
 	}
+	injector.BCtx().Log.Info().Msg("attacked!")
 	spew.Dump(resp)
-	return false, nil
+	return true, nil
 }
 
 // OnEvent handles passive events

@@ -34,6 +34,21 @@ func (c *Container) Remove(plugin browserk.Plugin) {
 	c.lock.Unlock()
 }
 
+func (c *Container) Inject(mainContext *browserk.Context, injector browserk.Injector) {
+	for _, plugin := range c.plugins {
+		if plugin.Options().WriteRequests {
+			injector.BCtx().Log.Debug().Str("name", plugin.Name()).Msg("calling plugin")
+			_, err := plugin.Ready(injector)
+			if err != nil {
+				injector.BCtx().Log.Error().Err(err).Str("name", plugin.Name()).Msg("failed to execute plugin")
+			}
+			injector.BCtx().Log.Debug().Str("name", plugin.Name()).Msg("reseting injection")
+			// reset
+			injector.BCtx().CopyHandlers(mainContext)
+		}
+	}
+}
+
 // Call a plugin if the event type matches the options provided by a plugin
 func (c *Container) Call(evt *browserk.PluginEvent) {
 	c.lock.RLock()

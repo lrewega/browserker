@@ -13,6 +13,7 @@ import (
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
+	"gitlab.com/browserker/scanner/injections"
 	"gitlab.com/browserker/scanner/iterator"
 	"gitlab.com/browserker/scanner/plugin"
 	"gitlab.com/browserker/scanner/report"
@@ -314,28 +315,24 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 			for mIt.Rewind(); mIt.Valid(); mIt.Next() {
 				// TODO: hash and store this for uniqueness otherwise we'll attack the same resources over
 				// and over unnecessarily.
+				navCtx.CopyHandlers(b.mainContext) // reset hooks
 				req := mIt.Request()
 				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
 				// alternatively, generate a new request from the browser and match that and replace everything...
 
 				// Create injection iterator
 				injIt := iterator.NewInjectionIter(req)
+				injector := injections.New(navCtx, browser, nav, mIt, injIt)
 				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
-					injection, loc := injIt.Value()
-					if loc == browserk.InjectQuery || loc == browserk.InjectFragment {
-						k, _ := injIt.Key()
-						v, _ := injIt.Value()
-						navCtx.Log.Debug().Msgf("url: %s injection: name: %s value: %s", req.Request.Url, k, v)
-					} else {
-						navCtx.Log.Debug().Msgf("url: %s injection: %s", req.Request.Url, injection)
-					}
+					navCtx.PluginServicer.Inject(b.mainContext, injector)
+
 				}
 			}
+		} else {
+			ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
+			browser.ExecuteAction(ctx, nav.Navigation)
+			cancel()
 		}
-
-		ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
-		browser.ExecuteAction(ctx, nav.Navigation)
-		cancel()
 
 	}
 	navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)

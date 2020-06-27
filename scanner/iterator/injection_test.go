@@ -31,3 +31,13 @@ func TestInjectionIter(t *testing.T) {
 		t.Logf("%s\n", name)
 	}
 }
+
+func TestSplitHost(t *testing.T) {
+	host, uri := iterator.SplitHost("http://example:8080/some/path.js?x=1&y=2#/test")
+	if host != "http://example:8080" {
+		t.Fatalf("expected %s got %s", "http://example:8080", host)
+	}
+	if uri != "/some/path.js?x=1&y=2#/test" {
+		t.Fatalf("expected %s got %s", "/some/path.js?x=1&y=2#/test", uri)
+	}
+}

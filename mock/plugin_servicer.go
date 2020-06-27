@@ -28,6 +28,9 @@ type PluginServicer struct {
 
 	DispatchResponseFn     func(requestID string, resp *browserk.InterceptedHTTPResponse)
 	DispatchResponseCalled bool
+
+	InjectFn     func(mainContext *browserk.Context, injector browserk.Injector)
+	InjectCalled bool
 }
 
 func (p *PluginServicer) Name() string {
@@ -68,6 +71,11 @@ func (p *PluginServicer) DispatchResponse(requestID string, resp *browserk.Inter
 	p.DispatchResponseFn(requestID, resp)
 }
 
+func (p *PluginServicer) Inject(mainContext *browserk.Context, injector browserk.Injector) {
+	p.InjectCalled = true
+	p.Inject(mainContext, injector)
+}
+
 func MakeMockPluginServicer() *PluginServicer {
 	p := &PluginServicer{}
 	p.InitFn = func(ctx context.Context) error {
@@ -95,6 +103,19 @@ func MakeMockPluginServicer() *PluginServicer {
 		defer pLock.RUnlock()
 		for _, p := range plugins {
 			p.OnEvent(evt)
+		}
+	}
+
+	p.InjectFn = func(mainContext *browserk.Context, injector browserk.Injector) {
+		for _, plugin := range plugins {
+			if plugin.Options().WriteRequests {
+				_, err := plugin.Ready(injector)
+				if err != nil {
+					injector.BCtx().Log.Error().Err(err).Msg("failed to execute plugin")
+				}
+				// reset
+				injector.BCtx().CopyHandlers(mainContext)
+			}
 		}
 	}
 

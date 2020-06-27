@@ -8,7 +8,7 @@ import (
 )
 
 func TestCrawler(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{
 		{
@@ -19,7 +19,7 @@ func TestCrawler(t *testing.T) {
 			Flags:   clicmds.CrawlerFlags(),
 		},
 	}
-	err := app.Run([]string{"app", "c", "--url", "http://example.com", "--config", "../configs/wivet.toml"})
+	err := app.Run([]string{"app", "c", "--config", "../configs/dvwa_lowdepth.toml"})
 	if err != nil {
 		t.Fatalf("err: %s\n", err)
 	}

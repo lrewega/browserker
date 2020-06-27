@@ -12,14 +12,9 @@ func MakeMockContext(ctx context.Context, target *url.URL) *browserk.Context {
 	logger := log.With().
 		Str("DEBUGURL", target.String()).
 		Logger()
-	return &browserk.Context{
-		Log:            &logger,
-		Ctx:            ctx,
-		PluginServicer: MakeMockPluginServicer(),
-		Auth:           nil,
-		Scope:          MakeMockScopeService(target),
-		FormHandler:    nil,
-		Reporter:       nil,
-		Crawl:          nil,
-	}
+	bctx := browserk.NewContext(ctx, nil)
+	bctx.Log = &logger
+	bctx.PluginServicer = MakeMockPluginServicer()
+	bctx.Scope = MakeMockScopeService(target)
+	return bctx
 }

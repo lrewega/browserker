@@ -82,6 +82,16 @@ func (c *Context) Copy() *Context {
 	}
 }
 
+// CopyHandlers for reseting the handler state (usually from mainContext)
+// so we keep any global hooks but reset any injected ones (by plugins)
+func (c *Context) CopyHandlers(from *Context) {
+	c.jsBeforeHandler = from.jsBeforeHandler
+	c.jsAfterHandler = from.jsAfterHandler
+	c.reqHandlers = from.reqHandlers
+	c.respHandlers = from.respHandlers
+	c.evtHandlers = from.evtHandlers
+}
+
 // NextReq calls the next handler
 func (c *Context) NextReq(browser Browser, i *InterceptedHTTPRequest) {
 	c.reqLock.RLock()
