@@ -3,6 +3,7 @@ package browserk
 import (
 	"crypto/md5"
 
+	"github.com/vmihailenco/msgpack/v4"
 	"github.com/wirepair/gcd/gcdapi"
 )
 
@@ -12,7 +13,7 @@ type HTTPRequest struct {
 	RequestId        string                   `json:"requestId"`                  // Request identifier.
 	LoaderId         string                   `json:"loaderId"`                   // Loader identifier. Empty string if the request is fetched from worker.
 	DocumentURL      string                   `json:"documentURL"`                // URL of the document this request is loaded for.
-	Request          *gcdapi.NetworkRequest   `json:"request"`                    // Request data.
+	Request          *gcdapi.NetworkRequest   `json:"request"`                    // Request data from browser.
 	Timestamp        float64                  `json:"timestamp"`                  // Timestamp.
 	WallTime         float64                  `json:"wallTime"`                   // Timestamp.
 	Initiator        *gcdapi.NetworkInitiator `json:"initiator"`                  // Request initiator.
@@ -33,6 +34,24 @@ func (h *HTTPRequest) Hash() []byte {
 	hash.Write([]byte(h.DocumentURL))
 	h.ID = hash.Sum(nil)
 	return h.ID
+}
+
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *HTTPRequest) Copy() *HTTPRequest {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy HTTPRequest: " + err.Error())
+	}
+	c := &HTTPRequest{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy HTTPRequest: " + err.Error())
+	}
+	return c
 }
 
 // HTTPResponse contains all information regarding a network response
@@ -60,6 +79,24 @@ func (h *HTTPResponse) Hash() []byte {
 	return h.ID
 }
 
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *HTTPResponse) Copy() *HTTPResponse {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy HTTPResponse: " + err.Error())
+	}
+	c := &HTTPResponse{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy HTTPResponse: " + err.Error())
+	}
+	return c
+}
+
 // InterceptedHTTPRequest contains all information regarding an intercepted request
 type InterceptedHTTPRequest struct {
 	ID             []byte                     `json:"id"`
@@ -85,6 +122,24 @@ func (h *InterceptedHTTPRequest) Hash() []byte {
 	return h.ID
 }
 
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *InterceptedHTTPRequest) Copy() *InterceptedHTTPRequest {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy InterceptedHTTPRequest: " + err.Error())
+	}
+	c := &InterceptedHTTPRequest{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy InterceptedHTTPRequest: " + err.Error())
+	}
+	return c
+}
+
 // HTTPModifiedRequest allow modifications
 type HTTPModifiedRequest struct {
 	ID        []byte                     `json:"id"`
@@ -105,6 +160,42 @@ func (h *HTTPModifiedRequest) Hash() []byte {
 	hash.Write([]byte(h.PostData))
 	h.ID = hash.Sum(nil)
 	return h.ID
+}
+
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *HTTPModifiedRequest) Copy() *HTTPModifiedRequest {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy HTTPModifiedRequest: " + err.Error())
+	}
+	c := &HTTPModifiedRequest{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy HTTPModifiedRequest: " + err.Error())
+	}
+	return c
+}
+
+func (h *HTTPModifiedRequest) SetHeaders(headers map[string]interface{}) {
+	if h.Headers == nil {
+		h.Headers = make([]*gcdapi.FetchHeaderEntry, 0)
+	}
+
+	for k, value := range headers {
+		switch v := value.(type) {
+		case string:
+			h.Headers = append(h.Headers, &gcdapi.FetchHeaderEntry{Name: k, Value: v})
+		case []string:
+			for _, header := range v {
+				h.Headers = append(h.Headers, &gcdapi.FetchHeaderEntry{Name: k, Value: header})
+			}
+		default:
+		}
+	}
 }
 
 // InterceptedHTTPResponse to pass to middleware and allow modifications to Modified
@@ -136,6 +227,24 @@ func (h *InterceptedHTTPResponse) Hash() []byte {
 	return h.ID
 }
 
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *InterceptedHTTPResponse) Copy() *InterceptedHTTPResponse {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy InterceptedHTTPResponse: " + err.Error())
+	}
+	c := &InterceptedHTTPResponse{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy InterceptedHTTPResponse: " + err.Error())
+	}
+	return c
+}
+
 // HTTPModifiedResponse contains the modified http response data
 type HTTPModifiedResponse struct {
 	ID                    []byte                     `json:"id"`
@@ -156,4 +265,22 @@ func (h *HTTPModifiedResponse) Hash() []byte {
 	hash.Write([]byte(h.ResponsePhrase))
 	h.ID = hash.Sum(nil)
 	return h.ID
+}
+
+// Copy does a deep copy
+// TODO: write a small astutil to generate deep copy with nil checks of nested objects
+// for now, be super lazy
+func (h *HTTPModifiedResponse) Copy() *HTTPModifiedResponse {
+	if h == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(h)
+	if err != nil {
+		panic("failed to copy HTTPModifiedResponse: " + err.Error())
+	}
+	c := &HTTPModifiedResponse{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy HTTPModifiedResponse: " + err.Error())
+	}
+	return c
 }

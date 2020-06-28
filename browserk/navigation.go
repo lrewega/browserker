@@ -36,7 +36,15 @@ const (
 	NavVisited
 	// NavFailed unable to complete action
 	NavFailed
+	// NavAudited crawler has audited the entire navigation path
+	NavAudited
 )
+
+// NavigationWithResult is for the BrowserkAttacker
+type NavigationWithResult struct {
+	Navigation *Navigation
+	Result     *NavigationResult
+}
 
 // Navigation for storing the action and results of navigating
 type Navigation struct {

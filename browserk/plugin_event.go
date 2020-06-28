@@ -153,28 +153,28 @@ func (p *PluginEventData) Hash() []byte {
 }
 func HTTPRequestPluginEvent(bctx *Context, URL string, nav *Navigation, request *HTTPRequest) *PluginEvent {
 	evt := newPluginEvent(bctx, URL, nav, EvtHTTPRequest)
-	evt.EventData = &PluginEventData{HTTPRequest: request}
+	evt.EventData = &PluginEventData{HTTPRequest: request.Copy()}
 	evt.Hash()
 	return evt
 }
 
 func HTTPResponsePluginEvent(bctx *Context, URL string, nav *Navigation, response *HTTPResponse) *PluginEvent {
 	evt := newPluginEvent(bctx, URL, nav, EvtHTTPResponse)
-	evt.EventData = &PluginEventData{HTTPResponse: response}
+	evt.EventData = &PluginEventData{HTTPResponse: response.Copy()}
 	evt.Hash()
 	return evt
 }
 
 func InterceptedHTTPRequestPluginEvent(bctx *Context, URL string, nav *Navigation, request *InterceptedHTTPRequest) *PluginEvent {
 	evt := newPluginEvent(bctx, URL, nav, EvtInterceptedHTTPRequest)
-	evt.EventData = &PluginEventData{InterceptedHTTPRequest: request}
+	evt.EventData = &PluginEventData{InterceptedHTTPRequest: request.Copy()}
 	evt.Hash()
 	return evt
 }
 
 func InterceptedHTTPResponsePluginEvent(bctx *Context, URL string, nav *Navigation, response *InterceptedHTTPResponse) *PluginEvent {
 	evt := newPluginEvent(bctx, URL, nav, EvtInterceptedHTTPResponse)
-	evt.EventData = &PluginEventData{InterceptedHTTPResponse: response}
+	evt.EventData = &PluginEventData{InterceptedHTTPResponse: response.Copy()}
 	evt.Hash()
 	return evt
 }

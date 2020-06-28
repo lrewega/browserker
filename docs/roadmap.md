@@ -9,10 +9,10 @@ Iterate quickly, get small things working as soon as possible to show progress.
 - [x] Auto fill forms
 - [x] Get passive plugins working
 - [x] Get JS based plugins (via goja) working
-- [ ] Implement reporter system for reporting flaws
-- [ ] Implement uniqueness for reports
-- [ ] Implement injast for treating request params as an AST (JSON/XML/x-www-url-encoded etc)
-- [ ] Get active plugin attacks working
+- [x] Implement reporter system for reporting flaws
+- [x] Implement uniqueness for reports
+- [x] Implement injast for treating request params as an AST (JSON/XML/x-www-url-encoded etc)
+- [ ] Get active plugin attacks working (minimal, query only to start)
 - [ ] Implement uniqueness for plugin events (host, path, file, query)
 - [ ] Get authentication working
 - [ ] Get custom authentication scripts working

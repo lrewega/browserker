@@ -12,6 +12,17 @@ type HTTPMessage struct {
 	ResponseMod  *HTTPModifiedResponse
 }
 
+func (m *HTTPMessage) Copy() *HTTPMessage {
+	return &HTTPMessage{
+		RequestTime:  m.RequestTime,
+		Request:      m.Request.Copy(),
+		RequestMod:   m.RequestMod.Copy(),
+		ResponseTime: m.ResponseTime,
+		Response:     m.Response.Copy(),
+		ResponseMod:  m.ResponseMod.Copy(),
+	}
+}
+
 // revive:disable:var-naming
 func MessagesAfterRequestTime(m []*HTTPMessage, t time.Time) []*HTTPMessage {
 	messages := make([]*HTTPMessage, 0)

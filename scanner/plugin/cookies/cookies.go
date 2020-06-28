@@ -34,6 +34,10 @@ func (h *Plugin) Config() *browserk.PluginConfig {
 	return nil
 }
 
+func (h *Plugin) InitContext(bctx *browserk.Context) {
+
+}
+
 // Options for the plugin manager to take into consideration when dispatching
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
@@ -43,7 +47,7 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 }
 
 // Ready to attack
-func (h *Plugin) Ready(browser browserk.Browser) (bool, error) {
+func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	return false, nil
 }
 
@@ -53,6 +57,8 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 		return
 	}
 	log.Info().Msg("GOT COOKIE EVENT")
+	h.httpCookieCheck(evt)
+	h.secureCookieCheck(evt)
 
 }
 

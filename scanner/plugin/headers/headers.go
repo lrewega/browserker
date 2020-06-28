@@ -30,16 +30,20 @@ func (h *Plugin) Config() *browserk.PluginConfig {
 	return nil
 }
 
+func (h *Plugin) InitContext(bctx *browserk.Context) {
+
+}
+
 // Options for the plugin manager to take into consideration when dispatching
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenResponses: true,
-		ExecutionType:   browserk.ExecOncePath,
+		ExecutionType:   browserk.ExecOncePerPath,
 	}
 }
 
 // Ready to attack
-func (h *Plugin) Ready(browser browserk.Browser) (bool, error) {
+func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	return false, nil
 }
 

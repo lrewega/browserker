@@ -5,9 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
+	"gitlab.com/browserker/scanner/plugin/active/lfi"
+	"gitlab.com/browserker/scanner/plugin/active/oscmd"
 	"gitlab.com/browserker/scanner/plugin/cookies"
 	"gitlab.com/browserker/scanner/plugin/headers"
 	"gitlab.com/browserker/scanner/plugin/storage"
@@ -27,6 +31,9 @@ type Service struct {
 	requestPlugins  *Container
 	responsePlugins *Container
 	alwaysPlugins   *Container
+
+	respLock       *sync.RWMutex
+	respDispatcher map[string]chan<- *browserk.InterceptedHTTPResponse
 }
 
 // New plugin manager
@@ -42,9 +49,12 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 		requestPlugins:  NewContainer(),
 		responsePlugins: NewContainer(),
 		alwaysPlugins:   NewContainer(),
+		respLock:        &sync.RWMutex{},
+		respDispatcher:  make(map[string]chan<- *browserk.InterceptedHTTPResponse),
 	}
 }
 
+// Name todo remove this was for debugging js plugins
 func (s *Service) Name() string {
 	return "PluginService"
 }
@@ -64,11 +74,11 @@ func (s *Service) getPluginsOfType(pluginType browserk.PluginExecutionType) *Con
 	switch pluginType {
 	case browserk.ExecOnce:
 		return s.hostPlugins
-	case browserk.ExecOncePath:
+	case browserk.ExecOncePerPath:
 		return s.pathPlugins
-	case browserk.ExecOnceFile:
+	case browserk.ExecOncePerFile:
 		return s.filePlugins
-	case browserk.ExecOncePerPage:
+	case browserk.ExecOncePerNavPath:
 		return s.pagePlugins
 	case browserk.ExecPerRequest:
 		return s.requestPlugins
@@ -76,6 +86,15 @@ func (s *Service) getPluginsOfType(pluginType browserk.PluginExecutionType) *Con
 		return s.alwaysPlugins
 	}
 	return nil
+}
+
+func (s *Service) Inject(mainContext *browserk.Context, injector browserk.Injector) {
+	s.hostPlugins.Inject(mainContext, injector)
+	s.pagePlugins.Inject(mainContext, injector)
+	s.filePlugins.Inject(mainContext, injector)
+	s.requestPlugins.Inject(mainContext, injector)
+	s.responsePlugins.Inject(mainContext, injector)
+	s.alwaysPlugins.Inject(mainContext, injector)
 }
 
 // Unregister the plugin based on type
@@ -93,7 +112,6 @@ func (s *Service) Init(ctx context.Context) error {
 	}
 	s.importPlugins()
 	go s.listenForEvents()
-
 	return nil
 }
 
@@ -137,10 +155,48 @@ func (s *Service) listenForEvents() {
 	}
 }
 
+// RegisterForResponse registers the requestID to a channel for dispatching the response (used for injections)
+func (s *Service) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+	s.respLock.Lock()
+	s.respDispatcher[requestID] = respCh
+	s.respLock.Unlock()
+}
+
+// DispatchResponse to whomever registered for this requestID, deletes it from the map after access
+// returns immediately if it doesn't exist
+func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedHTTPResponse) {
+	var respCh chan<- *browserk.InterceptedHTTPResponse
+	var ok bool
+
+	s.respLock.Lock()
+	if respCh, ok = s.respDispatcher[requestID]; !ok {
+		s.respLock.Unlock()
+		return
+	}
+	delete(s.respDispatcher, requestID)
+	s.respLock.Unlock()
+	t := time.NewTimer(time.Second * 5)
+
+	select {
+	case <-s.ctx.Done():
+		return
+	case respCh <- resp:
+		return
+	case <-t.C:
+		log.Warn().Str("url", resp.Request.Url).
+			Str("frameID", resp.FrameId).
+			Str("networkId", resp.NetworkId).
+			Msg("failed to dispatch resp in time")
+		return
+	}
+}
+
 func (s *Service) importPlugins() {
 	s.Register(cookies.New(s))
 	s.Register(headers.New(s))
 	s.Register(storage.New(s))
+	s.Register(oscmd.New(s))
+	s.Register(lfi.New(s))
 }
 
 func (s *Service) importJSPlugins() error {
@@ -150,7 +206,7 @@ func (s *Service) importJSPlugins() error {
 
 	plugins := make([]string, 0)
 	if err := filepath.Walk(s.cfg.JSPluginPath, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+		if info == nil || info.IsDir() {
 			return nil
 		}
 

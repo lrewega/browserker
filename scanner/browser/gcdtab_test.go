@@ -6,8 +6,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/browser"
@@ -65,9 +68,10 @@ func TestHookRequests(t *testing.T) {
 	target, _ := url.Parse("http://example.com")
 	bCtx := mock.MakeMockContext(ctx, target)
 
-	hook := func(c *browserk.Context, b browserk.Browser, i *browserk.InterceptedHTTPRequest) {
+	hook := func(c *browserk.Context, b browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		t.Logf("inside hook!")
 		i.Modified.Url = "http://example.com"
+		return true
 	}
 	bCtx.AddReqHandler([]browserk.RequestHandler{hook}...)
 
@@ -168,5 +172,90 @@ func TestBaseHref(t *testing.T) {
 	eles, _ := b.FindElements("base")
 	if eles == nil {
 		t.Fatalf("expected eles")
+	}
+}
+
+func TestFragment(t *testing.T) {
+	pool := browser.NewGCDBrowserPool(1, leaser)
+	if err := pool.Init(); err != nil {
+		t.Fatalf("failed to init pool")
+	}
+	defer leaser.Cleanup()
+	ctx := context.Background()
+
+	p, srv := testServer()
+	defer srv.Shutdown(ctx)
+
+	u := fmt.Sprintf("http://localhost:%s/basehref.html#/test", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
+
+	b, _, err := pool.Take(bCtx)
+	if err != nil {
+		t.Fatalf("error taking browser: %s\n", err)
+	}
+
+	err = b.Navigate(ctx, u)
+	if err != nil {
+		t.Fatalf("error getting url %s\n", err)
+	}
+	msg, _ := b.GetMessages()
+	if msg[0].Request.Request.UrlFragment != "#/test" {
+		t.Fatalf("expected fragment to include hash")
+	}
+}
+
+func TestInjectRequest(t *testing.T) {
+	pool := browser.NewGCDBrowserPool(1, leaser)
+	if err := pool.Init(); err != nil {
+		t.Fatalf("failed to init pool")
+	}
+	defer leaser.Cleanup()
+	ctx := context.Background()
+
+	p, srv := testServer()
+	defer srv.Shutdown(ctx)
+
+	u := fmt.Sprintf("http://localhost:%s/index.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
+	respCh := make(chan *browserk.InterceptedHTTPResponse)
+
+	bCtx.AddReqHandler(testInjectXHRReq(t, respCh, u+"?asdf=asdf", nil, "", []byte("")))
+
+	b, _, err := pool.Take(bCtx)
+	if err != nil {
+		t.Fatalf("error taking browser: %s\n", err)
+	}
+
+	err = b.Navigate(ctx, u)
+	if err != nil {
+		t.Fatalf("error getting url %s\n", err)
+	}
+	b.GetMessages()
+
+	t.Logf("Injecting request...")
+	if err := b.InjectRequest(ctx, "GET", "/someur.html"); err != nil {
+		t.Fatalf("error injecting request: %s\n", err)
+	}
+
+	r := <-respCh
+	t.Logf("GOT RESPONSE FROM CH:\n")
+	time.Sleep(time.Second * 5)
+	spew.Dump(r)
+}
+
+func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPResponse, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {
+	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
+		t.Logf("INTERCEPTED: %s = %s [%s]\n", i.RequestId, i.Request.Url, i.NetworkId)
+		if !strings.HasSuffix(i.Request.Url, "someur.html") {
+			return false
+		}
+		t.Logf("handling injection %s\n", i.Request.Url)
+		i.Modified.Url = newURI
+		i.Modified.SetHeaders(headers)
+		i.Modified.PostData = body
+		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
+		return true
 	}
 }

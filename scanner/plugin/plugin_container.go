@@ -34,6 +34,24 @@ func (c *Container) Remove(plugin browserk.Plugin) {
 	c.lock.Unlock()
 }
 
+// Inject iterates over plugins and if they accept write requests and location matches then we inject
+func (c *Container) Inject(mainContext *browserk.Context, injector browserk.Injector) {
+	for _, plugin := range c.plugins {
+		injector.BCtx().Log.Debug().Msgf("url: %s inj: %s %v plugin opts: %v (%t)", injector.Message().Request.Request.Url, injector.InjectionExpr().String(), injector.InjectionExpr().Loc(), plugin.Options().Injections, injector.InjectionExpr().Loc().HasIn(plugin.Options().Injections))
+		if plugin.Options().WriteRequests && injector.InjectionExpr().Loc().HasIn(plugin.Options().Injections) {
+
+			injector.BCtx().Log.Debug().Str("name", plugin.Name()).Msg("calling plugin")
+			_, err := plugin.Ready(injector)
+			if err != nil {
+				injector.BCtx().Log.Error().Err(err).Str("name", plugin.Name()).Msg("failed to execute plugin")
+			}
+			injector.BCtx().Log.Debug().Str("name", plugin.Name()).Msg("reseting injection")
+			// reset
+			injector.BCtx().CopyHandlers(mainContext)
+		}
+	}
+}
+
 // Call a plugin if the event type matches the options provided by a plugin
 func (c *Container) Call(evt *browserk.PluginEvent) {
 	c.lock.RLock()
@@ -63,5 +81,4 @@ func (c *Container) Call(evt *browserk.PluginEvent) {
 			plugin.OnEvent(evt)
 		}
 	}
-
 }

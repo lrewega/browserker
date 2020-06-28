@@ -3,12 +3,13 @@ package browserk
 import (
 	"context"
 	"math"
+	"sync"
 
 	"github.com/rs/zerolog"
 )
 
-// RequestHandler for adding middleware between browser HTTP Request events
-type RequestHandler func(c *Context, browser Browser, i *InterceptedHTTPRequest)
+// RequestHandler for adding middleware between browser HTTP Request events, return true if should de-register
+type RequestHandler func(c *Context, browser Browser, i *InterceptedHTTPRequest) bool
 
 // ResponseHandler for adding middleware between browser HTTP Response events
 type ResponseHandler func(c *Context, browser Browser, i *InterceptedHTTPResponse)
@@ -30,27 +31,35 @@ type Context struct {
 	Scope          ScopeService
 	FormHandler    FormHandler
 	Reporter       Reporter
-	Injector       Injector
 	Crawl          CrawlGrapher
 	PluginServicer PluginServicer
 
+	jsBeforeLock    *sync.RWMutex
 	jsBeforeHandler []JSHandler
-	jsBeforeIndex   int8
+	jsAfterLock     *sync.RWMutex
+	jsAfterHandler  []JSHandler
 
-	jsAfterHandler []JSHandler
-	jsAfterIndex   int8
-
-	reqHandlers []RequestHandler
-	reqIndex    int8
-
+	reqLock      *sync.RWMutex
+	reqHandlers  []RequestHandler
+	respLock     *sync.RWMutex
 	respHandlers []ResponseHandler
-	respIndex    int8
-
-	evtHandlers []EventHandler
-	evtIndex    int8
+	evtLock      *sync.RWMutex
+	evtHandlers  []EventHandler
 }
 
-// Copy the context services and handlers, but not indexes
+func NewContext(ctx context.Context, cancelFn context.CancelFunc) *Context {
+	return &Context{
+		Ctx:          ctx,
+		CtxComplete:  cancelFn,
+		jsBeforeLock: &sync.RWMutex{},
+		jsAfterLock:  &sync.RWMutex{},
+		reqLock:      &sync.RWMutex{},
+		respLock:     &sync.RWMutex{},
+		evtLock:      &sync.RWMutex{},
+	}
+}
+
+// Copy the context services and handlers
 func (c *Context) Copy() *Context {
 	return &Context{
 		Ctx:             c.Ctx,
@@ -58,153 +67,135 @@ func (c *Context) Copy() *Context {
 		Scope:           c.Scope,
 		FormHandler:     c.FormHandler,
 		Reporter:        c.Reporter,
-		Injector:        c.Injector,
 		Crawl:           c.Crawl,
 		PluginServicer:  c.PluginServicer,
+		jsBeforeLock:    &sync.RWMutex{},
 		jsBeforeHandler: c.jsBeforeHandler,
-		jsBeforeIndex:   0,
+		jsAfterLock:     &sync.RWMutex{},
 		jsAfterHandler:  c.jsAfterHandler,
-		jsAfterIndex:    0,
+		reqLock:         &sync.RWMutex{},
 		reqHandlers:     c.reqHandlers,
-		reqIndex:        0,
+		respLock:        &sync.RWMutex{},
 		respHandlers:    c.respHandlers,
-		respIndex:       0,
+		evtLock:         &sync.RWMutex{},
 		evtHandlers:     c.evtHandlers,
-		evtIndex:        0,
 	}
+}
+
+// CopyHandlers for reseting the handler state (usually from mainContext)
+// so we keep any global hooks but reset any injected ones (by plugins)
+func (c *Context) CopyHandlers(from *Context) {
+	c.jsBeforeHandler = from.jsBeforeHandler
+	c.jsAfterHandler = from.jsAfterHandler
+	c.reqHandlers = from.reqHandlers
+	c.respHandlers = from.respHandlers
+	c.evtHandlers = from.evtHandlers
 }
 
 // NextReq calls the next handler
 func (c *Context) NextReq(browser Browser, i *InterceptedHTTPRequest) {
-	for c.reqIndex < int8(len(c.reqHandlers)) {
-		c.reqHandlers[c.reqIndex](c, browser, i)
-		c.reqIndex++
+	dereg := make([]int8, 0)
+	c.reqLock.RLock()
+	for reqIndex := int8(0); reqIndex < int8(len(c.reqHandlers)); reqIndex++ {
+		deregister := c.reqHandlers[reqIndex](c, browser, i)
+		if deregister {
+			dereg = append(dereg, reqIndex)
+		}
 	}
+	c.reqLock.RUnlock()
+	c.reqLock.Lock()
+	// deregister, but preserve order mainly for plugins which will add injection
+	// hooks for each attack string
+	for _, deregIndex := range dereg {
+		copy(c.reqHandlers[deregIndex:], c.reqHandlers[deregIndex+1:])
+		c.reqHandlers[len(c.reqHandlers)-1] = nil
+		c.reqHandlers = c.reqHandlers[:len(c.reqHandlers)-1]
+	}
+	c.reqLock.Unlock()
 }
 
 // AddReqHandler adds new request handlers
 func (c *Context) AddReqHandler(i ...RequestHandler) {
+	c.reqLock.Lock()
 	if c.reqHandlers == nil {
 		c.reqHandlers = make([]RequestHandler, 0)
 	}
 	c.reqHandlers = append(c.reqHandlers, i...)
-}
-
-// IsReqAborted returns true if the current context was aborted.
-func (c *Context) IsReqAborted() bool {
-	return c.reqIndex >= abortIndex
-}
-
-// ReqAbort prevents pending handlers from being called. Call ReqAbort to ensure the remaining handlers
-// for this request are not called.
-func (c *Context) ReqAbort() {
-	c.reqIndex = abortIndex
+	c.reqLock.Unlock()
 }
 
 // NextResp calls the next handler
 func (c *Context) NextResp(browser Browser, i *InterceptedHTTPResponse) {
-	for c.respIndex < int8(len(c.respHandlers)) {
-		c.respHandlers[c.respIndex](c, browser, i)
-		c.respIndex++
+	c.respLock.RLock()
+	for respIndex := int8(0); respIndex < int8(len(c.respHandlers)); respIndex++ {
+		c.respHandlers[respIndex](c, browser, i)
 	}
+	c.respLock.RUnlock()
 }
 
 // AddRespHandler adds new request handlers
 func (c *Context) AddRespHandler(i ...ResponseHandler) {
+	c.respLock.Lock()
 	if c.respHandlers == nil {
 		c.respHandlers = make([]ResponseHandler, 0)
 	}
 	c.respHandlers = append(c.respHandlers, i...)
-}
-
-// IsRespAborted returns true if the current context was aborted.
-func (c *Context) IsRespAborted() bool {
-	return c.respIndex >= abortIndex
-}
-
-// RespAbort prevents pending handlers from being called. Call ReqAbort to ensure the remaining handlers
-// for this request are not called.
-func (c *Context) RespAbort() {
-	c.respIndex = abortIndex
+	c.respLock.Unlock()
 }
 
 // NextEvt calls the next handler
 func (c *Context) NextEvt() {
-	for c.evtIndex < int8(len(c.evtHandlers)) {
-		c.evtHandlers[c.evtIndex](c)
-		c.evtIndex++
+	c.evtLock.RLock()
+	for evtIndex := int8(0); evtIndex < int8(len(c.evtHandlers)); evtIndex++ {
+		c.evtHandlers[evtIndex](c)
 	}
+	c.evtLock.RUnlock()
 }
 
 // AddEvtHandler adds new request handlers
 func (c *Context) AddEvtHandler(i ...EventHandler) {
+	c.evtLock.Lock()
 	if c.evtHandlers == nil {
 		c.evtHandlers = make([]EventHandler, 0)
 	}
 	c.evtHandlers = append(c.evtHandlers, i...)
-}
-
-// IsEvtAborted returns true if the current context was aborted.
-func (c *Context) IsEvtAborted() bool {
-	return c.evtIndex >= abortIndex
-}
-
-// EvtAbort prevents pending handlers from being called. Call ReqAbort to ensure the remaining handlers
-// for this request are not called.
-func (c *Context) EvtAbort() {
-	c.evtIndex = abortIndex
+	c.evtLock.Unlock()
 }
 
 // NextJSBefore calls the next handler
 func (c *Context) NextJSBefore(browser Browser) {
-	for c.jsBeforeIndex < int8(len(c.jsBeforeHandler)) {
-		c.jsBeforeHandler[c.jsBeforeIndex](c, browser)
-		c.jsBeforeIndex++
+	c.jsBeforeLock.RLock()
+	for jsBeforeIndex := int8(0); jsBeforeIndex < int8(len(c.jsBeforeHandler)); jsBeforeIndex++ {
+		c.jsBeforeHandler[jsBeforeIndex](c, browser)
 	}
+	c.jsBeforeLock.RUnlock()
 }
 
 // AddJSBeforeHandler adds new request handlers
 func (c *Context) AddJSBeforeHandler(i ...JSHandler) {
+	c.jsBeforeLock.Lock()
 	if c.jsBeforeHandler == nil {
 		c.jsBeforeHandler = make([]JSHandler, 0)
 	}
 	c.jsBeforeHandler = append(c.jsBeforeHandler, i...)
-}
-
-// IsJSBeforeAborted returns true if the current context was aborted.
-func (c *Context) IsJSBeforeAborted() bool {
-	return c.jsBeforeIndex >= abortIndex
-}
-
-// JSBeforeAbort prevents pending handlers from being called. Call ReqAbort to ensure the remaining handlers
-// for this request are not called.
-func (c *Context) JSBeforeAbort() {
-	c.jsBeforeIndex = abortIndex
+	c.jsBeforeLock.Unlock()
 }
 
 // NextJSAfter calls the next handler
 func (c *Context) NextJSAfter(browser Browser) {
-	for c.jsAfterIndex < int8(len(c.jsAfterHandler)) {
-		c.jsAfterHandler[c.jsAfterIndex](c, browser)
-		c.jsBeforeIndex++
+	c.jsAfterLock.RLock()
+	for jsAfterIndex := int8(0); jsAfterIndex < int8(len(c.jsAfterHandler)); jsAfterIndex++ {
+		c.jsAfterHandler[jsAfterIndex](c, browser)
 	}
+	c.jsAfterLock.RUnlock()
 }
 
 // AddJSAfterHandler adds new js handlers
 func (c *Context) AddJSAfterHandler(i ...JSHandler) {
+	c.jsAfterLock.Lock()
 	if c.jsAfterHandler == nil {
 		c.jsAfterHandler = make([]JSHandler, 0)
 	}
 	c.jsAfterHandler = append(c.jsAfterHandler, i...)
-}
-
-// IsJSAfterAborted returns true if the current context was aborted.
-func (c *Context) IsJSAfterAborted() bool {
-	return c.jsAfterIndex >= abortIndex
-}
-
-// JSAfterAbort prevents pending handlers from being called. Call ReqAbort to ensure the remaining handlers
-// for this request are not called.
-func (c *Context) JSAfterAbort() {
-	c.jsAfterIndex = abortIndex
+	c.jsAfterLock.Unlock()
 }

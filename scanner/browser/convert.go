@@ -108,11 +108,11 @@ func GCDResponseToBrowserk(resp *gcdapi.NetworkResponseReceivedEvent, body []byt
 // GCDFetchRequestToIntercepted FetchRequestPausedEvent -> InterceptedHTTPRequest
 func GCDFetchRequestToIntercepted(m *gcdapi.FetchRequestPausedEvent, container *Container) *browserk.InterceptedHTTPRequest {
 	p := m.Params
-	r := container.GetRequest(p.RequestId)
-	req := &gcdapi.NetworkRequest{}
-	if r != nil {
-		req = r.Request
-	}
+	//r := container.GetRequest(p.RequestId)
+	req := m.Params.Request
+	//if r != nil { // <-- was this for redirects or something? i forgot.
+	//	req = r.Request
+	//}
 	headers := make([]*gcdapi.FetchHeaderEntry, 0)
 	if p.Request != nil && p.Request.Headers != nil {
 		for k, v := range p.Request.Headers {

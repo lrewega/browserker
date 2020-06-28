@@ -13,6 +13,8 @@ import (
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
+	"gitlab.com/browserker/scanner/injections"
+	"gitlab.com/browserker/scanner/iterator"
 	"gitlab.com/browserker/scanner/plugin"
 	"gitlab.com/browserker/scanner/report"
 )
@@ -26,6 +28,7 @@ type Browserk struct {
 	browsers     browserk.BrowserPool
 	formHandler  browserk.FormHandler
 	navCh        chan []*browserk.Navigation
+	attackCh     chan []*browserk.NavigationWithResult
 	readyCh      chan struct{}
 	stateMonitor *time.Ticker
 	mainContext  *browserk.Context
@@ -43,6 +46,7 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		leasedBrowserIDs: make(map[int64]struct{}),
 		idMutex:          &sync.RWMutex{},
 		navCh:            make(chan []*browserk.Navigation, cfg.NumBrowsers),
+		attackCh:         make(chan []*browserk.NavigationWithResult, cfg.NumBrowsers),
 		reporter:         report.New(crawl, pluginStore),
 		readyCh:          make(chan struct{}),
 	}
@@ -84,10 +88,7 @@ func (b *Browserk) Init(ctx context.Context) error {
 	}
 	cancelCtx, cancelFn := context.WithCancel(ctx)
 
-	b.mainContext = &browserk.Context{
-		Ctx:         cancelCtx,
-		CtxComplete: cancelFn,
-	}
+	b.mainContext = browserk.NewContext(cancelCtx, cancelFn)
 
 	pluginService := plugin.New(b.cfg, b.pluginStore)
 	if err := pluginService.Init(ctx); err != nil {
@@ -98,7 +99,6 @@ func (b *Browserk) Init(ctx context.Context) error {
 	b.mainContext.Scope = b.scopeService(target)
 	b.mainContext.FormHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
 	b.mainContext.Reporter = b.reporter
-	b.mainContext.Injector = nil
 	b.mainContext.Crawl = b.crawlGraph
 	b.mainContext.PluginServicer = pluginService
 
@@ -174,13 +174,27 @@ func (b *Browserk) Start() error {
 		log.Info().Msg("searching for new navigation entries")
 		entries := b.crawlGraph.Find(b.mainContext.Ctx, browserk.NavUnvisited, browserk.NavInProcess, int64(b.cfg.NumBrowsers))
 		if entries == nil || len(entries) == 0 && b.browsers.Leased() == 0 {
-			log.Info().Msg("no more crawler entries or active browsers")
-			time.Sleep(time.Second * 60)
-			return nil
+			log.Info().Msg("no more crawler entries or active browsers, activating attack phase")
+			break
+
 		}
 		log.Info().Int("entries", len(entries)).Msg("Found entries")
 		for _, nav := range entries {
 			b.navCh <- nav
+		}
+		log.Info().Msg("Waiting for crawler to complete")
+		<-b.readyCh
+	}
+
+	for {
+		entries := b.crawlGraph.FindWithResults(b.mainContext.Ctx, browserk.NavVisited, browserk.NavInProcess, int64(b.cfg.NumBrowsers))
+		if entries == nil || len(entries) == 0 && b.browsers.Leased() == 0 {
+			log.Info().Msg("no more crawler entries or active browsers, scan complete")
+			return nil
+		}
+		log.Info().Int("entries", len(entries)).Msg("Found entries")
+		for _, nav := range entries {
+			b.attackCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
 		<-b.readyCh
@@ -200,7 +214,9 @@ func (b *Browserk) processEntries() {
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing nav")
 			go b.crawl(nav)
 			log.Info().Msg("Crawler to complete")
-			//
+		case nav := <-b.attackCh:
+			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing attack nav")
+			go b.attack(nav)
 		}
 	}
 }
@@ -262,6 +278,73 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
 	b.readyCh <- struct{}{}
+}
+
+// attack iterates over the plugin, giving it it's own browser since we need to add
+// the context specific to that plugin
+func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
+
+	navCtx := b.mainContext.Copy()
+
+	browser, port, err := b.browsers.Take(navCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to take browser")
+		return
+	}
+	logger := log.With().
+		Int64("browser_id", browser.ID()).
+		Logger()
+	navCtx.Log = &logger
+	b.addLeased(browser.ID())
+
+	// TODO: Where to iterate over plugins? Keep in mind it'll need it's own navCtx for
+	// potential hooks
+	isFinal := false
+	for i, nav := range navs {
+		// we are on the last navigation of this path so we'll want to attack now
+		if i == len(navs)-1 {
+			isFinal = true
+		}
+
+		// Add GlobalHooks (stored xss function listener)
+
+		if isFinal {
+
+			// Create request iterator
+			mIt := iterator.NewMessageIter(nav)
+			for mIt.Rewind(); mIt.Valid(); mIt.Next() {
+				// TODO: hash and store this for uniqueness otherwise we'll attack the same resources over
+				// and over unnecessarily.
+				navCtx.CopyHandlers(b.mainContext) // reset hooks
+				req := mIt.Request()
+
+				if req == nil || req.Request == nil {
+					continue
+				}
+				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
+				// alternatively, generate a new request from the browser and match that and replace everything...
+
+				// Create injection iterator
+				injIt := iterator.NewInjectionIter(req)
+				injector := injections.New(navCtx, browser, nav, mIt, injIt)
+				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+					navCtx.PluginServicer.Inject(b.mainContext, injector)
+				}
+			}
+		} else {
+			ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
+			browser.ExecuteAction(ctx, nav.Navigation)
+			cancel()
+		}
+
+	}
+	navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
+	browser.Close()
+	b.browsers.Return(navCtx.Ctx, port)
+
+	b.removeLeased(browser.ID())
+	b.readyCh <- struct{}{}
+
 }
 
 // Stop the browsers

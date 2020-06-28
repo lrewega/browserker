@@ -1,8 +1,9 @@
-package injast
+package token
 
 import (
 	"strconv"
 )
+
 // Token is the set of lexical tokens of the Go programming language.
 type Token int
 
@@ -15,33 +16,34 @@ const (
 	literal_beg
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
-	IDENT  // main
-	INT    // 12345
-	FLOAT  // 123.45
-	IMAG   // 123.45i
-	CHAR   // 'a'
-	STRING // "abc"
+	IDENT // main
+	INT   // 12345
+	FLOAT // 123.45
+	IMAG  // 123.45i
 	literal_end
-	
+
 	delim_beg
-	ASSIGN // =
-	SLASH // /
-	AND     // &
-	LSS    // <
-	GTR    // >
-	LPAREN // (
-	LBRACK // [
-	LBRACE // {
-	COMMA  // ,
-	PERIOD // .
+	ASSIGN    // =
+	SLASH     // /
+	AND       // &
+	LSS       // <
+	GTR       // >
+	LPAREN    // (
+	LBRACK    // [
+	LBRACE    // {
+	COMMA     // ,
+	PERIOD    // .
 	RPAREN    // )
 	RBRACK    // ]
 	RBRACE    // }
 	SEMICOLON // ;
 	COLON     // :
-	SQUOTE // '
-	DQUOTE // "
-	BACKTICK // `
+	SQUOTE    // '
+	DQUOTE    // "
+	BACKTICK  // `
+	QUESTION  // ?
+	HASH      // #
+	SPACE     // ' '
 	delim_end
 )
 
@@ -49,39 +51,35 @@ var tokens = [...]string{
 	ILLEGAL: "ILLEGAL",
 	EOF:     "EOF",
 
-	IDENT:  "IDENT",
-	INT:    "INT",
-	FLOAT:  "FLOAT",
-	IMAG:   "IMAG",
-	CHAR:   "CHAR",
-	STRING: "STRING",
+	IDENT: "IDENT",
+	INT:   "INT",
+	FLOAT: "FLOAT",
+	IMAG:  "IMAG",
 
-	ASSIGN: "=",
-	SLASH: "/",
-	AND:     "&",
-	LSS:    "<",
-	GTR:    ">",
-	LPAREN: "(",
-	LBRACK: "[",
-	LBRACE: "{",
-	COMMA:  ",",
-	PERIOD: ".",
+	ASSIGN:    "=",
+	SLASH:     "/",
+	AND:       "&",
+	LSS:       "<",
+	GTR:       ">",
+	LPAREN:    "(",
+	LBRACK:    "[",
+	LBRACE:    "{",
+	COMMA:     ",",
+	PERIOD:    ".",
 	RPAREN:    ")",
 	RBRACK:    "]",
 	RBRACE:    "}",
 	SEMICOLON: ";",
 	COLON:     ":",
-	SQUOTE: "'",
-	DQUOTE: `"`,
-	BACKTICK: "`",
+	SQUOTE:    "'",
+	DQUOTE:    `"`,
+	BACKTICK:  "`",
+	QUESTION:  "?",
+	HASH:      "#",
+	SPACE:     " ",
 }
 
 // String returns the string corresponding to the token tok.
-// For operators, delimiters, and keywords the string is the actual
-// token character sequence (e.g., for the token ADD, the string is
-// "+"). For all other tokens the string corresponds to the token
-// constant name (e.g. for the token IDENT, the string is "IDENT").
-//
 func (tok Token) String() string {
 	s := ""
 	if 0 <= tok && tok < Token(len(tokens)) {
