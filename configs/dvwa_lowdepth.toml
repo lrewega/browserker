@@ -2,8 +2,8 @@ URL = "http://localhost/"
 AllowedHosts = ["localhost"]
 ExcludedURIs = ["/setup.php", "/logout.php", "/security.php"]
 DataPath = "browserktmp"
-NumBrowsers = 5
-MaxDepth = 2
+NumBrowsers = 10
+MaxDepth = 4
 JSPluginPath = "plugins/"
 
 [FormData]

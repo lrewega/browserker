@@ -54,6 +54,7 @@ func (i *BrowserkerInjector) AddHeader(name, value string)           {}
 func (i *BrowserkerInjector) RemoveHeader(name string)               {}
 func (i *BrowserkerInjector) ReplaceBody(newBody []byte)             {}
 
+// Send this injection attack
 func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browserk.InterceptedHTTPResponse, error) {
 	//i.injIterator.URI()
 	if withRender {
@@ -68,6 +69,7 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 		host, _ := iterator.SplitHost(i.req.Request.Url)
 		// TODO: replace headers with injIterator.Headers body with injIterator.Body (those three should be separate)
 		i.bCtx.Log.Debug().Str("attack_METHOD", i.injIterator.Method()).Str("attack_URL", host+i.injIterator.URI().String()).Msg("injecting attack")
+
 		i.bCtx.AddReqHandler(InjectFetchReq(respCh, i.injIterator.Method(), host+i.injIterator.URI().String(), i.req.Request.Headers, i.req.Request.PostData, attackID))
 
 		i.bCtx.Log.Debug().Msg("injecting xhr")
@@ -90,6 +92,7 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 	return nil, nil
 }
 
+// SendNew request instead of the modified one
 func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPResponse, error) {
 	//i.injIterator.URI()
 	if withRender {
@@ -122,19 +125,22 @@ func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequ
 	return nil, nil
 }
 
+// InjectFetchReq into the browser
 func InjectFetchReq(respCh chan *browserk.InterceptedHTTPResponse, newMethod, newURI string, headers map[string]interface{}, body string, match string) browserk.RequestHandler {
-	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) {
+	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		_, uri := iterator.SplitHost(i.Request.Url)
+		bctx.Log.Debug().Str("intercept_uri", uri).Str("inject_url_id", match).Msg("intercepted")
 		if uri != match {
 			bctx.Log.Debug().Str("intercept_uri", uri).Str("inject_url_id", match).Msg("did not match attack request")
-			return
+			return false
 		}
-		bctx.Log.Debug().Msg("matched attack request")
+		bctx.Log.Debug().Str("newURI", newURI).Msg("matched attack request, rewriting")
 		i.Modified.Method = newMethod
 		i.Modified.Url = newURI
 		i.Modified.SetHeaders(headers)
 		i.Modified.PostData = body
 		bctx.Log.Debug().Str("response_key", i.FrameId+i.NetworkId).Msg("registered for response")
 		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
+		return true
 	}
 }

@@ -17,3 +17,14 @@ func TestInjectorLocation(t *testing.T) {
 		t.Fatalf("should not have method")
 	}
 }
+
+func TestInjectorLocationHasIn(t *testing.T) {
+	l := []browserk.InjectionLocation{browserk.InjectValues}
+	if browserk.InjectPath.HasIn(l) {
+		t.Fatalf("should not have path")
+	}
+
+	if !browserk.InjectQueryValue.HasIn(l) {
+		t.Fatalf("should have query value")
+	}
+}

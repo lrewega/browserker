@@ -235,9 +235,9 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 					log.Info().Msgf("nav hash: %s", string(nav.ID))
 					navs = append(navs, nav)
 				}
-			} else {
-				bctx.Log.Debug().Str("ele", browserk.HTMLTypeToStrMap[ele.Type]).Bytes("hash", ele.Hash()).Msgf("this element already exists %+v", ele.Attributes)
-			}
+			} //else {
+			//bctx.Log.Debug().Str("ele", browserk.HTMLTypeToStrMap[ele.Type]).Bytes("hash", ele.Hash()).Msgf("this element already exists %+v", ele.Attributes)
+			//}
 		}
 	}
 	return navs

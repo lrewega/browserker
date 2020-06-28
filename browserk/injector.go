@@ -35,6 +35,15 @@ func (i InjectionLocation) Has(loc InjectionLocation) bool {
 	return i&loc != 0
 }
 
+func (i InjectionLocation) HasIn(locs []InjectionLocation) bool {
+	for _, loc := range locs {
+		if i.Has(loc) {
+			return true
+		}
+	}
+	return false
+}
+
 // Injection Location points
 const (
 	_            InjectionLocation = iota
@@ -73,6 +82,10 @@ const (
 	InjectAll InjectionLocation = InjectMethod | InjectPath | InjectFile | InjectQuery | InjectQueryName | InjectQueryValue | InjectQueryIndex | InjectFragment | InjectFragmentPath | InjectFragmentName | InjectFragmentValue | InjectFragmentIndex | InjectHeader | InjectHeaderName | InjectHeaderValue | InjectCookie | InjectCookieName | InjectCookieValue | InjectBody | InjectBodyName | InjectBodyValue | InjectBodyIndex | InjectJSON | InjectJSONName | InjectJSONValue | InjectXML | InjectXMLName | InjectXMLValue
 	// InjectCommon injects into common path/value parameters
 	InjectCommon InjectionLocation = InjectPath | InjectFile | InjectQuery | InjectQueryValue | InjectFragmentPath | InjectFragmentValue | InjectHeaderValue | InjectCookieValue | InjectBody | InjectBodyValue | InjectJSON | InjectJSONValue | InjectXML | InjectXMLValue
+	// InjectNameValue Names and Values
+	InjectNameValue InjectionLocation = InjectQuery | InjectQueryValue | InjectQueryName | InjectQueryIndex | InjectHeaderName | InjectHeaderValue | InjectCookieValue | InjectBodyName | InjectBodyValue | InjectJSONName | InjectJSONValue | InjectXMLName | InjectXMLValue
+	// InjectValues only
+	InjectValues InjectionLocation = InjectQuery | InjectQueryValue | InjectHeaderValue | InjectJSONValue | InjectBody | InjectBodyValue | InjectXMLValue
 )
 
 // Injector handles injecting into target requests/pages using different methods

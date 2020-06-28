@@ -317,6 +317,10 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				// and over unnecessarily.
 				navCtx.CopyHandlers(b.mainContext) // reset hooks
 				req := mIt.Request()
+
+				if req == nil || req.Request == nil {
+					continue
+				}
 				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
 				// alternatively, generate a new request from the browser and match that and replace everything...
 
@@ -325,7 +329,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				injector := injections.New(navCtx, browser, nav, mIt, injIt)
 				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
 					navCtx.PluginServicer.Inject(b.mainContext, injector)
-
 				}
 			}
 		} else {

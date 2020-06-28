@@ -1,4 +1,4 @@
-package oscmd
+package lfi
 
 import (
 	"encoding/base64"
@@ -20,12 +20,12 @@ func New(service browserk.PluginServicer) *Plugin {
 
 // Name of the plugin
 func (h *Plugin) Name() string {
-	return "OSCommandInjectionPlugin"
+	return "LocalFileInclude"
 }
 
 // ID unique to browserker
 func (h *Plugin) ID() string {
-	return "BR-A-0002"
+	return "BR-A-0003"
 }
 
 // Config for this plugin
@@ -50,7 +50,7 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	// msg := injector.Message() // get original req/resp
 	expr := injector.InjectionExpr()
-	for _, attack := range []string{"cat /etc/passwd", "|cat /etc/passwd", ";cat /etc/passwd"} {
+	for _, attack := range []string{"../../../../../../../../etc/passwd", "./../././../././../././../././../././../././../././.././etc/passwd"} {
 		expr.Inject(attack, browserk.InjectValue)
 		// s.AddHeader... s.AddParams/Fragments etc
 		resp, err := injector.Send(injector.BCtx().Ctx, false)
@@ -64,7 +64,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 			b, err := base64.StdEncoding.DecodeString(resp.Body)
 			if err != nil {
 				injector.BCtx().Log.Error().Err(err).Msg("failed to decode body response")
-				return true, nil
+				return false, nil
 			} else {
 				body = string(b)
 			}
@@ -73,8 +73,8 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 			injector.BCtx().Reporter.Add(&browserk.Report{
 				CheckID:     "1",
 				CWE:         78,
-				Description: "you have oscmd injection",
-				Remediation: "don't have oscmd injection",
+				Description: "you have lfi",
+				Remediation: "don't have lfi",
 				Nav:         nil,
 				NavResultID: nil,
 				Evidence: &browserk.Evidence{

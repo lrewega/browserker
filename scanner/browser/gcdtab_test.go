@@ -68,9 +68,10 @@ func TestHookRequests(t *testing.T) {
 	target, _ := url.Parse("http://example.com")
 	bCtx := mock.MakeMockContext(ctx, target)
 
-	hook := func(c *browserk.Context, b browserk.Browser, i *browserk.InterceptedHTTPRequest) {
+	hook := func(c *browserk.Context, b browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		t.Logf("inside hook!")
 		i.Modified.Url = "http://example.com"
+		return true
 	}
 	bCtx.AddReqHandler([]browserk.RequestHandler{hook}...)
 
@@ -245,18 +246,16 @@ func TestInjectRequest(t *testing.T) {
 }
 
 func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPResponse, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {
-	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) {
+	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		t.Logf("INTERCEPTED: %s = %s [%s]\n", i.RequestId, i.Request.Url, i.NetworkId)
-
-		//spew.Dump(i)
 		if !strings.HasSuffix(i.Request.Url, "someur.html") {
-			return
+			return false
 		}
 		t.Logf("handling injection %s\n", i.Request.Url)
-		//spew.Dump(i)
 		i.Modified.Url = newURI
 		i.Modified.SetHeaders(headers)
 		i.Modified.PostData = body
 		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
+		return true
 	}
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
+	"gitlab.com/browserker/scanner/plugin/active/lfi"
 	"gitlab.com/browserker/scanner/plugin/active/oscmd"
 	"gitlab.com/browserker/scanner/plugin/cookies"
 	"gitlab.com/browserker/scanner/plugin/headers"
@@ -195,6 +196,7 @@ func (s *Service) importPlugins() {
 	s.Register(headers.New(s))
 	s.Register(storage.New(s))
 	s.Register(oscmd.New(s))
+	s.Register(lfi.New(s))
 }
 
 func (s *Service) importJSPlugins() error {

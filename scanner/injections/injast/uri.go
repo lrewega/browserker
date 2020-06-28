@@ -1,6 +1,10 @@
 package injast
 
-import "gitlab.com/browserker/browserk"
+import (
+	"net/url"
+
+	"gitlab.com/browserker/browserk"
+)
 
 // URI for injecting into URI/query/fragments
 type URI struct {
@@ -86,7 +90,7 @@ func (u *URI) String() string {
 			if p.Modded && p.Mod == "" {
 				continue
 			}
-			uri += p.String() + "/"
+			uri += url.PathEscape(p.String()) + "/"
 
 			lastPos++ // add 1 for slash
 		}
@@ -96,7 +100,7 @@ func (u *URI) String() string {
 	if u.File != nil && u.File.String() != "" {
 		// only add the file if it wasn't modified, or the Mod is not an empty string
 		if !u.File.Modded || u.File.Mod != "" {
-			uri += u.File.String()
+			uri += url.PathEscape(u.File.String()) // TODO: maybe handle this custom
 		}
 	}
 
@@ -106,7 +110,7 @@ func (u *URI) String() string {
 		uri += string(u.Original[lastPos:firstParam])
 
 		for i, p := range u.Query.Params {
-			uri += p.String()
+			uri += url.PathEscape(p.String())
 			if i+1 != len(u.Query.Params) {
 				uri += "&"
 			}
@@ -120,7 +124,7 @@ func (u *URI) String() string {
 		uri += string(u.Original[lastPos:firstPath])
 
 		for i, p := range u.Fragment.Paths {
-			uri += p.String()
+			uri += url.PathEscape(p.String())
 			if i+1 != len(u.Fragment.Paths) {
 				uri += "/"
 			}
@@ -136,7 +140,7 @@ func (u *URI) String() string {
 			if i != 0 {
 				uri += string(u.Original[lastPos:p.Pos()])
 			}
-			uri += p.String()
+			uri += url.PathEscape(p.String())
 			u.updatePos(&lastPos, p)
 		}
 	}

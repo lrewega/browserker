@@ -8,8 +8,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// RequestHandler for adding middleware between browser HTTP Request events
-type RequestHandler func(c *Context, browser Browser, i *InterceptedHTTPRequest)
+// RequestHandler for adding middleware between browser HTTP Request events, return true if should de-register
+type RequestHandler func(c *Context, browser Browser, i *InterceptedHTTPRequest) bool
 
 // ResponseHandler for adding middleware between browser HTTP Response events
 type ResponseHandler func(c *Context, browser Browser, i *InterceptedHTTPResponse)
@@ -94,11 +94,24 @@ func (c *Context) CopyHandlers(from *Context) {
 
 // NextReq calls the next handler
 func (c *Context) NextReq(browser Browser, i *InterceptedHTTPRequest) {
+	dereg := make([]int8, 0)
 	c.reqLock.RLock()
 	for reqIndex := int8(0); reqIndex < int8(len(c.reqHandlers)); reqIndex++ {
-		c.reqHandlers[reqIndex](c, browser, i)
+		deregister := c.reqHandlers[reqIndex](c, browser, i)
+		if deregister {
+			dereg = append(dereg, reqIndex)
+		}
 	}
 	c.reqLock.RUnlock()
+	c.reqLock.Lock()
+	// deregister, but preserve order mainly for plugins which will add injection
+	// hooks for each attack string
+	for _, deregIndex := range dereg {
+		copy(c.reqHandlers[deregIndex:], c.reqHandlers[deregIndex+1:])
+		c.reqHandlers[len(c.reqHandlers)-1] = nil
+		c.reqHandlers = c.reqHandlers[:len(c.reqHandlers)-1]
+	}
+	c.reqLock.Unlock()
 }
 
 // AddReqHandler adds new request handlers
