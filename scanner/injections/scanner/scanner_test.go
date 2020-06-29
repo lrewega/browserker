@@ -214,3 +214,30 @@ func TestScanBody(t *testing.T) {
 		}
 	}
 }
+
+func TestPeekIsBodyJSON(t *testing.T) {
+	var inputs = []struct {
+		in       []byte
+		expected bool
+	}{
+		{
+			[]byte("x=1&y=2"),
+			false,
+		},
+		{
+			[]byte("{\"x\": \"as[][][][df{\"}"),
+			true,
+		},
+		{
+			[]byte("[{\"x\": \"as[][][][df{\"},{\"x\": \"as[][][][df{\"}]"),
+			true,
+		},
+	}
+	s := scanner.New()
+	for _, in := range inputs {
+		s.Init(in.in, scanner.Body)
+		if s.PeekIsBodyJSON() != in.expected {
+			t.Fatalf("%s was not expected %t\n", string(in.in), in.expected)
+		}
+	}
+}

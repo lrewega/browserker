@@ -297,8 +297,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 	navCtx.Log = &logger
 	b.addLeased(browser.ID())
 
-	// TODO: Where to iterate over plugins? Keep in mind it'll need it's own navCtx for
-	// potential hooks
 	isFinal := false
 	for i, nav := range navs {
 		// we are on the last navigation of this path so we'll want to attack now
@@ -321,8 +319,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				if req == nil || req.Request == nil {
 					continue
 				}
-				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
-				// alternatively, generate a new request from the browser and match that and replace everything...
 
 				// Create injection iterator
 				injIt := iterator.NewInjectionIter(req)

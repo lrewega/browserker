@@ -125,24 +125,24 @@ func (s *Scanner) scanBody() (tok token.Token, lit string) {
 		tok = token.LBRACK
 	case ']':
 		tok = token.RBRACK
-	case '{':
-		tok = token.LBRACE
-	case '}':
-		tok = token.LBRACK
-	case '<':
-		tok = token.LSS
-	case '>':
-		tok = token.GTR
-	case ':':
-		tok = token.COLON
-	case '/':
-		tok = token.SLASH
-	case '"':
-		tok = token.DQUOTE
-	case '\'':
-		tok = token.SQUOTE
-	case ',':
-		tok = token.COMMA
+		/*
+			case '{':
+				tok = token.LBRACE
+			case '}':
+				tok = token.LBRACK
+			case '<':
+				tok = token.LSS
+			case '>':
+				tok = token.GTR
+			case ':':
+				tok = token.COLON
+			case '"':
+				tok = token.DQUOTE
+			case '\'':
+				tok = token.SQUOTE
+			case ',':
+				tok = token.COMMA
+		*/
 	default:
 		tok, lit = token.IDENT, s.scanLiteral()
 	}
@@ -199,38 +199,53 @@ func (s *Scanner) scanBodyXML() (tok token.Token, lit string) {
 	return tok, lit
 }
 
-// ScanIsJSON Checks if we are in a JSON object/array definition
-func (s *Scanner) ScanIsJSON(open rune) bool {
+// PeekIsBodyJSON Checks if we are in a JSON object/array definition
+func (s *Scanner) PeekIsBodyJSON() bool {
+	var open rune
 	// if we don't start with an open { or [ it's probably not JSON.
 	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
 	if s.offset != 0 && s.PeekBackwards() != '=' {
 		return false
 	}
+
+	if s.PeekBackwards() == '{' {
+		open = '{'
+	}
+	if s.PeekBackwards() == '[' {
+		open = '['
+	}
+
+	// Not JSON
+	if open == rune(0) {
+		return false
+	}
+
 	rdOffset := s.rdOffset
 	trackOpen := 1
+	inQuotes := 0 // for making sure we don't count { or [ if we are inside of quotes
+
 	for ; s.rdOffset < len(s.src); s.rdOffset++ {
 		switch s.Peek() {
 		case '{':
-			if '{' == open {
+			if '{' == open && (inQuotes%2 == 0) {
 				trackOpen++
 			}
 		case '}':
-			if '{' == open {
+			if '{' == open && (inQuotes%2 == 0) {
 				trackOpen--
 			}
 		case '[':
-			if '[' == open {
+			if '[' == open && (inQuotes%2 == 0) {
 				trackOpen++
 			}
 		case ']':
-			if '[' == open {
+			if '[' == open && (inQuotes%2 == 0) {
 				trackOpen--
 			}
-		case '&':
-			if trackOpen == 0 {
-				s.rdOffset = rdOffset // reset the offset since we are just peeking
-				return true
-			}
+		case '\'':
+			inQuotes++
+		case '"':
+			inQuotes++
 		case 0:
 			// reached EOF so this was either a full on JSON request or the last
 			// body param was a JSON value (if trackOpen is 0)
@@ -241,7 +256,7 @@ func (s *Scanner) ScanIsJSON(open rune) bool {
 			break
 		}
 	}
-	// nope just random {'s i guess
+	// nope just random { or ['s i guess
 	s.rdOffset = rdOffset
 
 	if trackOpen == 0 {
@@ -250,21 +265,42 @@ func (s *Scanner) ScanIsJSON(open rune) bool {
 	return false
 }
 
-// ScanIsXML checks if we are XML
-func (s *Scanner) ScanIsXML() bool {
+// PeekIsBodyXML checks if we are XML
+func (s *Scanner) PeekIsBodyXML() bool {
+	var open rune
 	// if we don't start with an open { or [ it's probably not JSON.
 	// TODO: ack, what if we are in bodyXML? (json in xml) need to check history
 	if s.offset != 0 && s.PeekBackwards() != '=' {
 		return false
 	}
+
+	if s.PeekBackwards() == '<' {
+		open = '<'
+	}
+
+	// Not XML
+	if open == rune(0) {
+		return false
+	}
+
 	rdOffset := s.rdOffset
 	trackOpen := 1
+	inQuotes := 0 // for making sure we don't count { or [ if we are inside of quotes
+
 	for ; s.rdOffset < len(s.src); s.rdOffset++ {
 		switch s.Peek() {
 		case '<':
-			trackOpen++
+			if inQuotes%2 == 0 {
+				trackOpen++
+			}
 		case '>':
-			trackOpen--
+			if inQuotes%2 == 0 {
+				trackOpen--
+			}
+		case '\'':
+			inQuotes++
+		case '"':
+			inQuotes++
 		case 0:
 			// reached EOF so this was either a full on JSON request or the last
 			// body param was a JSON value (if trackOpen is 0)
@@ -275,12 +311,12 @@ func (s *Scanner) ScanIsXML() bool {
 			break
 		}
 	}
+	// nope just random <'s i guess
+	s.rdOffset = rdOffset
 
 	if trackOpen == 0 {
 		return true
 	}
-	// nope just random <'s i guess
-	s.rdOffset = rdOffset
 	return false
 }
 
