@@ -33,6 +33,8 @@ type URIParser struct {
 	uri     *injast.URI
 }
 
+// Parse a uri into it's parts
+// TODO: Clean this up it's a disaster
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)
@@ -179,9 +181,12 @@ func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit
 		return
 	}
 
+	if lit == "" {
+		lit = tok.String()
+	}
+
 	if u.kvMode == keyMode {
 		var key browserk.InjectionExpr
-
 		key = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 		peek := u.s.PeekBackwards()
 		if peek == '[' {
@@ -197,7 +202,31 @@ func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit
 		*params = append(*params, kv)
 		u.uri.Fields = append(u.uri.Fields, kv)
 	} else {
-		(*params)[u.kvIndex].Value = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
+		(*params)[u.kvIndex].Value = u.handleValueExpr(pos, tok, lit)
+	}
+}
+
+func (u *URIParser) handleValueExpr(originalPos browserk.InjectionPos, originalTok token.Token, originalLit string) browserk.InjectionExpr {
+	if originalLit == "" {
+		originalLit = originalTok.String()
+	}
+	value := &injast.Ident{NamePos: originalPos, Name: originalLit}
+	for {
+		// short circuit so we don't consume the name provided we don't start with a [ or ]
+		if (u.s.PeekBackwards() == '&' || u.s.PeekBackwards() == '#') && (originalTok != token.LBRACK && originalTok != token.RBRACK) {
+			return value
+		}
+		_, tok, lit := u.s.Scan()
+		switch tok {
+		case token.AND, token.EOF:
+			return value
+		case token.LBRACK:
+			value.Name += "["
+		case token.RBRACK:
+			value.Name += "]"
+		default:
+			value.Name += lit
+		}
 	}
 }
 

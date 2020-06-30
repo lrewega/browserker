@@ -125,24 +125,24 @@ func (s *Scanner) scanBody() (tok token.Token, lit string) {
 		tok = token.LBRACK
 	case ']':
 		tok = token.RBRACK
-		/*
-			case '{':
-				tok = token.LBRACE
-			case '}':
-				tok = token.LBRACK
-			case '<':
-				tok = token.LSS
-			case '>':
-				tok = token.GTR
-			case ':':
-				tok = token.COLON
-			case '"':
-				tok = token.DQUOTE
-			case '\'':
-				tok = token.SQUOTE
-			case ',':
-				tok = token.COMMA
-		*/
+	case '{':
+		tok = token.LBRACE
+	case '}':
+		tok = token.LBRACK
+	case '<':
+		tok = token.LSS
+	case '>':
+		tok = token.GTR
+	case ':':
+		tok = token.COLON
+	case '"':
+		tok = token.DQUOTE
+	case '\'':
+		tok = token.SQUOTE
+	case '/':
+		tok = token.SLASH
+	case ',':
+		tok = token.COMMA
 	default:
 		tok, lit = token.IDENT, s.scanLiteral()
 	}

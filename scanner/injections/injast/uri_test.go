@@ -2,6 +2,7 @@ package injast_test
 
 import (
 	"bytes"
+	"net/url"
 	"testing"
 
 	"gitlab.com/browserker/scanner/injections/parsers"
@@ -51,7 +52,11 @@ func TestURIString(t *testing.T) {
 	}
 	for _, input := range inputs {
 		u, _ := p.Parse(input)
-		if u.String() != input {
+		unescaped, err := url.PathUnescape(u.String())
+		if err != nil {
+			t.Fatalf("failure unescaping: %s\n", err)
+		}
+		if unescaped != input {
 			t.Fatalf("did not rebuild URI properly: %s != %s\n", input, u.String())
 		}
 	}
@@ -181,7 +186,11 @@ func TestReplaceParam(t *testing.T) {
 	for _, input := range inputs {
 		u, _ := p.Parse(input.in)
 		u.ReplaceParam(input.original, input.newKey, input.newVal)
-		if u.String() != input.expected {
+		unescaped, err := url.PathUnescape(u.String())
+		if err != nil {
+			t.Fatalf("failure unescaping: %s\n", err)
+		}
+		if unescaped != input.expected {
 			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
 		}
 	}
@@ -208,7 +217,11 @@ func TestReplaceFragmentParam(t *testing.T) {
 	for _, input := range inputs {
 		u, _ := p.Parse(input.in)
 		u.ReplaceFragmentParam(input.original, input.newKey, input.newVal)
-		if u.String() != input.expected {
+		unescaped, err := url.PathUnescape(u.String())
+		if err != nil {
+			t.Fatalf("failure unescaping: %s\n", err)
+		}
+		if unescaped != input.expected {
 			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
 		}
 	}
@@ -249,7 +262,11 @@ func TestReplaceParamByIndex(t *testing.T) {
 	for _, input := range inputs {
 		u, _ := p.Parse(input.in)
 		u.ReplaceParamByIndex(input.original, input.newKey, input.newVal)
-		if u.String() != input.expected {
+		unescaped, err := url.PathUnescape(u.String())
+		if err != nil {
+			t.Fatalf("failure unescaping: %s\n", err)
+		}
+		if unescaped != input.expected {
 			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
 		}
 	}
@@ -294,7 +311,11 @@ func TestReplaceIndexedParam(t *testing.T) {
 	for _, input := range inputs {
 		u, _ := p.Parse(input.in)
 		u.ReplaceIndexedParam(input.original, input.newKey, input.newIndexVal, input.newVal)
-		if u.String() != input.expected {
+		unescaped, err := url.PathUnescape(u.String())
+		if err != nil {
+			t.Fatalf("failure unescaping: %s\n", err)
+		}
+		if unescaped != input.expected {
 			t.Fatalf("did not rebuild URI properly: %s != %s\n", input.expected, u.String())
 		}
 	}
