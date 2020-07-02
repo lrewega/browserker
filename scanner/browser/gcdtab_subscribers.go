@@ -426,7 +426,7 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 
 	if !hasBody(p.ResponseHeaders) {
 		modified := GCDFetchResponseToIntercepted(message, "", false)
-		t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
+		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 
 		respParams.ResponseHeaders = p.ResponseHeaders
@@ -437,17 +437,15 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	bodyStr, encoded, err := t.t.Fetch.GetResponseBody(p.RequestId)
 	if err != nil {
 		modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
-		t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
+		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 		t.ctx.Log.Warn().Err(err).Str("request_id", p.RequestId).Msg("unable to get body")
-		t.t.Fetch.ContinueRequestWithParams(&gcdapi.FetchContinueRequestParams{
-			RequestId: p.RequestId,
-		})
+		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return
 	}
 
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
-	t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("dispatching response!!!!!!!!!")
+	// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("dispatching response!!!!!!!!!")
 	ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 	ctx.NextResp(t, modified)
 

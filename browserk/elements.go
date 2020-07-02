@@ -37,6 +37,13 @@ func (h *HTMLElement) Hash() []byte {
 		return h.ID
 	}
 	hash := md5.New()
+
+	if h.Type == HASHTEXT {
+		hash.Write([]byte(h.InnerText))
+		h.ID = hash.Sum(nil)
+		return h.ID
+	}
+
 	vals := ImportantAttributeValues(h.Type, h.Attributes)
 	vals = append(vals, h.InnerText)
 	sort.StringSlice(vals).Sort()
@@ -45,6 +52,11 @@ func (h *HTMLElement) Hash() []byte {
 	// include event line/col into the uniqueness
 	evts := sortEvents(h.Events)
 	hash.Write([]byte(evts))
+	if h.Hidden {
+		hash.Write([]byte{1})
+	} else {
+		hash.Write([]byte{0})
+	}
 	h.ID = hash.Sum(nil)
 	return h.ID
 }
@@ -132,6 +144,11 @@ func (h *HTMLFormElement) Hash() []byte {
 	hash.Write([]byte(sorted))
 	evts := sortEvents(h.Events)
 	hash.Write([]byte(evts))
+	if h.Hidden {
+		hash.Write([]byte{1})
+	} else {
+		hash.Write([]byte{0})
+	}
 	h.ID = hash.Sum(nil)
 	return h.ID
 }
@@ -440,6 +457,7 @@ const (
 
 	// Custom/Non-standard
 	CUSTOM
+	HASHTEXT
 )
 
 // HTMLTypeMap for taking in tag name -> outputing HTMLElementType

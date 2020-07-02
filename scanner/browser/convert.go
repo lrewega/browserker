@@ -17,7 +17,22 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 	b := &browserk.HTMLElement{Events: make(map[string]browserk.HTMLEventType, 0)}
 	b.Type = browserk.CUSTOM
 
-	tag, _ := ele.GetTagName()
+	ele.WaitForReady()
+	tag, err := ele.GetTagName()
+	if err != nil {
+		ele.tab.ctx.Log.Error().Err(err).Msg("getting tag name failed")
+	}
+	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
+	if !ok {
+		b.CustomTagName = tag
+	}
+	// if we can get the elements loc, it's not hidden :>
+	_, _, err = ele.getCenter()
+	if err != nil {
+		// ele.tab.ctx.Log.Error().Err(err).Msg("getting ele center failed")
+		b.Hidden = true
+	}
+
 	b.Attributes, _ = ele.GetAttributes()
 	b.NodeDepth = ele.Depth()
 	listeners, err := ele.GetEventListeners()
@@ -36,10 +51,6 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 		}
 	}
 
-	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
-	if !ok {
-		b.CustomTagName = tag
-	}
 	return b
 }
 

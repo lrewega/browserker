@@ -183,7 +183,12 @@ func (b *Browserk) Start() error {
 			b.navCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
-		<-b.readyCh
+		select {
+		case <-b.readyCh:
+			break
+		case <-b.mainContext.Ctx.Done():
+			break
+		}
 	}
 
 	for {
@@ -202,11 +207,19 @@ func (b *Browserk) Start() error {
 }
 
 func (b *Browserk) processEntries() {
+	pings := 0
 	for {
 		select {
 		case <-b.stateMonitor.C:
 			// TODO: check graph for inprocess values that never made it and reset them to unvisited
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping")
+			if b.browsers.Leased() == 0 && pings == 3 {
+				log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping, something is blocking readyCh, sending <-")
+				b.readyCh <- struct{}{}
+				pings = 0
+			} else if b.browsers.Leased() == 0 {
+				pings++
+			}
 		case <-b.mainContext.Ctx.Done():
 			log.Info().Msg("scan finished due to context complete")
 			return
@@ -277,6 +290,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	navCtx.Log.Info().Msg("closing browser")
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
+
 	b.readyCh <- struct{}{}
 }
 

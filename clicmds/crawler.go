@@ -149,7 +149,7 @@ func printSummary(crawl *store.CrawlGraph) error {
 				if m.Request == nil {
 					continue
 				}
-				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url)
+				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url+m.Request.Request.UrlFragment)
 			}
 		}
 	}

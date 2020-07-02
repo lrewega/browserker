@@ -74,7 +74,7 @@ func NewTab(bctx *browserk.Context, gcdBrowser *gcd.Gcd, tab *gcd.ChromeTarget) 
 	t.crashedCh = make(chan string)     // reason the tab crashed/was disconnected.
 	t.exitCh = make(chan struct{})
 	t.navigationTimeout = 30 * time.Second // default 30 seconds for timeout
-	t.elementTimeout = 5 * time.Second     // default 5 seconds for waiting for element.
+	t.elementTimeout = 2 * time.Second     // default 5 seconds for waiting for element.
 	t.stabilityTimeout = 2 * time.Second   // default 2 seconds before we give up waiting for stability
 	t.stableAfter = 300 * time.Millisecond // default 300 ms for considering the DOM stable
 	t.domChangeHandler = nil
@@ -160,10 +160,13 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 				t.ctx.Log.Warn().Err(err).Msg(errMsg)
 			}
 		} else {
-			if err = ele.Click(); err != nil {
+			err = ele.Click()
+			if err != nil {
 				t.ctx.Log.Warn().Err(err).Msg(errMsg)
+				t.clickParents(ele)
 			}
 		}
+
 		t.ctx.Log.Debug().Str("action", act.String()).Msg("clicked element")
 	case browserk.ActFillForm:
 		t.ctx.Log.Info().Str("action", act.String()).Msg("fill form action executing...")
@@ -213,6 +216,20 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	t.ctx.Log.Debug().Str("action", act.String()).Msg("ExecuteAction complete")
 
 	return nil, causedLoad, err
+}
+
+func (t *Tab) clickParents(ele *Element) error {
+	toClick := ele
+	for i := 0; i < 2; i++ {
+		parentID := toClick.GetParentNodeID()
+		toClick, ready := t.getElementByNodeID(parentID)
+		if ready && toClick != nil {
+			if err := toClick.Click(); err != nil {
+				t.ctx.Log.Warn().Err(err).Int("iter", i).Msg("parent node click failed")
+			}
+		}
+	}
+	return nil
 }
 
 // FillForm for an action
@@ -347,6 +364,11 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 				t.ctx.Log.Info().Msg("found by nearly exact match")
 				return found, nil
 			}
+
+			if bytes.Compare(h.Hash(), toFind.Hash()) == 0 {
+				t.ctx.Log.Info().Msg("found by hash match")
+				return found, nil
+			}
 		}
 	}
 	return nil, &ErrElementNotFound{}
@@ -372,11 +394,10 @@ func (t *Tab) FindInteractables() ([]*browserk.HTMLElement, error) {
 	allElements := t.GetAllElements()
 
 	for _, ele := range allElements {
-		listeners, err := ele.GetEventListeners()
-		if err != nil && len(listeners) > 0 {
-			continue
+		cElement := ElementToHTMLElement(ele)
+		if len(cElement.Events) > 0 {
+			cElements = append(cElements)
 		}
-		cElements = append(cElements, ElementToHTMLElement(ele))
 	}
 	return cElements, nil
 }

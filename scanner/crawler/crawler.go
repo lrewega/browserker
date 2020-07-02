@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
@@ -112,16 +113,20 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 
 	if bElements, err := browser.FindElements("button"); err == nil {
 		for _, ele := range bElements {
-			diff.Add(browserk.BUTTON, ele.Hash())
+			// we want events that make elements visible to be executed first, so don't add 'em yet
+			if !ele.Hidden {
+				diff.Add(browserk.BUTTON, ele.Hash())
+			}
 		}
 	}
 
 	if aElements, err := browser.FindElements("a"); err == nil {
 		for _, ele := range aElements {
-			// skip empty <a> tags
-			if ele.Attributes["href"] == "" {
+			// we want events that make elements visible to be executed first, so don't add 'em yet
+			if ele.Hidden {
 				continue
 			}
+
 			scope := bctx.Scope.ResolveBaseHref(baseHref, ele.Attributes["href"])
 			if scope == browserk.InScope {
 				diff.Add(browserk.A, ele.Hash())
@@ -129,11 +134,38 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
+	if txtElements, err := browser.FindElements("#text"); err == nil {
+		for _, ele := range txtElements {
+			// we want events that make elements visible to be executed first, so don't add 'em yet
+			if ele.Hidden {
+				continue
+			}
+			diff.Add(browserk.HASHTEXT, ele.Hash())
+		}
+	}
+
+	if imgElements, err := browser.FindElements("img"); err == nil {
+		for _, ele := range imgElements {
+			// we want events that make elements visible to be executed first, so don't add 'em yet
+			if ele.Hidden {
+				continue
+			}
+			diff.Add(browserk.IMG, ele.Hash())
+		}
+	}
+
 	cElements, err := browser.FindInteractables()
 	if err == nil {
 		for _, ele := range cElements {
+			// we want events that make elements visible to be executed first, so don't add 'em yet
+			if ele.Hidden {
+				continue
+			}
 			// assume in scope for now
 			diff.Add(ele.Type, ele.Hash())
+			if ele.Type == browserk.HTML {
+				spew.Dump(ele)
+			}
 		}
 	}
 	return diff
@@ -153,13 +185,18 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 	for _, form := range formElements {
 		scope := bctx.Scope.ResolveBaseHref(baseHref, form.GetAttribute("action"))
-		if scope == browserk.InScope && !diff.Has(browserk.FORM, form.Hash()) {
+		if scope == browserk.InScope && !diff.Has(browserk.FORM, form.Hash()) && !form.Hidden {
 			nav := browserk.NewNavigationFromForm(entry, browserk.TrigCrawler, form)
 			bctx.FormHandler.Fill(form)
 			navs = append(navs, nav)
-		} /*else {
-			bctx.Log.Debug().Str("href", baseHref).Str("action", form.GetAttribute("action")).Msg("was out of scope or already found, not creating new nav")
-		} */
+		} else {
+			if form.Hidden {
+				bctx.Log.Debug().Str("href", baseHref).Str("action", form.GetAttribute("action")).Msg("was hidden, not creating new nav")
+			} else {
+				bctx.Log.Debug().Str("href", baseHref).Str("action", form.GetAttribute("action")).Msg("was out of scope or already found, not creating new nav")
+			}
+
+		}
 	}
 
 	bElements, err := browser.FindElements("button")
@@ -168,12 +205,12 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 	}
 
 	for _, b := range bElements {
-		if !diff.Has(browserk.BUTTON, b.Hash()) {
+		if !diff.Has(browserk.BUTTON, b.Hash()) && !b.Hidden {
+			bctx.Log.Info().Msgf("adding button %#v", b)
 			navs = append(navs, browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, b, browserk.ActLeftClick))
 		}
 	}
 
-	// pull out links (lower priority)
 	aElements, err := browser.FindElements("a")
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting links")
@@ -183,28 +220,58 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 	bctx.Log.Debug().Int("link_count", len(aElements)).Msg("found links")
 	for _, a := range aElements {
-		href := a.GetAttribute(("href"))
+		//href := a.GetAttribute("href")
 		// skip a elements that don't have an href field, if they have event listeners bound, FindInteractables will pick them up.
 		// for example <a name="something"> isn't worth clicking/going to.
-		if href == "" {
-			continue
-		}
+		//if href == "" {
+		//	continue
+		//}
 		scope := bctx.Scope.ResolveBaseHref(baseHref, a.GetAttribute("href"))
-		if scope == browserk.InScope && !diff.Has(browserk.A, a.Hash()) {
+		if scope == browserk.InScope && !diff.Has(browserk.A, a.Hash()) && !a.Hidden {
 			bctx.Log.Info().Str("baseHref", baseHref).Str("href", a.Attributes["href"]).Msg("in scope, adding")
 			nav := browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, a, browserk.ActLeftClick)
 			nav.Scope = scope
 			navs = append(navs, nav)
-		} /* else {
-			bctx.Log.Debug().Str("baseHref", baseHref).Str("linkHref", a.GetAttribute("href")).Msg("a element was out of scope, not creating new nav")
-		} */
+		} else {
+			if a.Hidden {
+				bctx.Log.Debug().Str("baseHref", baseHref).Str("linkHref", a.GetAttribute("href")).Msg("a element was hidden, not creating new nav")
+			} else {
+				bctx.Log.Debug().Str("baseHref", baseHref).Str("linkHref", a.GetAttribute("href")).Msg("a element was out of scope, not creating new nav")
+			}
+		}
+	}
+
+	textElements, err := browser.FindElements("#text")
+	if err != nil {
+		bctx.Log.Error().Err(err).Msg("error while extracting text")
+	} else if aElements == nil || len(aElements) == 0 {
+		log.Warn().Msg("error while extracting text")
+	}
+
+	for _, txt := range textElements {
+		nav := browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, txt, browserk.ActLeftClick)
+		nav.Scope = browserk.InScope
+		navs = append(navs, nav)
+	}
+
+	imgElements, err := browser.FindElements("img")
+	if err != nil {
+		bctx.Log.Error().Err(err).Msg("error while extracting images")
+	} else if aElements == nil || len(aElements) == 0 {
+		log.Warn().Msg("error while extracting images")
+	}
+
+	for _, img := range imgElements {
+		nav := browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, img, browserk.ActLeftClick)
+		nav.Scope = browserk.InScope
+		navs = append(navs, nav)
 	}
 
 	cElements, err := browser.FindInteractables()
 	if err == nil {
 		for _, ele := range cElements {
 			// assume in scope for now
-			if !diff.Has(ele.Type, ele.Hash()) {
+			if !diff.Has(ele.Type, ele.Hash()) && !ele.Hidden {
 				for _, eventType := range ele.Events {
 					var actType browserk.ActionType
 					switch eventType {
@@ -235,9 +302,13 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 					log.Info().Msgf("nav hash: %s", string(nav.ID))
 					navs = append(navs, nav)
 				}
-			} //else {
-			//bctx.Log.Debug().Str("ele", browserk.HTMLTypeToStrMap[ele.Type]).Bytes("hash", ele.Hash()).Msgf("this element already exists %+v", ele.Attributes)
-			//}
+			} else {
+				if ele.Hidden {
+					bctx.Log.Debug().Str("ele", browserk.HTMLTypeToStrMap[ele.Type]).Msgf("this element was hidden %+v", ele.Attributes)
+				} else {
+					bctx.Log.Debug().Str("ele", browserk.HTMLTypeToStrMap[ele.Type]).Msgf("this element already exists %+v", ele.Attributes)
+				}
+			}
 		}
 	}
 	return navs

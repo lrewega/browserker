@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/scanner"
@@ -36,6 +37,7 @@ type URIParser struct {
 // Parse a uri into it's parts
 // TODO: Clean this up it's a disaster
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
+	log.Debug().Str("uri", uri).Msg("parsing for injection")
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)
 	u.uri = injast.NewURI([]byte(uri))
@@ -109,7 +111,8 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 				continue
 			case token.IDENT:
 				peek := u.s.Peek()
-				if peek == '?' || peek == '&' || peek == 0 {
+				back := u.s.PeekBackwards()
+				if (peek == '?' || peek == '&' || peek == 0) || back == '/' {
 					p := &injast.Ident{
 						NamePos:  pos,
 						Name:     lit,
@@ -194,13 +197,17 @@ func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit
 		}
 		kv := &injast.KeyValueExpr{
 			Key:      key,
-			Sep:      0,
+			Sep:      pos,
 			SepChar:  0,
 			Value:    nil,
 			Location: loc,
 		}
 		*params = append(*params, kv)
 		u.uri.Fields = append(u.uri.Fields, kv)
+		// make sure we don't have a nil value hanging off the KV
+		if u.s.Peek() == 0 {
+			kv.Value = &injast.Ident{NamePos: key.End()}
+		}
 	} else {
 		(*params)[u.kvIndex].Value = u.handleValueExpr(pos, tok, lit)
 	}

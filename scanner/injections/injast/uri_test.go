@@ -42,6 +42,7 @@ func TestURIParts(t *testing.T) {
 func TestURIString(t *testing.T) {
 	p := &parsers.URIParser{}
 	inputs := []string{
+		"/WebGoat/login?error",
 		"/?#/asdf/1?x=y&y=z&a[]=1",
 		"/a?#/asdf/",
 		"/asdf?x=1&y=2",
@@ -49,6 +50,7 @@ func TestURIString(t *testing.T) {
 		"/?x[0]=1&x[1]=2",
 		"/path1/path2?x=1#/something",
 		"/path1/path2?x=1#?something",
+		"/path1/path2.jsp#test/test.test",
 	}
 	for _, input := range inputs {
 		u, _ := p.Parse(input)

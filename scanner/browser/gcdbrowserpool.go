@@ -171,6 +171,10 @@ func (b *GCDBrowserPool) returnBrowser(ctx context.Context, port string, startCo
 	select {
 	case <-timeoutCtx.Done():
 		log.Error().Msg("failed to closeAndCreateBrowser in time")
+		return
+	case <-ctx.Done():
+		log.Error().Msg("ctx done")
+		return
 	case <-doneCh:
 		return
 	}
@@ -206,7 +210,7 @@ func (b *GCDBrowserPool) closeAndCreateBrowser(port string, doneCh chan struct{}
 		log.Warn().Err(err).Msg("failed to connect to instance")
 		newBr = nil
 	}
-
+	newBr.SetTimeout(b.browserTimeout)
 	b.browsers <- newBr
 	close(doneCh)
 }

@@ -1,6 +1,8 @@
 package injast
 
-import "gitlab.com/browserker/browserk"
+import (
+	"gitlab.com/browserker/browserk"
+)
 
 type (
 
@@ -116,8 +118,13 @@ func (x *KeyValueExpr) End() browserk.InjectionPos { return x.Value.End() }
 
 func (x *KeyValueExpr) String() string {
 	s := x.Key.String()
-	s += string(x.SepChar)
-	s += x.Value.String()
+
+	if x.SepChar != 0 {
+		s += string(x.SepChar)
+	}
+	if x.Value != nil {
+		s += x.Value.String()
+	}
 	return s
 }
 

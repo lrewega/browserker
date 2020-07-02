@@ -176,6 +176,8 @@ func (e *Element) WaitForReady() error {
 	select {
 	case <-e.readyGate:
 		return nil
+	case <-e.tab.ctx.Ctx.Done():
+		return &ErrElementNotReady{}
 	case <-timeout.C:
 		return &ErrElementNotReady{}
 	case <-e.tab.exitCh:
@@ -572,6 +574,31 @@ func (e *Element) Click() error {
 
 	// click the centroid of the element.
 	return e.tab.Click(float64(x), float64(y))
+}
+
+// ClickParent node
+func (e *Element) ClickParent() error {
+	parentID := e.GetParentNodeID()
+
+	params := &gcdapi.DOMGetBoxModelParams{
+		NodeId: parentID,
+	}
+	box, err := e.tab.t.DOM.GetBoxModelWithParams(params)
+
+	if err != nil {
+		return err
+	}
+	points := box.Content
+	x, y, err := centroid(points)
+	return e.tab.Click(float64(x), float64(y))
+}
+
+// GetParentNodeID of this element
+func (e *Element) GetParentNodeID() int {
+	e.lock.RLock()
+	parentID := e.node.ParentId
+	e.lock.RUnlock()
+	return parentID
 }
 
 // DoubleClick the center of the element.

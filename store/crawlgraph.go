@@ -118,7 +118,7 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 			_, err := txn.Get(existKey)
 			if err == nil {
 				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it already exists")
-				return nil
+				continue
 			}
 
 			for i := 0; i < len(g.navPredicates); i++ {
