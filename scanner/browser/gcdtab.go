@@ -136,7 +136,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 
 	// reset doc was updated flag
 	t.docWasUpdated.Store(false)
-
+	actionType := browserk.ActionTypeMap[act.Type]
 	errMsg := fmt.Sprintf("unable to find element for %s", browserk.ActionTypeMap[act.Type])
 
 	if act.Type > browserk.ActExecuteJS && act.Type < browserk.ActFillForm {
@@ -213,7 +213,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	if docUpdated, ok := t.docWasUpdated.Load().(bool); ok {
 		causedLoad = docUpdated
 	}
-	t.ctx.Log.Debug().Str("action", act.String()).Msg("ExecuteAction complete")
+	t.ctx.Log.Debug().Str("action", act.String()).Str("action_type", actionType).Msg("ExecuteAction complete")
 
 	return nil, causedLoad, err
 }
@@ -376,10 +376,20 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 
 // FindElements elements via querySelector, does not pull out children
 func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error) {
+	var err error
+	var elements []*Element
+
 	bElements := make([]*browserk.HTMLElement, 0)
-	elements, err := t.GetElementsBySelector(querySelector)
-	if err != nil {
-		return bElements, err
+	if querySelector == "#text" {
+		elements, err = t.GetElementsBySearch("//body/*[text() != '']", false)
+		if err != nil {
+			return bElements, err
+		}
+	} else {
+		elements, err = t.GetElementsBySelector(querySelector)
+		if err != nil {
+			return bElements, err
+		}
 	}
 
 	for _, ele := range elements {
@@ -941,6 +951,7 @@ func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM boo
 	var s gcdapi.DOMPerformSearchParams
 	s.Query = selector
 	s.IncludeUserAgentShadowDOM = includeUserAgentShadowDOM
+	t.ctx.Log.Debug().Msgf("searching for %s via search", selector)
 	ID, count, err := t.t.DOM.PerformSearchWithParams(&s)
 	if err != nil {
 		return nil, err

@@ -65,7 +65,14 @@ func TestCrawler(t *testing.T) {
 	}
 
 	toTest := [...]crawlerTests{
-
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmousedblclick.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/textclick.html",
+		},
 		{
 			func(c *gin.Context) {
 				fname, _ := c.GetQuery("fname")
@@ -117,10 +124,7 @@ func TestCrawler(t *testing.T) {
 			simpleCallFunc,
 			"http://localhost:%s/forms/onmouseclick.html",
 		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmousedblclick.html",
-		},
+
 		{
 			simpleCallFunc,
 			"http://localhost:%s/forms/onmousedown.html",
@@ -194,15 +198,15 @@ func TestCrawler(t *testing.T) {
 			t.Fatalf("error getting url %s\n", err)
 		}
 
-		if len(newNavs) != 1 {
+		if len(newNavs) == 0 {
 			t.Fatal("did not find form nav action")
 		}
-
-		res, _, err := crawl.Process(bCtx, b, newNavs[0], true)
+		spew.Dump(newNavs)
+		_, _, err = crawl.Process(bCtx, b, newNavs[0], true)
 		if err != nil {
 			t.Fatalf("failed to submit form %s\n", err)
 		}
-		spew.Dump(res)
+
 		if !called {
 			t.Fatalf("form was not submitted: %s\n", target)
 		}
