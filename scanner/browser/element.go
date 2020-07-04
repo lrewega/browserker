@@ -390,7 +390,7 @@ func (e *Element) GetTagName() (string, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 
-	if !e.ready {
+	if !e.ready && e.nodeName == "" {
 		return "", &ErrElementNotReady{}
 	}
 	return e.nodeName, nil

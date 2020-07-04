@@ -279,8 +279,9 @@ type HTMLElementType int16
 
 // revive:disable:var-naming
 const (
+	INVALID HTMLElementType = iota
 	// Main Root
-	HTML HTMLElementType = iota
+	HTML
 
 	// METADATA
 	BASE

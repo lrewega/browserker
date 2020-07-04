@@ -265,6 +265,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 		logger := log.With().
 			Int64("browser_id", browser.ID()).
 			Str("path", b.printActionStep(navs)).Int("step", i).
+			Int("of", len(navs)).
 			Logger()
 		navCtx.Log = &logger
 
@@ -278,7 +279,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 		}
 
 		if isFinal {
-			navCtx.Log.Info().Int("nav_count", len(newNavs)).Bool("is_final", isFinal).Msg("adding new navs")
+			navCtx.Log.Debug().Int("nav_count", len(newNavs)).Str("NEW_NAVS", b.printActionStep(newNavs)).Msg("to be added")
 			if err := b.crawlGraph.AddNavigations(newNavs); err != nil {
 				navCtx.Log.Error().Err(err).Msg("failed to add new navigations")
 			}

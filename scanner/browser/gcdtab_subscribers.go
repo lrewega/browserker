@@ -317,7 +317,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			t.container.AddResponse(resp)
 		}
 		t.container.AddRequest(req)
-		t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", message.Params.Request.Url).Str("request_id", message.Params.RequestId).Msg("added request")
+		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", message.Params.Request.Url).Str("request_id", message.Params.RequestId).Msg("added request")
 	})
 
 	t.t.Subscribe("Network.requestServedFromCache", func(target *gcd.ChromeTarget, payload []byte) {
@@ -360,7 +360,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.nav, resp))
 
 		t.container.AddResponse(resp)
-		t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")
+		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")
 	})
 
 	t.t.Subscribe("Network.loadingFinished", func(target *gcd.ChromeTarget, payload []byte) {

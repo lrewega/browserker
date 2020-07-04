@@ -171,10 +171,10 @@ func printEntries(entries [][]*browserk.Navigation, navType string) {
 		fmt.Printf("%s Path: \n", navType)
 		for i, path := range paths {
 			if len(paths)-1 == i {
-				fmt.Printf("%s %s\n", browserk.ActionTypeMap[path.Action.Type], path.Action)
+				fmt.Printf("%s", path)
 				break
 			}
-			fmt.Printf("%s %s -> ", browserk.ActionTypeMap[path.Action.Type], path.Action)
+			fmt.Printf("%s -> ", path)
 		}
 	}
 }

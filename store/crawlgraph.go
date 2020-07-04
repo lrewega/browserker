@@ -82,7 +82,7 @@ func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
 		existKey := MakeKey(nav.ID, "id")
 		_, err := txn.Get(existKey)
 		if err == nil {
-			log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it already exists")
+			log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
 			return nil
 		}
 
@@ -111,13 +111,13 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		for _, nav := range navs {
 			if nav.Distance > g.cfg.MaxDepth {
-				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it exceeds max depth")
+				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it exceeds max depth")
 				return nil
 			}
 			existKey := MakeKey(nav.ID, "id")
 			_, err := txn.Get(existKey)
 			if err == nil {
-				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it already exists")
+				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
 				continue
 			}
 
@@ -253,14 +253,12 @@ func (g *CrawlGraph) GetNavigationResults() ([]*browserk.NavigationResult, error
 
 		it := txn.NewIterator(badger.IteratorOptions{Prefix: []byte("r_nav_id")})
 		defer it.Close()
-		log.Debug().Msg("got iterator")
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
 				return err
 			}
-			log.Debug().Msg("got value")
 			resultID, _ := DecodeID(val)
 			if err != nil {
 				return err

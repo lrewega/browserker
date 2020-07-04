@@ -74,7 +74,7 @@ func NewTab(bctx *browserk.Context, gcdBrowser *gcd.Gcd, tab *gcd.ChromeTarget) 
 	t.crashedCh = make(chan string)     // reason the tab crashed/was disconnected.
 	t.exitCh = make(chan struct{})
 	t.navigationTimeout = 30 * time.Second // default 30 seconds for timeout
-	t.elementTimeout = 2 * time.Second     // default 5 seconds for waiting for element.
+	t.elementTimeout = 5 * time.Second     // default 5 seconds for waiting for element.
 	t.stabilityTimeout = 2 * time.Second   // default 2 seconds before we give up waiting for stability
 	t.stableAfter = 300 * time.Millisecond // default 300 ms for considering the DOM stable
 	t.domChangeHandler = nil
@@ -129,7 +129,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	defer func() {
 		t.nav = nil
 	}()
-
+	waitFor := time.Millisecond * 200
 	act := nav.Action
 	// Call JSBefore hooks
 	t.ctx.NextJSBefore(t)
@@ -171,6 +171,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	case browserk.ActFillForm:
 		t.ctx.Log.Info().Str("action", act.String()).Msg("fill form action executing...")
 		t.FillForm(act)
+		waitFor = time.Millisecond * 900
 	case browserk.ActRightClick:
 	case browserk.ActScroll:
 		ele.ScrollTo()
@@ -192,7 +193,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 
 	}
 	// add small delay after action
-	timer := time.NewTimer(time.Millisecond * 200)
+	timer := time.NewTimer(waitFor)
 	defer timer.Stop()
 
 	select {
@@ -359,6 +360,9 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 	} else {
 		for _, found := range foundElements {
 			h := ElementToHTMLElement(found)
+			if h == nil {
+				continue
+			}
 			//t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
 			if bytes.Compare(h.Hash(), toFind.Hash()) == 0 && h.NodeDepth == toFind.Depth() {
 				t.ctx.Log.Info().Msg("found by nearly exact match")
@@ -393,7 +397,11 @@ func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error
 	}
 
 	for _, ele := range elements {
-		bElements = append(bElements, ElementToHTMLElement(ele))
+		htmlElement := ElementToHTMLElement(ele)
+		if htmlElement == nil {
+			continue
+		}
+		bElements = append(bElements, htmlElement)
 	}
 	return bElements, nil
 }
@@ -405,7 +413,7 @@ func (t *Tab) FindInteractables() ([]*browserk.HTMLElement, error) {
 
 	for _, ele := range allElements {
 		cElement := ElementToHTMLElement(ele)
-		if len(cElement.Events) > 0 {
+		if cElement != nil && len(cElement.Events) > 0 {
 			cElements = append(cElements)
 		}
 	}
@@ -443,8 +451,11 @@ func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) {
 	}
 	for _, childID := range childNodes {
 		child, _ := t.getElementByNodeID(childID)
-		child.WaitForReady()
-		f.ChildElements = append(f.ChildElements, ElementToHTMLElement(child))
+		htmlChild := ElementToHTMLElement(child)
+		if htmlChild == nil {
+			continue
+		}
+		f.ChildElements = append(f.ChildElements, htmlChild)
 		t.getFormChildNodes(f, child)
 	}
 }
@@ -761,13 +772,13 @@ func (t *Tab) GetScriptSource(scriptID string) (string, error) {
 
 // Gets the top document and updates our list of elements it creates all new nodeIDs.
 func (t *Tab) getDocument() (*Element, error) {
-	t.ctx.Log.Debug().Msgf("getDocument doc id was: %d", t.getTopNodeID())
+	//t.ctx.Log.Debug().Msgf("getDocument doc id was: %d", t.getTopNodeID())
 	doc, err := t.t.DOM.GetDocument(-1, true)
 	if err != nil {
 		return nil, err
 	}
 	t.setTopNodeID(doc.NodeId)
-	t.ctx.Log.Debug().Msgf("getDocument doc id is now: %d", t.getTopNodeID())
+	//t.ctx.Log.Debug().Msgf("getDocument doc id is now: %d", t.getTopNodeID())
 	t.addNodes(doc, 0)
 	eleDoc, _ := t.getElement(doc.NodeId)
 	return eleDoc, nil
@@ -865,7 +876,6 @@ func (t *Tab) GetElementsBySelector(selector string) ([]*Element, error) {
 
 	// search frames too
 	frameNodeIDs := t.getFrameNodeIDs()
-	t.ctx.Log.Debug().Int("frame_node_count", len(frameNodeIDs)).Msg("found frame nodes")
 	for _, id := range frameNodeIDs {
 		frameElements, err := t.GetDocumentElementsBySelector(id, selector)
 		if err != nil {
@@ -1009,7 +1019,7 @@ func (t *Tab) GetURL() (string, error) {
 	return t.GetDocumentCurrentURL(t.getTopNodeID())
 }
 
-// GetDocumentCurrentURL returns the current url of the provIDed docNodeID
+// GetDocumentCurrentURL returns the current url of the provided docNodeID
 func (t *Tab) GetDocumentCurrentURL(docNodeID int) (string, error) {
 	docNode, ok := t.getElement(docNodeID)
 	if !ok {

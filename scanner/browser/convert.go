@@ -18,10 +18,8 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 	b.Type = browserk.CUSTOM
 
 	ele.WaitForReady()
-	tag, err := ele.GetTagName()
-	if err != nil {
-		ele.tab.ctx.Log.Error().Err(err).Msg("getting tag name failed")
-	}
+	tag, _ := ele.GetTagName()
+
 	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
 	if !ok {
 		b.CustomTagName = tag
@@ -31,7 +29,7 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 	case browserk.HTML, browserk.SCRIPT, browserk.TITLE, browserk.NOSCRIPT, browserk.HEAD:
 		b.Hidden = true
 	default:
-		_, _, err = ele.getCenter()
+		_, _, err := ele.getCenter()
 		if err != nil {
 			//ele.tab.ctx.Log.Error().Err(err).Str("type", browserk.HTMLTypeToStrMap[b.Type]).Msg("getting ele center failed")
 			b.Hidden = true
