@@ -21,6 +21,11 @@ func DBViewFlags() []cli.Flag {
 			Usage: "prints navs",
 			Value: true,
 		},
+		&cli.StringFlag{
+			Name:  "dot",
+			Usage: "prints navs to file",
+			Value: "",
+		},
 	}
 }
 
@@ -32,7 +37,7 @@ func DBView(ctx *cli.Context) error {
 		return err
 	}
 
-	printSummary(crawl)
+	printSummary(crawl, ctx.String("dot"))
 
 	log.Info().Msg("Closing db & syncing, please wait")
 	err := crawl.Close()

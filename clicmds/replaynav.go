@@ -48,6 +48,11 @@ func ReplayNavFlags() []cli.Flag {
 			Usage: "list navs & navIDs",
 			Value: false,
 		},
+		&cli.StringFlag{
+			Name:  "dot",
+			Usage: "export DOT graph of Navigations",
+			Value: "",
+		},
 	}
 }
 
@@ -94,7 +99,7 @@ func ReplayNav(cliCtx *cli.Context) error {
 	spew.Dump(cfg)
 
 	if cliCtx.Bool("list") {
-		printSummary(crawl)
+		printSummary(crawl, cliCtx.String("dot"))
 		return nil
 	}
 	navID, err := hex.DecodeString(cliCtx.String("navID"))

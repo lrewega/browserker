@@ -129,7 +129,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	defer func() {
 		t.nav = nil
 	}()
-	waitFor := time.Millisecond * 200
+	waitFor := time.Millisecond * 400
 	act := nav.Action
 	// Call JSBefore hooks
 	t.ctx.NextJSBefore(t)
@@ -175,9 +175,8 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 		err := t.FillForm(act)
 		if err != nil {
 			t.ctx.Log.Error().Err(err).Str("action", act.String()).Msg("fill form action failed")
-			panic("form fill failed")
 		}
-		waitFor = time.Millisecond * 3000
+		waitFor = time.Millisecond * 2000
 	case browserk.ActRightClick:
 	case browserk.ActScroll:
 		ele.ScrollTo()

@@ -2,7 +2,7 @@ URL = "http://localhost:8080/WebGoat/login"
 AllowedHosts = ["localhost"]
 ExcludedURIs = ["/WebGoat/logout", "/WebGoat/login?logout"]
 DataPath = "browserktmp"
-NumBrowsers = 10
+NumBrowsers = 2
 MaxDepth = 25
 JSPluginPath = "plugins/"
 

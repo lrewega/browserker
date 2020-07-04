@@ -12,6 +12,7 @@ require (
 	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/dop251/goja v0.0.0-20200526165454-f1752421c432
 	github.com/dop251/goja_nodejs v0.0.0-20200128125109-2d688c7e0ac4
+	github.com/emicklei/dot v0.11.0
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/golang/protobuf v1.4.0 // indirect
