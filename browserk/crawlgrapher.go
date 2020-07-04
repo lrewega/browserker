@@ -8,6 +8,7 @@ type CrawlGrapher interface {
 	Close() error
 	Find(ctx context.Context, byState, setState NavState, limit int64) [][]*Navigation
 	FindWithResults(ctx context.Context, byState, setState NavState, limit int64) [][]*NavigationWithResult
+	FindPathByNavID(ctx context.Context, navID []byte) []*Navigation
 	AddNavigation(nav *Navigation) error
 	AddNavigations(navs []*Navigation) error
 	FailNavigation(navID []byte) error

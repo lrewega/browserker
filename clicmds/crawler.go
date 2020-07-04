@@ -168,13 +168,13 @@ func printSummary(crawl *store.CrawlGraph) error {
 func printEntries(entries [][]*browserk.Navigation, navType string) {
 	fmt.Printf("Had %d %s entries\n", len(entries), navType)
 	for _, paths := range entries {
-		fmt.Printf("%s Path: \n", navType)
+		fmt.Printf("\n%s Path: \n", navType)
 		for i, path := range paths {
 			if len(paths)-1 == i {
-				fmt.Printf("%s", path)
+				fmt.Printf("ID: %x %s", string(path.ID), path)
 				break
 			}
-			fmt.Printf("%s -> ", path)
+			fmt.Printf("ID: %x %s -> ", string(path.ID), path)
 		}
 	}
 }

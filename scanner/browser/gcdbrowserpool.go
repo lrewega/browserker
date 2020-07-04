@@ -13,39 +13,6 @@ import (
 	"gitlab.com/browserker/browserk"
 )
 
-var startupFlags = []string{
-	//"--allow-insecure-localhost",
-	"--enable-automation",
-	"--enable-features=NetworkService",
-	"--test-type",
-	"--disable-client-side-phishing-detection",
-	"--disable-component-update",
-	"--disable-infobars",
-	"--disable-ntp-popular-sites",
-	"--disable-ntp-most-likely-favicons-from-server",
-	"--disable-sync-app-list",
-	"--disable-domain-reliability",
-	"--disable-background-networking",
-	"--disable-sync",
-	"--disable-new-browser-first-run",
-	"--disable-default-apps",
-	"--disable-popup-blocking",
-	"--disable-extensions",
-	"--disable-features=TranslateUI",
-	"--disable-gpu",
-	"--disable-dev-shm-usage",
-	//"--no-sandbox",
-	"--allow-running-insecure-content",
-	"--no-first-run",
-	"--window-size=1024,768",
-	"--safebrowsing-disable-auto-update",
-	"--safebrowsing-disable-download-protection",
-	"--deterministic-fetch",
-	"--password-store=basic",
-	//"--headless",
-	"about:blank",
-}
-
 // GCDBrowserPool manages a pool of browsers via a leaser interface
 type GCDBrowserPool struct {
 	profileDir       string

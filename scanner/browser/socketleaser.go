@@ -30,6 +30,10 @@ func NewSocketLeaser() *SocketLeaser {
 	return s
 }
 
+func (l *SocketLeaser) SetHeadless() {
+	startupFlags = append(startupFlags, "--headless")
+}
+
 // Acquire a new browser
 func (s *SocketLeaser) Acquire() (string, error) {
 	resp, err := s.leaserClient.Get("http://unix/acquire")

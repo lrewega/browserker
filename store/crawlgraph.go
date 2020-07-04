@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 
@@ -383,6 +384,34 @@ func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavSta
 		}
 	}
 	return entries
+}
+
+// FindPathByNavID returns the path start -> finish (navID)
+func (g *CrawlGraph) FindPathByNavID(ctx context.Context, navID []byte) []*browserk.Navigation {
+	path := make([]*browserk.Navigation, 0)
+	err := g.GraphStore.View(func(txn *badger.Txn) error {
+		nodeIDs := make([][]byte, 1)
+		nodeIDs[0] = navID
+		entries, err := g.PathToNavIDsWithResults(txn, nodeIDs)
+		if err != nil {
+			return err
+		}
+
+		if len(entries) == 0 {
+			return fmt.Errorf("unable to find navigation for %x", navID)
+		}
+
+		for i := 0; i < len(entries[0]); i++ {
+			path = append(path, entries[0][i].Navigation)
+		}
+		return err
+	})
+
+	// TODO: retry on transaction conflict errors
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get path to navs")
+	}
+	return path
 }
 
 // Close the graph store

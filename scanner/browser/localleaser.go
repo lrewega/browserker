@@ -10,6 +10,38 @@ import (
 	"github.com/wirepair/gcd"
 )
 
+var startupFlags = []string{
+	//"--allow-insecure-localhost",
+	"--enable-automation",
+	"--enable-features=NetworkService",
+	"--test-type",
+	"--disable-client-side-phishing-detection",
+	"--disable-component-update",
+	"--disable-infobars",
+	"--disable-ntp-popular-sites",
+	"--disable-ntp-most-likely-favicons-from-server",
+	"--disable-sync-app-list",
+	"--disable-domain-reliability",
+	"--disable-background-networking",
+	"--disable-sync",
+	"--disable-new-browser-first-run",
+	"--disable-default-apps",
+	"--disable-popup-blocking",
+	"--disable-extensions",
+	"--disable-features=TranslateUI",
+	"--disable-gpu",
+	"--disable-dev-shm-usage",
+	//"--no-sandbox",
+	"--allow-running-insecure-content",
+	"--no-first-run",
+	"--window-size=1024,768",
+	"--safebrowsing-disable-auto-update",
+	"--safebrowsing-disable-download-protection",
+	"--deterministic-fetch",
+	"--password-store=basic",
+	"about:blank",
+}
+
 // LocalLeaser for leasing locally
 type LocalLeaser struct {
 	browserLock    sync.RWMutex
@@ -29,6 +61,10 @@ func NewLocalLeaser() *LocalLeaser {
 	s.chromeLocation, s.tmp = FindChrome()
 	log.Info().Msgf("FOUND CHROME %s and TMP: %s", s.chromeLocation, s.tmp)
 	return s
+}
+
+func (l *LocalLeaser) SetHeadless() {
+	startupFlags = append(startupFlags, "--headless")
 }
 
 // Acquire a new browser

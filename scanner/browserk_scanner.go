@@ -123,6 +123,7 @@ func (b *Browserk) Init(ctx context.Context) error {
 
 	log.Logger.Info().Msg("starting leaser")
 	leaser := browser.NewLocalLeaser()
+	leaser.SetHeadless()
 	log.Logger.Info().Msg("leaser started")
 	pool := browser.NewGCDBrowserPool(b.cfg.NumBrowsers, leaser)
 	b.browsers = pool

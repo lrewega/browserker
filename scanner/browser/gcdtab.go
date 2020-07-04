@@ -134,18 +134,19 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	// Call JSBefore hooks
 	t.ctx.NextJSBefore(t)
 
-	// reset doc was updated flag
-	t.docWasUpdated.Store(false)
 	actionType := browserk.ActionTypeMap[act.Type]
 	errMsg := fmt.Sprintf("unable to find element for %s", browserk.ActionTypeMap[act.Type])
 
 	if act.Type > browserk.ActExecuteJS && act.Type < browserk.ActFillForm {
-		ele, err = t.FindByHTMLElement(act.Element)
+		ele, err = t.FindByHTMLElement(act.Element, true)
 		if err != nil {
 			t.ctx.Log.Warn().Err(err).Msg(errMsg)
 			return nil, false, err
 		}
 	}
+
+	// reset doc was updated flag
+	t.docWasUpdated.Store(false)
 	// do action
 	switch act.Type {
 
@@ -164,14 +165,19 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 			if err != nil {
 				t.ctx.Log.Warn().Err(err).Msg(errMsg)
 				t.clickParents(ele)
+			} else {
+				t.ctx.Log.Debug().Str("action", act.String()).Msg("clicked element")
 			}
 		}
 
-		t.ctx.Log.Debug().Str("action", act.String()).Msg("clicked element")
 	case browserk.ActFillForm:
 		t.ctx.Log.Info().Str("action", act.String()).Msg("fill form action executing...")
-		t.FillForm(act)
-		waitFor = time.Millisecond * 900
+		err := t.FillForm(act)
+		if err != nil {
+			t.ctx.Log.Error().Err(err).Str("action", act.String()).Msg("fill form action failed")
+			panic("form fill failed")
+		}
+		waitFor = time.Millisecond * 3000
 	case browserk.ActRightClick:
 	case browserk.ActScroll:
 		ele.ScrollTo()
@@ -241,7 +247,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 		t.ctx.Log.Info().Msg("form was nil")
 		return &ErrInvalidElement{}
 	}
-	form, err := t.FindByHTMLElement(act.Form)
+	form, err := t.FindByHTMLElement(act.Form, true)
 	if err != nil {
 		t.ctx.Log.Error().Err(err).Msg("find form by html element failed")
 		return err
@@ -254,7 +260,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 	checkboxClicked := false
 	for _, formChild := range act.Form.ChildElements {
 
-		actualElement, err := t.FindByHTMLElement(formChild)
+		actualElement, err := t.FindByHTMLElement(formChild, false) // we do not want to refresh the doc or we lose our nodeIDs
 		if err != nil {
 			t.ctx.Log.Error().Err(err).Str("type", browserk.HTMLTypeToStrMap[formChild.Type]).Msg("failed to find")
 			continue
@@ -339,12 +345,13 @@ func (t *Tab) ID() int64 {
 }
 
 // FindByHTMLElement returns a gcd Element for interacting
-func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error) {
+func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument bool) (*Element, error) {
 	if toFind == nil {
 		return nil, &ErrInvalidElement{}
 	}
 	tag := toFind.Tag()
-	foundElements, err := t.GetElementsBySelector(tag)
+
+	foundElements, err := t.GetElementsBySelector(tag, refreshDocument)
 	if err != nil {
 		t.ctx.Log.Error().Err(err).Msgf("searching for tag: %s failed", tag)
 		return nil, err
@@ -363,7 +370,7 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 			if h == nil {
 				continue
 			}
-			//t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
+			t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
 			if bytes.Compare(h.Hash(), toFind.Hash()) == 0 && h.NodeDepth == toFind.Depth() {
 				t.ctx.Log.Info().Msg("found by nearly exact match")
 				return found, nil
@@ -382,6 +389,7 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement) (*Element, error
 func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error) {
 	var err error
 	var elements []*Element
+	refreshDocument := false
 
 	bElements := make([]*browserk.HTMLElement, 0)
 	if querySelector == "#text" {
@@ -390,7 +398,7 @@ func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error
 			return bElements, err
 		}
 	} else {
-		elements, err = t.GetElementsBySelector(querySelector)
+		elements, err = t.GetElementsBySelector(querySelector, refreshDocument)
 		if err != nil {
 			return bElements, err
 		}
@@ -430,8 +438,8 @@ func (t *Tab) GetBaseHref() string {
 // we may need more than just input fields (labels) etc for context
 func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
 	fElements := make([]*browserk.HTMLFormElement, 0)
-
-	elements, err := t.GetElementsBySelector("form")
+	refreshDocument := true
+	elements, err := t.GetElementsBySelector("form", refreshDocument)
 	if err != nil {
 		return fElements, err
 	}
@@ -861,10 +869,10 @@ func (t *Tab) getDocumentElementByID(docNodeID int, attributeID string) (*Elemen
 
 // GetElementsBySelector all elements that match a selector from the top level document
 // also searches sub frames
-func (t *Tab) GetElementsBySelector(selector string) ([]*Element, error) {
+func (t *Tab) GetElementsBySelector(selector string, refreshDocument bool) ([]*Element, error) {
 	t.ctx.Log.Debug().Msgf("searching for %s", selector)
 	elements, err := t.GetDocumentElementsBySelector(t.getTopNodeID(), selector)
-	if err != nil {
+	if err != nil && refreshDocument {
 		// try again but refresh the doc
 		t.ctx.Log.Debug().Msg("failed to find element, refreshing document and trying again")
 		t.RefreshDocument()
