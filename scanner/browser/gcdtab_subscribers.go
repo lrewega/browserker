@@ -288,7 +288,7 @@ func (t *Tab) subscribeDialogEvents() {
 // HOWEVER it does appear we can intercept them???
 func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 	t.t.Subscribe("network.loadingFailed", func(target *gcd.ChromeTarget, payload []byte) {
-		t.ctx.Log.Info().Msgf("failed: %s\n", string(payload))
+		t.ctx.Log.Info().Msgf("network.loadingFailed: %s\n", string(payload))
 		t.container.DecRequest()
 	})
 
@@ -420,16 +420,15 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	p := message.Params
 
 	respParams := &gcdapi.FetchFulfillRequestParams{
-		RequestId:    p.RequestId,
-		ResponseCode: p.ResponseStatusCode,
+		RequestId:       p.RequestId,
+		ResponseCode:    p.ResponseStatusCode,
+		ResponseHeaders: p.ResponseHeaders,
 	}
 
 	if !hasBody(p.ResponseHeaders) {
 		modified := GCDFetchResponseToIntercepted(message, "", false)
 		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
-
-		respParams.ResponseHeaders = p.ResponseHeaders
 		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return
 	}
@@ -443,7 +442,6 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return
 	}
-
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
 	// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("dispatching response!!!!!!!!!")
 	ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
@@ -469,14 +467,20 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	if modified.Modified.ResponsePhrase != "" {
 		respParams.ResponsePhrase = modified.Modified.ResponsePhrase
 	}
+	t.ctx.Log.Debug().Str("url_key", modified.Request.Url).Msg("fullfilling response!!!!!!!!!")
 	t.t.Fetch.FulfillRequestWithParams(respParams)
 }
 
 func hasBody(headers []*gcdapi.FetchHeaderEntry) bool {
+	probablyHasBody := false
 	for _, header := range headers {
 		if strings.ToLower(header.Name) == "content-length" && header.Value == "0" {
 			return false
 		}
+		switch strings.ToLower(header.Name) {
+		case "content-length", "content-encoding", "content-type":
+			probablyHasBody = true
+		}
 	}
-	return true
+	return probablyHasBody
 }

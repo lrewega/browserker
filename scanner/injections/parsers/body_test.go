@@ -98,3 +98,47 @@ func TestBody(t *testing.T) {
 		}
 	}
 }
+
+func TestBodyJSON(t *testing.T) {
+	var inputs = []struct {
+		in         []byte
+		expected   injast.Body
+		FieldCount int
+	}{
+		{
+			[]byte(`{"x": "one", "y": 2}`),
+			injast.Body{
+				Fields: []browserk.InjectionExpr{
+					&injast.KeyValueExpr{
+						Key:     &injast.Ident{NamePos: 0, Name: ""},
+						Sep:     1,
+						SepChar: ':',
+						Value: &injast.KeyValueExpr{
+							Key:     &injast.Ident{NamePos: 2, Name: "x"},
+							Sep:     1,
+							SepChar: ':',
+							Value:   &injast.Ident{NamePos: 2, Name: "one"},
+						},
+					},
+				},
+			},
+			2,
+		},
+	}
+
+	for _, in := range inputs {
+		p := &parsers.BodyParser{}
+		body, err := p.Parse(in.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(body.Fields) != in.FieldCount {
+			t.Fatalf("expeected %d got %d", in.FieldCount, len(body.Fields))
+		}
+
+		for i, field := range body.Fields {
+			testCompareExpr(t, in.in, in.expected.Fields[i], field)
+		}
+	}
+}

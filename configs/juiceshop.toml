@@ -1,0 +1,11 @@
+URL = "http://localhost:3000/"
+AllowedHosts = ["localhost"]
+DataPath = "browserktmp"
+DisableHeadless = true
+NumBrowsers = 1
+MaxDepth = 25
+JSPluginPath = "plugins/"
+
+[FormData]
+UserName  = "test@test.com"
+Password = "testtest"

@@ -162,12 +162,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 			}
 		} else {
 			err = ele.Click()
-			if err != nil {
-				t.ctx.Log.Warn().Err(err).Msg(errMsg)
-				t.clickParents(ele)
-			} else {
-				t.ctx.Log.Debug().Str("action", act.String()).Msg("clicked element")
-			}
+			waitFor = time.Millisecond * 2000
 		}
 
 	case browserk.ActFillForm:
@@ -197,22 +192,14 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	case browserk.ActMouseWheel:
 
 	}
-	// add small delay after action
-	timer := time.NewTimer(waitFor)
-	defer timer.Stop()
 
-	select {
-	case <-timer.C:
-	case <-ctx.Done():
+	//if t.IsTransitioning() {
+	//	t.ctx.Log.Debug().Str("action", act.String()).Msg("IsTransitioning after action")
+	if err := t.waitStable(ctx, waitFor); err == ErrTimedOut {
+		t.ctx.Log.Debug().Str("action", act.String()).Msg("Still transitioning after stability timeout, calling stop load")
+		t.t.Page.StopLoading()
 	}
-
-	if t.IsTransitioning() {
-		t.ctx.Log.Debug().Str("action", act.String()).Msg("IsTransitioning after action")
-		if err := t.waitStable(ctx, t.stabilityTimeout); err == ErrTimedOut {
-			t.ctx.Log.Debug().Str("action", act.String()).Msg("Still transitioning after stability timeout, calling stop load")
-			t.t.Page.StopLoading()
-		}
-	}
+	//}
 
 	// Call JSAfter hooks
 	t.ctx.NextJSAfter(t)
@@ -369,7 +356,7 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument 
 			if h == nil {
 				continue
 			}
-			t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
+			//t.ctx.Log.Debug().Msgf("[%s] comparing %s ~ %s (%#v) vs (%#v)", browserk.HTMLTypeToStrMap[h.Type], string(h.Hash()), string(toFind.Hash()), h.Attributes, toFind.AllAttributes())
 			if bytes.Compare(h.Hash(), toFind.Hash()) == 0 && h.NodeDepth == toFind.Depth() {
 				t.ctx.Log.Info().Msg("found by nearly exact match")
 				return found, nil
@@ -493,7 +480,7 @@ func (t *Tab) InjectJS(inject string) (interface{}, error) {
 		return nil, err
 	}
 	if exp != nil {
-		t.ctx.Log.Warn().Err(err).Msg("failed to inject script")
+		t.ctx.Log.Warn().Err(err).Msgf("failed to inject script: %+v", exp)
 	}
 
 	return r.Value, nil

@@ -104,7 +104,10 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 
 	if formElements, err := browser.FindForms(); err == nil {
 		for _, ele := range formElements {
-			diff.Add(browserk.FORM, ele.Hash())
+			if !ele.Hidden {
+				diff.Add(browserk.FORM, ele.Hash())
+			}
+
 			//for _, child := range ele.ChildElements {
 			//diff.Add(child.Type, child.Hash())
 			//}
@@ -137,21 +140,21 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 	if err == nil {
 		for _, ele := range cElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
-			if ele.Hidden {
-				continue
+			if !ele.Hidden {
+				// assume in scope for now
+				diff.Add(ele.Type, ele.Hash())
 			}
-			// assume in scope for now
-			diff.Add(ele.Type, ele.Hash())
+
 		}
 	}
 
 	if txtElements, err := browser.FindElements("#text"); err == nil {
 		for _, ele := range txtElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
-			if ele.Hidden {
-				continue
+			if !ele.Hidden {
+				diff.Add(ele.Type, ele.Hash())
 			}
-			diff.Add(ele.Type, ele.Hash())
+
 		}
 	}
 
@@ -159,9 +162,8 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		for _, ele := range imgElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if ele.Hidden {
-				continue
+				diff.Add(browserk.IMG, ele.Hash())
 			}
-			diff.Add(browserk.IMG, ele.Hash())
 		}
 	}
 
@@ -245,12 +247,6 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 			nav := browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, a, browserk.ActLeftClick)
 			nav.Scope = scope
 			navs = append(navs, nav)
-		} else {
-			if a.Hidden {
-				bctx.Log.Debug().Str("baseHref", baseHref).Str("linkHref", a.GetAttribute("href")).Msg("a element was hidden, not creating new nav")
-			} else {
-				bctx.Log.Debug().Str("baseHref", baseHref).Str("linkHref", a.GetAttribute("href")).Msg("a element was out of scope, not creating new nav")
-			}
 		}
 	}
 

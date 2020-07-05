@@ -175,6 +175,50 @@ func TestBaseHref(t *testing.T) {
 	}
 }
 
+func TestInjectJS(t *testing.T) {
+	pool := browser.NewGCDBrowserPool(1, leaser)
+	if err := pool.Init(); err != nil {
+		t.Fatalf("failed to init pool")
+	}
+	defer leaser.Cleanup()
+	ctx := context.Background()
+
+	p, srv := testServer()
+	defer srv.Shutdown(ctx)
+
+	u := fmt.Sprintf("http://localhost:%s/basehref.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
+
+	b, _, err := pool.Take(bCtx)
+	if err != nil {
+		t.Fatalf("error taking browser: %s\n", err)
+	}
+
+	err = b.Navigate(ctx, u)
+	if err != nil {
+		t.Fatalf("error getting url %s\n", err)
+	}
+	largeStr := "console.log('" + strings.Repeat("A", 10000000) + "');"
+	action := &browserk.Action{
+		Type:  browserk.ActExecuteJS,
+		Input: []byte(largeStr),
+	}
+
+	if _, _, err := b.ExecuteAction(ctx, &browserk.Navigation{Action: action}); err != nil {
+		t.Fatalf("error executing action: %s\n", err)
+	}
+	c := b.GetConsoleEvents()
+	if len(c) != 1 {
+		t.Fatalf("expected console events")
+	}
+	//spew.Dump(c)
+	eles, _ := b.FindElements("base")
+	if eles == nil {
+		t.Fatalf("expected eles")
+	}
+}
+
 func TestFragment(t *testing.T) {
 	pool := browser.NewGCDBrowserPool(1, leaser)
 	if err := pool.Init(); err != nil {
@@ -203,6 +247,37 @@ func TestFragment(t *testing.T) {
 	if msg[0].Request.Request.UrlFragment != "#/test" {
 		t.Fatalf("expected fragment to include hash")
 	}
+}
+
+func TestInterceptLargeJS(t *testing.T) {
+	pool := browser.NewGCDBrowserPool(1, leaser)
+	if err := pool.Init(); err != nil {
+		t.Fatalf("failed to init pool")
+	}
+	defer leaser.Cleanup()
+	ctx := context.Background()
+
+	p, srv := testServer()
+	defer srv.Shutdown(ctx)
+
+	u := fmt.Sprintf("http://localhost:%s/bigjs.html", p)
+	target, _ := url.Parse(u)
+	bCtx := mock.MakeMockContext(ctx, target)
+	b, _, err := pool.Take(bCtx)
+	if err != nil {
+		t.Fatalf("error taking browser: %s\n", err)
+	}
+
+	err = b.Navigate(ctx, u)
+	if err != nil {
+		t.Fatalf("error getting url %s\n", err)
+	}
+
+	_, err = b.GetMessages()
+	if err != nil {
+		t.Fatalf("error getting messages %s\n", err)
+	}
+	//spew.Dump(m)
 }
 
 func TestInjectRequest(t *testing.T) {
