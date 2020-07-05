@@ -467,7 +467,6 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	if modified.Modified.ResponsePhrase != "" {
 		respParams.ResponsePhrase = modified.Modified.ResponsePhrase
 	}
-	t.ctx.Log.Debug().Str("url_key", modified.Request.Url).Msg("fullfilling response!!!!!!!!!")
 	t.t.Fetch.FulfillRequestWithParams(respParams)
 }
 
