@@ -438,6 +438,21 @@ func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
 	return fElements, nil
 }
 
+func (t *Tab) findFloatingForms() ([]*browserk.HTMLFormElement, error) {
+	fElements := make([]*browserk.HTMLFormElement, 0)
+	/*
+		elements, err := t.GetElementsBySearch("//attribute::*[contains(., 'form')]/../descendant::input | //attribute::*[contains(., 'form')]/../descendant::button", false)
+		if err != nil || len(elements) == 0 {
+			return fElements, err
+		}
+		for _, element := range elements {
+
+		}
+		fElement := ElementToHTMLFormElement(elements[0]) // just take the first one
+	*/
+	return fElements, nil
+}
+
 func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) {
 	childNodes, _ := ele.GetChildNodeIds()
 	if childNodes == nil {

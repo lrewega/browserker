@@ -111,6 +111,7 @@ const (
 
 // HTMLFormElement and it's children
 type HTMLFormElement struct {
+	Type           HTMLElementType
 	FormType       FormType
 	Events         map[string]HTMLEventType
 	Attributes     map[string]string
@@ -161,16 +162,16 @@ func (h *HTMLFormElement) GetAttribute(name string) string {
 	return val
 }
 
+func (h *HTMLFormElement) ElementType() HTMLElementType {
+	return h.Type
+}
+
 func (h *HTMLFormElement) AllAttributes() map[string]string {
 	return h.Attributes
 }
 
-func (h *HTMLFormElement) ElementType() HTMLElementType {
-	return FORM
-}
-
 func (h *HTMLFormElement) Tag() string {
-	return "form"
+	return HTMLTypeToStrMap[h.Type]
 }
 
 func (h *HTMLFormElement) Depth() int {

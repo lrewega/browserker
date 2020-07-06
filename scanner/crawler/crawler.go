@@ -105,7 +105,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 	if formElements, err := browser.FindForms(); err == nil {
 		for _, ele := range formElements {
 			if !ele.Hidden {
-				diff.Add(browserk.FORM, ele.Hash())
+				diff.Add(ele.ElementType(), ele.Hash())
 			}
 
 			//for _, child := range ele.ChildElements {
@@ -185,7 +185,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 	for _, form := range formElements {
 		// don't want to re-add the same elements
-		if navDiff.Has(form.ElementType(), form.Hash()) || diff.Has(browserk.FORM, form.Hash()) && form.Hidden {
+		if navDiff.Has(form.ElementType(), form.Hash()) || diff.Has(form.ElementType(), form.Hash()) && form.Hidden {
 			if form.Hidden {
 				bctx.Log.Debug().Str("href", baseHref).Str("action", form.GetAttribute("action")).Msg("was hidden, not creating new nav")
 			} else {
