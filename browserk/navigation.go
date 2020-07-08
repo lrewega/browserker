@@ -2,10 +2,9 @@ package browserk
 
 import (
 	"crypto/md5"
+	"fmt"
 	"strings"
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 // TriggeredBy stores what caused a navigation attempt
@@ -73,8 +72,11 @@ func NewNavigation(triggeredBy TriggeredBy, action *Action) *Navigation {
 	h.Write(n.Action.Input)
 	h.Write([]byte{byte(n.Action.Type)})
 	n.ID = h.Sum(nil)
-	log.Info().Msgf("NEW ID: %#v", n.ID)
 	return n
+}
+
+func (n *Navigation) String() string {
+	return fmt.Sprintf("%s %s", ActionTypeMap[n.Action.Type], n.Action)
 }
 
 // NewNavigationFromForm creates a new navigation entry from forms
@@ -99,7 +101,7 @@ func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, form *HTML
 	}
 
 	h := md5.New()
-	h.Write(n.OriginID)
+	h.Write([]byte{byte(ActFillForm)})
 	h.Write(n.Action.Form.Hash())
 	n.ID = h.Sum(nil)
 	return n

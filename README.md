@@ -2,6 +2,13 @@
 
 An open source web application scanner built for 2020, meant for SPAs and CI/CD automation not pen-testing.
 
+## Running Quick Tips:
+
+- Start a scan: `go build ; .\browserker.exe crawl --config .\configs\juiceshop.toml --dot juiceshop.dot --profile *> debug.log`
+- List NavIDs: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --list`
+- Export DOT file: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --list --dot juiceshop.dot`
+- Replay a NavID: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --navID {hash}`
+
 ## Features / Goals
 
 - A proxy-less scanner, based entirely off injecting and instrumenting chromium via the dev tools protocol.

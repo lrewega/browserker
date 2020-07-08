@@ -1,4 +1,6 @@
 browserker.exe
 browserktmp
 store/testdata
-debug.log
+*.log
+*.svg
+*.dot

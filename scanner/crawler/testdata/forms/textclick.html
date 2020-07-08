@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mouse test</title>
+    <script>
+        window.addEventListener('load', function () {
+            document.addEventListener('click', function (evt) {
+                console.log(evt);
+                var req = new XMLHttpRequest();
+                req.open('GET', '/result/formResult');
+                req.send("boop");
+            })
+        })
+    </script>
+</head>
+
+<body>
+    <div>
+        <div>heres some text</div>
+    </div>
+</body>
+
+</html>

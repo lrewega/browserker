@@ -123,6 +123,10 @@ func (b *Browserk) Init(ctx context.Context) error {
 
 	log.Logger.Info().Msg("starting leaser")
 	leaser := browser.NewLocalLeaser()
+	if !b.cfg.DisableHeadless {
+		leaser.SetHeadless()
+	}
+
 	log.Logger.Info().Msg("leaser started")
 	pool := browser.NewGCDBrowserPool(b.cfg.NumBrowsers, leaser)
 	b.browsers = pool
@@ -183,7 +187,12 @@ func (b *Browserk) Start() error {
 			b.navCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
-		<-b.readyCh
+		select {
+		case <-b.readyCh:
+			break
+		case <-b.mainContext.Ctx.Done():
+			break
+		}
 	}
 
 	for {
@@ -202,11 +211,19 @@ func (b *Browserk) Start() error {
 }
 
 func (b *Browserk) processEntries() {
+	pings := 0
 	for {
 		select {
 		case <-b.stateMonitor.C:
 			// TODO: check graph for inprocess values that never made it and reset them to unvisited
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping")
+			if b.browsers.Leased() == 0 && pings == 3 {
+				log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping, something is blocking readyCh, sending <-")
+				b.readyCh <- struct{}{}
+				pings = 0
+			} else if b.browsers.Leased() == 0 {
+				pings++
+			}
 		case <-b.mainContext.Ctx.Done():
 			log.Info().Msg("scan finished due to context complete")
 			return
@@ -252,6 +269,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 		logger := log.With().
 			Int64("browser_id", browser.ID()).
 			Str("path", b.printActionStep(navs)).Int("step", i).
+			Int("of", len(navs)).
 			Logger()
 		navCtx.Log = &logger
 
@@ -265,7 +283,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 		}
 
 		if isFinal {
-			navCtx.Log.Info().Int("nav_count", len(newNavs)).Bool("is_final", isFinal).Msg("adding new navs")
+			navCtx.Log.Debug().Int("nav_count", len(newNavs)).Str("NEW_NAVS", b.printActionStep(newNavs)).Msg("to be added")
 			if err := b.crawlGraph.AddNavigations(newNavs); err != nil {
 				navCtx.Log.Error().Err(err).Msg("failed to add new navigations")
 			}
@@ -277,6 +295,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	navCtx.Log.Info().Msg("closing browser")
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
+
 	b.readyCh <- struct{}{}
 }
 
@@ -297,8 +316,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 	navCtx.Log = &logger
 	b.addLeased(browser.ID())
 
-	// TODO: Where to iterate over plugins? Keep in mind it'll need it's own navCtx for
-	// potential hooks
 	isFinal := false
 	for i, nav := range navs {
 		// we are on the last navigation of this path so we'll want to attack now
@@ -321,8 +338,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				if req == nil || req.Request == nil {
 					continue
 				}
-				// TODO: Need to setup a matcher here so before ExecuteAction we can prepare the interception
-				// alternatively, generate a new request from the browser and match that and replace everything...
 
 				// Create injection iterator
 				injIt := iterator.NewInjectionIter(req)

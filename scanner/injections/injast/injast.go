@@ -1,6 +1,8 @@
 package injast
 
-import "gitlab.com/browserker/browserk"
+import (
+	"gitlab.com/browserker/browserk"
+)
 
 type (
 
@@ -34,10 +36,14 @@ type (
 	}
 )
 
+// Pos of this identifier
 func (x *Ident) Pos() browserk.InjectionPos { return x.NamePos }
+
+// End of this identifier
 func (x *Ident) End() browserk.InjectionPos {
 	return browserk.InjectionPos(int(x.NamePos) + len(x.Name))
 }
+
 func (x *Ident) String() string {
 	if x != nil {
 		if x.Modded {
@@ -60,18 +66,23 @@ func (x *Ident) Modify(newValue string) {
 func (x *Ident) Loc() browserk.InjectionLocation { return x.Location }
 
 // Inject a nw value
-func (x *Ident) Inject(newValue string, injType browserk.InjectionType) bool {
+func (x *Ident) Inject(newValue string, _ browserk.InjectionType) bool {
 	x.Modify(newValue)
 	return true
 }
 
+// Reset any injection modifications
 func (x *Ident) Reset() {
 	x.Modded = false
 	x.Mod = ""
 }
 
+// Pos position
 func (x *IndexExpr) Pos() browserk.InjectionPos { return x.X.Pos() }
+
+// End position
 func (x *IndexExpr) End() browserk.InjectionPos { return x.Rbrack + 1 }
+
 func (x *IndexExpr) String() string {
 	s := x.X.String()
 	s += "["
@@ -81,6 +92,8 @@ func (x *IndexExpr) String() string {
 	s += "]"
 	return s
 }
+
+// Inject a new value of InjectionType (either index or value)
 func (x *IndexExpr) Inject(newValue string, injType browserk.InjectionType) bool {
 	if injType == browserk.InjectIndex {
 		return x.Index.Inject(newValue, injType)
@@ -88,23 +101,37 @@ func (x *IndexExpr) Inject(newValue string, injType browserk.InjectionType) bool
 	return x.X.Inject(newValue, injType)
 }
 
+// Reset any modifications
 func (x *IndexExpr) Reset() {
 	x.Index.Reset()
 	x.X.Reset()
 }
 
+// Loc for injection
 func (x *IndexExpr) Loc() browserk.InjectionLocation { return x.Location }
 
+// Pos position
 func (x *KeyValueExpr) Pos() browserk.InjectionPos { return x.Key.Pos() }
+
+// End of entire KV pos
 func (x *KeyValueExpr) End() browserk.InjectionPos { return x.Value.End() }
+
 func (x *KeyValueExpr) String() string {
 	s := x.Key.String()
-	s += string(x.SepChar)
-	s += x.Value.String()
+
+	if x.SepChar != 0 {
+		s += string(x.SepChar)
+	}
+	if x.Value != nil {
+		s += x.Value.String()
+	}
 	return s
 }
+
+// Loc for injection
 func (x *KeyValueExpr) Loc() browserk.InjectionLocation { return x.Location }
 
+// Inject a new value of InjectionType
 func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) bool {
 	if injType == browserk.InjectName {
 		x.Key.Inject(newValue, injType)
@@ -120,11 +147,13 @@ func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) b
 	return true
 }
 
+// Reset any modifications
 func (x *KeyValueExpr) Reset() {
 	x.Key.Reset()
 	x.Value.Reset()
 }
 
+// CopyExpr returns a deep copy
 func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	switch t := e.(type) {
 	case *Ident:
@@ -138,6 +167,7 @@ func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	}
 }
 
+// CopyKeyValueExpr returns a deep copy
 func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
 	return &KeyValueExpr{
 		Key:      CopyExpr(kv.Key),
@@ -148,6 +178,7 @@ func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
 	}
 }
 
+// CopyIndexExpr returns a deep copy
 func CopyIndexExpr(id *IndexExpr) *IndexExpr {
 	return &IndexExpr{
 		X:        CopyExpr(id.X),

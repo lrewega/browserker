@@ -13,6 +13,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/emicklei/dot"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -52,6 +53,11 @@ func CrawlerFlags() []cli.Flag {
 			Name:  "maxdepth",
 			Usage: "max depth of nav paths to traverse",
 			Value: 10,
+		},
+		&cli.StringFlag{
+			Name:  "dot",
+			Usage: "export crawl graph to DOT file",
+			Value: "",
 		},
 		&cli.BoolFlag{
 			Name:  "summary",
@@ -127,13 +133,13 @@ func Crawler(cliCtx *cli.Context) error {
 	}
 
 	if cliCtx.Bool("summary") {
-		printSummary(crawl)
+		printSummary(crawl, cliCtx.String("dot"))
 	}
 
 	return browserk.Stop()
 }
 
-func printSummary(crawl *store.CrawlGraph) error {
+func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 	results, err := crawl.GetNavigationResults()
 	if err != nil {
 		return err
@@ -149,32 +155,58 @@ func printSummary(crawl *store.CrawlGraph) error {
 				if m.Request == nil {
 					continue
 				}
-				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url)
+				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url+m.Request.Request.UrlFragment)
 			}
 		}
 	}
 
-	entries := crawl.Find(nil, browserk.NavVisited, browserk.NavVisited, 999)
-	printEntries(entries, "visited")
-	entries = crawl.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, 999)
-	printEntries(entries, "unvisited")
-	entries = crawl.Find(nil, browserk.NavInProcess, browserk.NavInProcess, 999)
-	printEntries(entries, "in process")
-	entries = crawl.Find(nil, browserk.NavInProcess, browserk.NavInProcess, 999)
-	printEntries(entries, "nav failed")
+	visitedEntries := crawl.Find(nil, browserk.NavVisited, browserk.NavVisited, 999)
+	printEntries(visitedEntries, "visited")
+
+	unvisitedEntries := crawl.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, 999)
+	printEntries(unvisitedEntries, "unvisited")
+	inProcessEntries := crawl.Find(nil, browserk.NavInProcess, browserk.NavInProcess, 999)
+	printEntries(inProcessEntries, "in process")
+	failedEntries := crawl.Find(nil, browserk.NavFailed, browserk.NavFailed, 999)
+	printEntries(failedEntries, "nav failed")
+	if dotFile != "" {
+		printDOT(dotFile, visitedEntries, unvisitedEntries, inProcessEntries, failedEntries)
+	}
 	return nil
 }
 
 func printEntries(entries [][]*browserk.Navigation, navType string) {
 	fmt.Printf("Had %d %s entries\n", len(entries), navType)
 	for _, paths := range entries {
-		fmt.Printf("%s Path: \n", navType)
+		fmt.Printf("\n%s Path: \n", navType)
 		for i, path := range paths {
 			if len(paths)-1 == i {
-				fmt.Printf("%s %s\n", browserk.ActionTypeMap[path.Action.Type], path.Action)
+				fmt.Printf("ID: %x %s", string(path.ID), path)
 				break
 			}
-			fmt.Printf("%s %s -> ", browserk.ActionTypeMap[path.Action.Type], path.Action)
+			fmt.Printf("ID: %x %s -> ", string(path.ID), path)
+		}
+	}
+}
+
+func printDOT(fileName string, visited, unvisited, inprocess, failed [][]*browserk.Navigation) {
+	g := dot.NewGraph(dot.Directed)
+	g.Attr("rankdir", "LR")
+	subGraph(g.Subgraph("Visited"), visited)
+	subGraph(g.Subgraph("Unvisited"), unvisited)
+	subGraph(g.Subgraph("In Process"), inprocess)
+	subGraph(g.Subgraph("Failed"), failed)
+
+	ioutil.WriteFile(fileName, []byte(g.String()), 0677)
+}
+
+func subGraph(g *dot.Graph, entries [][]*browserk.Navigation) {
+	for _, path := range entries {
+		prev := g.Node(path[0].String())
+		for i := 1; i < len(path); i++ {
+			current := g.Node(path[i].String())
+			g.Edge(prev, current)
+			prev = current
 		}
 	}
 }

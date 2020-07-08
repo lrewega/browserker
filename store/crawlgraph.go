@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 
@@ -82,7 +83,7 @@ func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
 		existKey := MakeKey(nav.ID, "id")
 		_, err := txn.Get(existKey)
 		if err == nil {
-			log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it already exists")
+			log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
 			return nil
 		}
 
@@ -111,14 +112,14 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		for _, nav := range navs {
 			if nav.Distance > g.cfg.MaxDepth {
-				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it exceeds max depth")
+				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it exceeds max depth")
 				return nil
 			}
 			existKey := MakeKey(nav.ID, "id")
 			_, err := txn.Get(existKey)
 			if err == nil {
-				log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it already exists")
-				return nil
+				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
+				continue
 			}
 
 			for i := 0; i < len(g.navPredicates); i++ {
@@ -253,14 +254,12 @@ func (g *CrawlGraph) GetNavigationResults() ([]*browserk.NavigationResult, error
 
 		it := txn.NewIterator(badger.IteratorOptions{Prefix: []byte("r_nav_id")})
 		defer it.Close()
-		log.Debug().Msg("got iterator")
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			val, err := item.ValueCopy(nil)
 			if err != nil {
 				return err
 			}
-			log.Debug().Msg("got value")
 			resultID, _ := DecodeID(val)
 			if err != nil {
 				return err
@@ -385,6 +384,34 @@ func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavSta
 		}
 	}
 	return entries
+}
+
+// FindPathByNavID returns the path start -> finish (navID)
+func (g *CrawlGraph) FindPathByNavID(ctx context.Context, navID []byte) []*browserk.Navigation {
+	path := make([]*browserk.Navigation, 0)
+	err := g.GraphStore.View(func(txn *badger.Txn) error {
+		nodeIDs := make([][]byte, 1)
+		nodeIDs[0] = navID
+		entries, err := g.PathToNavIDsWithResults(txn, nodeIDs)
+		if err != nil {
+			return err
+		}
+
+		if len(entries) == 0 {
+			return fmt.Errorf("unable to find navigation for %x", navID)
+		}
+
+		for i := 0; i < len(entries[0]); i++ {
+			path = append(path, entries[0][i].Navigation)
+		}
+		return err
+	})
+
+	// TODO: retry on transaction conflict errors
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get path to navs")
+	}
+	return path
 }
 
 // Close the graph store

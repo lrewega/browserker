@@ -1,0 +1,12 @@
+URL = "http://localhost:3000/#/login"
+AllowedHosts = ["localhost"]
+DataPath = "browserktmp"
+DisableHeadless = true
+NumBrowsers = 10
+MaxDepth = 25
+JSPluginPath = "plugins/"
+
+[FormData]
+UserName  = "test@test.com"
+Email = "test@test.com"
+Password = "testtest"

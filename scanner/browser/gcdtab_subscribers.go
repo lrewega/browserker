@@ -288,7 +288,7 @@ func (t *Tab) subscribeDialogEvents() {
 // HOWEVER it does appear we can intercept them???
 func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 	t.t.Subscribe("network.loadingFailed", func(target *gcd.ChromeTarget, payload []byte) {
-		t.ctx.Log.Info().Msgf("failed: %s\n", string(payload))
+		t.ctx.Log.Info().Msgf("network.loadingFailed: %s\n", string(payload))
 		t.container.DecRequest()
 	})
 
@@ -317,7 +317,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			t.container.AddResponse(resp)
 		}
 		t.container.AddRequest(req)
-		t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", message.Params.Request.Url).Str("request_id", message.Params.RequestId).Msg("added request")
+		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", message.Params.Request.Url).Str("request_id", message.Params.RequestId).Msg("added request")
 	})
 
 	t.t.Subscribe("Network.requestServedFromCache", func(target *gcd.ChromeTarget, payload []byte) {
@@ -335,7 +335,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			return
 		}
 		p := message.Params
-		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
+		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
 
 		timeoutCtx, cancel := context.WithTimeout(ctx.Ctx, time.Second*10)
 		defer cancel()
@@ -360,7 +360,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.nav, resp))
 
 		t.container.AddResponse(resp)
-		t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")
+		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")
 	})
 
 	t.t.Subscribe("Network.loadingFinished", func(target *gcd.ChromeTarget, payload []byte) {
@@ -369,7 +369,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		if err := json.Unmarshal(payload, message); err != nil {
 			return
 		}
-		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
+		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
 		t.container.BodyReady(message.Params.RequestId)
 	})
 }
@@ -420,16 +420,15 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	p := message.Params
 
 	respParams := &gcdapi.FetchFulfillRequestParams{
-		RequestId:    p.RequestId,
-		ResponseCode: p.ResponseStatusCode,
+		RequestId:       p.RequestId,
+		ResponseCode:    p.ResponseStatusCode,
+		ResponseHeaders: p.ResponseHeaders,
 	}
 
 	if !hasBody(p.ResponseHeaders) {
 		modified := GCDFetchResponseToIntercepted(message, "", false)
-		t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
+		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
-
-		respParams.ResponseHeaders = p.ResponseHeaders
 		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return
 	}
@@ -437,17 +436,14 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	bodyStr, encoded, err := t.t.Fetch.GetResponseBody(p.RequestId)
 	if err != nil {
 		modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
-		t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
+		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 		t.ctx.Log.Warn().Err(err).Str("request_id", p.RequestId).Msg("unable to get body")
-		t.t.Fetch.ContinueRequestWithParams(&gcdapi.FetchContinueRequestParams{
-			RequestId: p.RequestId,
-		})
+		t.t.Fetch.FulfillRequestWithParams(respParams)
 		return
 	}
-
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
-	t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("dispatching response!!!!!!!!!")
+	// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("dispatching response!!!!!!!!!")
 	ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 	ctx.NextResp(t, modified)
 
@@ -475,10 +471,15 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 }
 
 func hasBody(headers []*gcdapi.FetchHeaderEntry) bool {
+	probablyHasBody := false
 	for _, header := range headers {
 		if strings.ToLower(header.Name) == "content-length" && header.Value == "0" {
 			return false
 		}
+		switch strings.ToLower(header.Name) {
+		case "content-length", "content-encoding", "content-type":
+			probablyHasBody = true
+		}
 	}
-	return true
+	return probablyHasBody
 }

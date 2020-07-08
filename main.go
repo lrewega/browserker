@@ -37,6 +37,13 @@ func main() {
 			Action:  clicmds.DBView,
 			Flags:   clicmds.DBViewFlags(),
 		},
+		{
+			Name:    "replay",
+			Aliases: nil,
+			Usage:   "replay a specific navigation path",
+			Action:  clicmds.ReplayNav,
+			Flags:   clicmds.ReplayNavFlags(),
+		},
 	}
 	fmt.Println(os.Args)
 	err := app.Run(os.Args)

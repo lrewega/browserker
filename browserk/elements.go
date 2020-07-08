@@ -9,6 +9,7 @@ import (
 
 type ActHTMLElement interface {
 	Tag() string
+	IsForm() bool
 	ElementType() HTMLElementType
 	GetAttribute(name string) string
 	AllAttributes() map[string]string
@@ -29,6 +30,10 @@ type HTMLElement struct {
 	Value         string // value to set if it's an input field or whatever
 }
 
+func (h *HTMLElement) IsForm() bool {
+	return false
+}
+
 // Hash the element to (hopefully) a unique value
 // Don't include depth as it may change but we can check that individually
 // for optimization purposes if Depth && ID == ...
@@ -37,6 +42,13 @@ func (h *HTMLElement) Hash() []byte {
 		return h.ID
 	}
 	hash := md5.New()
+
+	if h.Type == HASHTEXT {
+		hash.Write([]byte(h.InnerText))
+		h.ID = hash.Sum(nil)
+		return h.ID
+	}
+
 	vals := ImportantAttributeValues(h.Type, h.Attributes)
 	vals = append(vals, h.InnerText)
 	sort.StringSlice(vals).Sort()
@@ -45,6 +57,11 @@ func (h *HTMLElement) Hash() []byte {
 	// include event line/col into the uniqueness
 	evts := sortEvents(h.Events)
 	hash.Write([]byte(evts))
+	if h.Hidden {
+		hash.Write([]byte{1})
+	} else {
+		hash.Write([]byte{0})
+	}
 	h.ID = hash.Sum(nil)
 	return h.ID
 }
@@ -99,6 +116,8 @@ const (
 
 // HTMLFormElement and it's children
 type HTMLFormElement struct {
+	Type           HTMLElementType
+	CustomTagName  string
 	FormType       FormType
 	Events         map[string]HTMLEventType
 	Attributes     map[string]string
@@ -117,7 +136,7 @@ func (h *HTMLFormElement) Hash() []byte {
 	}
 	hash := md5.New()
 
-	vals := ImportantAttributeValues(FORM, h.Attributes)
+	vals := ImportantAttributeValues(h.Type, h.Attributes)
 	/*
 		adds too much variabliity possibly...
 		for _, child := range h.ChildElements {
@@ -132,6 +151,12 @@ func (h *HTMLFormElement) Hash() []byte {
 	hash.Write([]byte(sorted))
 	evts := sortEvents(h.Events)
 	hash.Write([]byte(evts))
+	if h.Hidden {
+		hash.Write([]byte{1})
+	} else {
+		hash.Write([]byte{0})
+	}
+
 	h.ID = hash.Sum(nil)
 	return h.ID
 }
@@ -144,18 +169,25 @@ func (h *HTMLFormElement) GetAttribute(name string) string {
 	return val
 }
 
+func (h *HTMLFormElement) IsForm() bool {
+	return true
+}
+
+func (h *HTMLFormElement) ElementType() HTMLElementType {
+	return h.Type
+}
+
 func (h *HTMLFormElement) AllAttributes() map[string]string {
 	return h.Attributes
 }
 
-func (h *HTMLFormElement) ElementType() HTMLElementType {
-	return FORM
-}
-
 func (h *HTMLFormElement) Tag() string {
-	return "form"
+	tag := strings.ToLower(HTMLTypeToStrMap[h.Type])
+	if h.Type == CUSTOM {
+		tag = h.CustomTagName
+	}
+	return tag
 }
-
 func (h *HTMLFormElement) Depth() int {
 	return h.NodeDepth
 }
@@ -262,8 +294,9 @@ type HTMLElementType int16
 
 // revive:disable:var-naming
 const (
+	INVALID HTMLElementType = iota
 	// Main Root
-	HTML HTMLElementType = iota
+	HTML
 
 	// METADATA
 	BASE
@@ -440,6 +473,7 @@ const (
 
 	// Custom/Non-standard
 	CUSTOM
+	HASHTEXT
 )
 
 // HTMLTypeMap for taking in tag name -> outputing HTMLElementType

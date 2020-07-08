@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/scanner"
@@ -33,7 +34,10 @@ type URIParser struct {
 	uri     *injast.URI
 }
 
+// Parse a uri into it's parts
+// TODO: Clean this up it's a disaster
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
+	log.Debug().Str("uri", uri).Msg("parsing for injection")
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)
 	u.uri = injast.NewURI([]byte(uri))
@@ -107,7 +111,8 @@ func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 				continue
 			case token.IDENT:
 				peek := u.s.Peek()
-				if peek == '?' || peek == '&' || peek == 0 {
+				back := u.s.PeekBackwards()
+				if (peek == '?' || peek == '&' || peek == 0) || back == '/' {
 					p := &injast.Ident{
 						NamePos:  pos,
 						Name:     lit,
@@ -179,9 +184,12 @@ func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit
 		return
 	}
 
+	if lit == "" {
+		lit = tok.String()
+	}
+
 	if u.kvMode == keyMode {
 		var key browserk.InjectionExpr
-
 		key = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
 		peek := u.s.PeekBackwards()
 		if peek == '[' {
@@ -189,15 +197,43 @@ func (u *URIParser) handleParams(tok token.Token, pos browserk.InjectionPos, lit
 		}
 		kv := &injast.KeyValueExpr{
 			Key:      key,
-			Sep:      0,
+			Sep:      pos,
 			SepChar:  0,
 			Value:    nil,
 			Location: loc,
 		}
 		*params = append(*params, kv)
 		u.uri.Fields = append(u.uri.Fields, kv)
+		// make sure we don't have a nil value hanging off the KV
+		if u.s.Peek() == 0 {
+			kv.Value = &injast.Ident{NamePos: key.End()}
+		}
 	} else {
-		(*params)[u.kvIndex].Value = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
+		(*params)[u.kvIndex].Value = u.handleValueExpr(pos, tok, lit)
+	}
+}
+
+func (u *URIParser) handleValueExpr(originalPos browserk.InjectionPos, originalTok token.Token, originalLit string) browserk.InjectionExpr {
+	if originalLit == "" {
+		originalLit = originalTok.String()
+	}
+	value := &injast.Ident{NamePos: originalPos, Name: originalLit}
+	for {
+		// short circuit so we don't consume the name provided we don't start with a [ or ]
+		if (u.s.PeekBackwards() == '&' || u.s.PeekBackwards() == '#') && (originalTok != token.LBRACK && originalTok != token.RBRACK) {
+			return value
+		}
+		_, tok, lit := u.s.Scan()
+		switch tok {
+		case token.AND, token.EOF:
+			return value
+		case token.LBRACK:
+			value.Name += "["
+		case token.RBRACK:
+			value.Name += "]"
+		default:
+			value.Name += lit
+		}
 	}
 }
 

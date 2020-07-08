@@ -8,6 +8,11 @@ import (
 	"gitlab.com/browserker/browserk"
 )
 
+type readyWait struct {
+	readyCh chan struct{}
+	closed  bool
+}
+
 // Container for various browser events
 type Container struct {
 	messageLock   sync.RWMutex
@@ -15,7 +20,7 @@ type Container struct {
 	loadRequestID string
 
 	respReadyLock sync.RWMutex
-	respReady     map[string]chan struct{}
+	respReady     map[string]*readyWait
 
 	requestCount int32
 
@@ -31,7 +36,7 @@ type Container struct {
 func NewContainer() *Container {
 	return &Container{
 		messages:      make(map[string]*browserk.HTTPMessage),
-		respReady:     make(map[string]chan struct{}),
+		respReady:     make(map[string]*readyWait),
 		storageEvents: make([]*browserk.StorageEvent, 0),
 	}
 }
@@ -179,20 +184,20 @@ func (c *Container) OpenRequestCount() int32 {
 // WaitFor if we have a readyCh for this request, if we don't, make the channel.
 // If we do, it is already closed so we can return
 func (c *Container) WaitFor(ctx context.Context, requestID string) error {
-	var readyCh chan struct{}
+	var ready *readyWait
 	var ok bool
 
 	defer c.remove(requestID)
 
 	c.respReadyLock.Lock()
-	if readyCh, ok = c.respReady[requestID]; !ok {
-		readyCh = make(chan struct{})
-		c.respReady[requestID] = readyCh
+	if ready, ok = c.respReady[requestID]; !ok {
+		ready = &readyWait{readyCh: make(chan struct{}), closed: false}
+		c.respReady[requestID] = ready
 	}
 	c.respReadyLock.Unlock()
 
 	select {
-	case <-readyCh:
+	case <-ready.readyCh:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -203,9 +208,13 @@ func (c *Container) WaitFor(ctx context.Context, requestID string) error {
 func (c *Container) BodyReady(requestID string) {
 	c.respReadyLock.Lock()
 	if _, ok := c.respReady[requestID]; !ok {
-		c.respReady[requestID] = make(chan struct{})
+		c.respReady[requestID] = &readyWait{readyCh: make(chan struct{}), closed: false}
 	}
-	close(c.respReady[requestID])
+
+	if !c.respReady[requestID].closed {
+		c.respReady[requestID].closed = true
+		close(c.respReady[requestID].readyCh)
+	}
 	c.respReadyLock.Unlock()
 }
 

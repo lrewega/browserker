@@ -114,6 +114,7 @@ var DefaultFormValues = FormData{
 type Config struct {
 	URL             string
 	AllowedHosts    []string // considered 'in scope' for testing/access
+	DisableHeadless bool     // disables headless mode for debugging/watching
 	IgnoredHosts    []string // will access, but not report/run tests against (this is the default for non AllowedURLs)
 	ExcludedHosts   []string // will be forcibly dropped by interceptors
 	ExcludedURIs    []string // will not access (logout/signout) can be relative, or absolute (relative will be from config URL base path)

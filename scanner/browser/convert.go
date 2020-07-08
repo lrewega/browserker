@@ -17,34 +17,61 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 	b := &browserk.HTMLElement{Events: make(map[string]browserk.HTMLEventType, 0)}
 	b.Type = browserk.CUSTOM
 
+	ele.WaitForReady()
 	tag, _ := ele.GetTagName()
-	b.Attributes, _ = ele.GetAttributes()
-	b.NodeDepth = ele.Depth()
-	listeners, err := ele.GetEventListeners()
-	b.InnerText = ele.GetInnerText()
-
-	if err == nil {
-		for _, listener := range listeners {
-			eventType, ok := browserk.HTMLEventTypeMap[listener.Type]
-			if !ok {
-				eventType = browserk.HTMLEventcustom
-			}
-			line := strconv.Itoa(listener.LineNumber)
-			col := strconv.Itoa(listener.ColumnNumber)
-
-			b.Events[line+" "+col] = eventType
-		}
-	}
 
 	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
 	if !ok {
 		b.CustomTagName = tag
 	}
+	// if we can get the elements loc, it's not hidden :>
+	switch b.Type {
+	case browserk.HTML, browserk.SCRIPT, browserk.TITLE, browserk.NOSCRIPT, browserk.HEAD:
+		b.Hidden = true
+	default:
+		_, _, err := ele.getCenter()
+		if err != nil {
+			//ele.tab.ctx.Log.Error().Err(err).Str("type", browserk.HTMLTypeToStrMap[b.Type]).Msg("getting ele center failed")
+			b.Hidden = true
+		}
+	}
+
+	b.Attributes, _ = ele.GetAttributes()
+	b.NodeDepth = ele.Depth()
+	b.InnerText = ele.GetInnerText()
+
+	listeners, err := ele.GetEventListeners()
+	// no listeners
+	if err != nil || len(listeners) == 0 {
+		//log.Debug().Str("type", browserk.HTMLTypeToStrMap[b.Type]).Msg("NO INTERACTABLES")
+		return b
+	}
+
+	for _, listener := range listeners {
+		eventType, ok := browserk.HTMLEventTypeMap[listener.Type]
+		if !ok {
+			eventType = browserk.HTMLEventcustom
+		}
+		line := strconv.Itoa(listener.LineNumber)
+		col := strconv.Itoa(listener.ColumnNumber)
+
+		b.Events[line+" "+col] = eventType
+	}
+
 	return b
 }
 
 func ElementToHTMLFormElement(ele *Element) *browserk.HTMLFormElement {
+	var ok bool
 	b := &browserk.HTMLFormElement{Events: make(map[string]browserk.HTMLEventType, 0)}
+	ele.WaitForReady()
+	tag, _ := ele.GetTagName()
+
+	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
+	if !ok {
+		b.CustomTagName = tag
+	}
+
 	b.Attributes, _ = ele.GetAttributes()
 	b.NodeDepth = ele.Depth()
 	listeners, err := ele.GetEventListeners()

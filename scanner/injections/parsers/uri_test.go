@@ -15,7 +15,7 @@ func TestQuery(t *testing.T) {
 		expected injast.URI
 	}{
 		{
-			[]byte("/path1/jlk?x=1"),
+			[]byte("/path1/jlk?x=[]1"),
 			injast.URI{
 				Paths: []*injast.Ident{
 					{
@@ -33,7 +33,7 @@ func TestQuery(t *testing.T) {
 							Key:     &injast.Ident{NamePos: 11, Name: "x"},
 							Sep:     12,
 							SepChar: '=',
-							Value:   &injast.Ident{NamePos: 13, Name: "1"},
+							Value:   &injast.Ident{NamePos: 13, Name: "[]1"},
 						},
 					},
 				},
@@ -311,6 +311,9 @@ func testCompareExpr(t *testing.T, in []byte, exp, res browserk.InjectionExpr) {
 	} else if r, isIdent := res.(*injast.Ident); isIdent {
 		e, _ := exp.(*injast.Ident)
 		testCompareIdent(t, in, e, r)
+	} else if r, isKeyValue := res.(*injast.KeyValueExpr); isKeyValue {
+		e, _ := exp.(*injast.KeyValueExpr)
+		testCompareKeyValue(t, in, e, r)
 	}
 }
 
