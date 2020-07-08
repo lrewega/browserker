@@ -33,7 +33,8 @@ Obviously a crawler must be able to click elements, and input values into elemen
 
 For example it looks if an input element has an associated label and combines the name/id/label information into a string and attempts to match it against a set of regexes. In other cases where input elements have a strict type defined (datetime/email etc) it's quite easy for us to supply a legitimate value. Once all the input fields have been analyzed and values set, the data is added to the next navigation entry and stored in the graphdb for later retrieval by the crawler.
 
-### TODO:
+After a few iterations it turns out simply clicking all elements that contain text and images works really well for gaining coverage. To the point that it may not even be necessary to implement custom framework checks and hooks.
 
-- [ ] Handle window.open (probably just hook the event and add it as a new crawl navigation entry)
-- [ ] Detect anti-CSRF tokens and mark it as a part of a Navigation
+### Floating forms
+
+In many cases web sites don't use the proper HTML form element, but instead wrap a bunch of inputs in a div or some other container element. To handle these cases we scan the entire document (via the browser, not the serialized DOM) with an XPath selector looking for all input's and buttons that exist with in any container element that has any attribute with the name 'form' in it. We copy the input elements N times, where N is the number of buttons (or input type=submit || input type=button). Each of these are treated as unique ActFormFill actions. The benefit of this is we can attempt to click all buttons and pretend it's the right one. Obviously if it is wrong, we don't get any new navigation paths. If we get a proper form, we will be able to re-scan the document and find new navigation elements.

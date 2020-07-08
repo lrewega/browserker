@@ -17,15 +17,15 @@ Active Plugins
 
 ## Uniqueness
 
-URLs are meaningless for some things, but not others
+URLs are meaningless for some things, but not others. Most data structures that come from or interact with the browser have a Hash() method that hashes unique properties of that object. This includes DOM elements, forms, Actions, Navigations, HTTP Requests and Responses etc.
 
 ## Browsers
 
-A browser is an implementation of a gcd.Tab. The browser pool handles acquiring new browsers and returning old ones. The pool gets browsers from the leaser service which handles starting new ones and closing old ones.
+A browser is an implementation of a gcd.Tab. The browser pool handles acquiring new browsers and returning old ones. The pool gets browsers from the leaser service which handles starting new ones and closing old ones. Every navigation is an isolated browser process, we only use a single tab. This may seem wasteful but managing tabs is a nightmare and crashes do occur. By having them all separate we can keep all the browser specific data structures isolated from one another and it just makes life easier.
 
 ## Storage
 
-Pretty much every data type should be stored in our custom DB built on badger
+Pretty much every data type is stored in our custom DB built on badger
 
 - Crawl Graph
 - Attack Graph / Plugin Work Graph
@@ -46,6 +46,7 @@ Should be configurable for types:
 - should plugins have dependencies (on other plugins)?
 
 Active Plugins are directly handed the navigation actions done by a crawler and re-execute them with a reference to the browser, this way they have full control over the entire navigation path and can know when to attack without requiring tracking which requests/responses to attack. Effectively making plugins first class citizens.
+^-- not really true at the time due to how much time it takes to replay an entire navigation path. As of 2020-07-08 the entire path _until the last action_ is executed, then we iterate over the captured HTTP requests and iterate over parsed injection expression and call each plugin with the injection expression using iterators.
 
 Passive Plugins register listeners for the types of data they want (storage events, network events, cookie events) and a passive manager filters out duplicates then dispatches new events to them to process.
 
@@ -58,10 +59,7 @@ Supporting things like JWT should be easy (we can inject whatever we want into b
 
 ## Attacking
 
-TODO: What should plugins _get_? A list of injection points? A page? A browser? Register for specific events? Needs access to responses.
-Needs ability to read response for _their_ injected request.
-
-Current thinking is to replay a crawl navigation, then on the final step generate an HTML/JS page with a series of xhr/fetch functions which we can tag to be intercepted. The DevTools Fetch API would be enacted to trap the request and modify to whatever the plugin wanted.
+Current thinking is to replay a crawl navigation, then on the final step generate an HTML/JS page with a series of xhr/fetch functions which we can tag to be intercepted. The DevTools Fetch API would be enacted to trap the request and modify to whatever the plugin wanted. As of 2020-07-08 this is what it does.
 
 There are some questions though:
 
@@ -76,8 +74,8 @@ Parse methods, request headers, x-www-form-urlencoded, url's/path queries and fr
 
 ### Injection Points
 
-Each k/v for parsed types should be an injection point. Injection Manager should handle re-encoding (similar to how astutil works in Go)
+Each k/v for parsed types should be an injection. Injection Manager should handle re-encoding (similar to how astutil works in Go)
 
 ## Reporting
 
-Report manager should be available to plugins, plugins can report their specific checks with evidence.
+A report manager is available to plugins, plugins can report their specific checks with evidence.

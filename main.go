@@ -16,13 +16,16 @@ func main() {
 	app.Authors = []*cli.Author{{Name: "isaac dawson", Email: "isaac.dawson@gmail.com"}}
 	app.Usage = "Run some DAST goodness baby!"
 	app.Commands = []*cli.Command{
-		{
-			Name:    "testauth",
-			Aliases: []string{"ta"},
-			Usage:   "test authentication",
-			Action:  clicmds.TestAuth,
-			Flags:   clicmds.TestAuthFlags(),
-		},
+		/*
+			Enable when auth is ready
+				{
+					Name:    "testauth",
+					Aliases: []string{"ta"},
+					Usage:   "test authentication",
+					Action:  clicmds.TestAuth,
+					Flags:   clicmds.TestAuthFlags(),
+				},
+		*/
 		{
 			Name:    "crawl",
 			Aliases: []string{"c"},
@@ -31,18 +34,18 @@ func main() {
 			Flags:   clicmds.CrawlerFlags(),
 		},
 		{
-			Name:    "db",
-			Aliases: nil,
-			Usage:   "db viewer",
-			Action:  clicmds.DBView,
-			Flags:   clicmds.DBViewFlags(),
-		},
-		{
 			Name:    "replay",
 			Aliases: nil,
 			Usage:   "replay a specific navigation path",
 			Action:  clicmds.ReplayNav,
 			Flags:   clicmds.ReplayNavFlags(),
+		},
+		{
+			Name:    "db",
+			Aliases: nil,
+			Usage:   "db viewer",
+			Action:  clicmds.DBView,
+			Flags:   clicmds.DBViewFlags(),
 		},
 	}
 	fmt.Println(os.Args)

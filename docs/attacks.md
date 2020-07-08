@@ -92,6 +92,5 @@ They can define when they should be called (PluginExecutionType) and what capabi
 
 ## TODO
 
-- How to handle plugins that make multiple requests (timing attacks)?
 - Define exactly how plugins can interact with the browser (XSS will need full access basically)
 - Plugins are currently depth first attacks (all iterating over the same navigation's). May want to have a breadth first where they attack individually, makes storing plugin navigation state harder.
