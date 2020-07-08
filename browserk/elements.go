@@ -9,6 +9,7 @@ import (
 
 type ActHTMLElement interface {
 	Tag() string
+	IsForm() bool
 	ElementType() HTMLElementType
 	GetAttribute(name string) string
 	AllAttributes() map[string]string
@@ -27,6 +28,10 @@ type HTMLElement struct {
 	NodeDepth     int
 	ID            []byte
 	Value         string // value to set if it's an input field or whatever
+}
+
+func (h *HTMLElement) IsForm() bool {
+	return false
 }
 
 // Hash the element to (hopefully) a unique value
@@ -112,6 +117,7 @@ const (
 // HTMLFormElement and it's children
 type HTMLFormElement struct {
 	Type           HTMLElementType
+	CustomTagName  string
 	FormType       FormType
 	Events         map[string]HTMLEventType
 	Attributes     map[string]string
@@ -130,7 +136,7 @@ func (h *HTMLFormElement) Hash() []byte {
 	}
 	hash := md5.New()
 
-	vals := ImportantAttributeValues(FORM, h.Attributes)
+	vals := ImportantAttributeValues(h.Type, h.Attributes)
 	/*
 		adds too much variabliity possibly...
 		for _, child := range h.ChildElements {
@@ -150,6 +156,7 @@ func (h *HTMLFormElement) Hash() []byte {
 	} else {
 		hash.Write([]byte{0})
 	}
+
 	h.ID = hash.Sum(nil)
 	return h.ID
 }
@@ -162,6 +169,10 @@ func (h *HTMLFormElement) GetAttribute(name string) string {
 	return val
 }
 
+func (h *HTMLFormElement) IsForm() bool {
+	return true
+}
+
 func (h *HTMLFormElement) ElementType() HTMLElementType {
 	return h.Type
 }
@@ -171,9 +182,12 @@ func (h *HTMLFormElement) AllAttributes() map[string]string {
 }
 
 func (h *HTMLFormElement) Tag() string {
-	return HTMLTypeToStrMap[h.Type]
+	tag := strings.ToLower(HTMLTypeToStrMap[h.Type])
+	if h.Type == CUSTOM {
+		tag = h.CustomTagName
+	}
+	return tag
 }
-
 func (h *HTMLFormElement) Depth() int {
 	return h.NodeDepth
 }

@@ -8,4 +8,5 @@ JSPluginPath = "plugins/"
 
 [FormData]
 UserName  = "test@test.com"
+Email = "test@test.com"
 Password = "testtest"

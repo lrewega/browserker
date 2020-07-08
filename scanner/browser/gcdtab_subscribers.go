@@ -335,7 +335,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			return
 		}
 		p := message.Params
-		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
+		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
 
 		timeoutCtx, cancel := context.WithTimeout(ctx.Ctx, time.Second*10)
 		defer cancel()
@@ -369,7 +369,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		if err := json.Unmarshal(payload, message); err != nil {
 			return
 		}
-		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
+		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
 		t.container.BodyReady(message.Params.RequestId)
 	})
 }

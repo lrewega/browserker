@@ -62,7 +62,16 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 }
 
 func ElementToHTMLFormElement(ele *Element) *browserk.HTMLFormElement {
+	var ok bool
 	b := &browserk.HTMLFormElement{Events: make(map[string]browserk.HTMLEventType, 0)}
+	ele.WaitForReady()
+	tag, _ := ele.GetTagName()
+
+	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
+	if !ok {
+		b.CustomTagName = tag
+	}
+
 	b.Attributes, _ = ele.GetAttributes()
 	b.NodeDepth = ele.Depth()
 	listeners, err := ele.GetEventListeners()

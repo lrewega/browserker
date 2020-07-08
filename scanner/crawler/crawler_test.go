@@ -1,8 +1,11 @@
 package crawler_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -64,7 +67,53 @@ func TestCrawler(t *testing.T) {
 		c.Writer.Write([]byte(resp))
 	}
 
+	type respData struct {
+		Fname string `json:"fname"`
+		Lname string `json:"lname"`
+		Car   string `json:"cars"`
+	}
+
 	toTest := [...]crawlerTests{
+		{
+			func(c *gin.Context) {
+				buf, err := ioutil.ReadAll(c.Request.Body)
+				if err != nil {
+					t.Logf("error reading body: %s\n", err)
+					return
+				}
+				c.Request.Body = ioutil.NopCloser(bytes.NewReader(buf))
+
+				dest := &respData{}
+				if err := json.Unmarshal(buf, dest); err != nil {
+					t.Logf("error Unmarshal body: %s\n", err)
+					return
+				}
+
+				if dest.Fname == "Test" && dest.Lname == "User" && dest.Car == "volvo" {
+					called = true
+				}
+
+				resp := "<html><body>You made it!</body></html>"
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			"http://localhost:%s/forms/floatingform.html",
+		},
+		{
+			func(c *gin.Context) {
+				fname, _ := c.GetQuery("fname")
+				lname, _ := c.GetQuery("lname")
+
+				if fname == "Test" && lname == "User" {
+					called = true
+				}
+
+				resp := "<html><body>You made it!</body></html>"
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			"http://localhost:%s/forms/floatingformrealform.html",
+		},
 		{
 			simpleCallFunc,
 			"http://localhost:%s/forms/onmousedblclick.html",
@@ -201,6 +250,7 @@ func TestCrawler(t *testing.T) {
 		if len(newNavs) == 0 {
 			t.Fatal("did not find form nav action")
 		}
+
 		spew.Dump(newNavs)
 		_, _, err = crawl.Process(bCtx, b, newNavs[0], true)
 		if err != nil {

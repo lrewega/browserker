@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -253,6 +254,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 		}
 		if formChild.Type == browserk.INPUT && formChild.Value != "" {
 			actualElement.Focus()
+			actualElement.SendRawKeys(keymap.Backspace) // clear anything that might be in the way
 			t.ctx.Log.Info().Str("type", browserk.HTMLTypeToStrMap[formChild.Type]).Str("value", formChild.Value).Msg("filling field")
 			if err := actualElement.SendKeys(formChild.Value); err != nil {
 				t.ctx.Log.Error().Err(err).Msg("failed to send keys")
@@ -280,6 +282,12 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 			submitButton = actualElement
 		}
 	}
+
+	// handle floating forms
+	if act.Form.Type != browserk.FORM {
+		submitButton = form
+	}
+
 	if submitButton == nil {
 		t.ctx.Log.Warn().Msg("Unable to submit form, could not find button")
 		return &ErrElementNotFound{}
@@ -343,7 +351,7 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument 
 		return nil, err
 	}
 
-	if toFind.ElementType() == browserk.FORM {
+	if toFind.IsForm() {
 		for _, found := range foundElements {
 			f := ElementToHTMLFormElement(found)
 			if bytes.Compare(f.Hash(), toFind.Hash()) == 0 {
@@ -430,36 +438,65 @@ func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
 		return fElements, err
 	}
 
+	formChildren := make([]*Element, 0)
 	for _, form := range elements {
 		f := ElementToHTMLFormElement(form)
-		t.getFormChildNodes(f, form)
+		formChildren = t.getFormChildNodes(f, form)
 		fElements = append(fElements, f)
 	}
+	floatingForms, err := t.findFloatingForms(formChildren)
+	fElements = append(fElements, floatingForms...)
 	return fElements, nil
 }
 
-func (t *Tab) findFloatingForms() ([]*browserk.HTMLFormElement, error) {
+func (t *Tab) findFloatingForms(elementsInForm []*Element) ([]*browserk.HTMLFormElement, error) {
 	fElements := make([]*browserk.HTMLFormElement, 0)
-	/*
-		elements, err := t.GetElementsBySearch("//attribute::*[contains(., 'form')]/../descendant::input | //attribute::*[contains(., 'form')]/../descendant::button", false)
-		if err != nil || len(elements) == 0 {
-			return fElements, err
-		}
-		for _, element := range elements {
+	elements, err := t.GetElementsBySearch("//attribute::*[contains(., 'form')]/../descendant::input | //attribute::*[contains(., 'form')]/../descendant::button | //attribute::*[contains(., 'form')]/../descendant::select", false)
+	if err != nil || len(elements) == 0 {
+		return fElements, err
+	}
 
+	// we need to not add elements that already exist in our real <form>s
+	inFormElementIDs := make(map[int]struct{}, 0)
+	for _, formElements := range elementsInForm {
+		inFormElementIDs[formElements.NodeID()] = struct{}{}
+	}
+
+	inputElements := make([]*browserk.HTMLElement, 0)
+	for _, element := range elements {
+		// already in a form found elsewhere, continue
+		if _, exist := inFormElementIDs[element.NodeID()]; exist {
+			continue
 		}
-		fElement := ElementToHTMLFormElement(elements[0]) // just take the first one
-	*/
+
+		tag, _ := element.GetTagName()
+		if strings.ToLower(tag) == "button" ||
+			(strings.ToLower(tag) == "input" && (element.GetAttribute("type") == "submit" || element.GetAttribute("type") == "button")) {
+			fElement := ElementToHTMLFormElement(element)
+			fElement.ChildElements = inputElements
+			fElement.SubmitButtonID = fElement.Hash()
+			fElements = append(fElements, fElement)
+			continue
+		}
+		htmlChild := ElementToHTMLElement(element)
+		if htmlChild == nil {
+			continue
+		}
+		inputElements = append(inputElements, htmlChild)
+	}
+	//spew.Dump(fElements)
 	return fElements, nil
 }
 
-func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) {
+func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) []*Element {
 	childNodes, _ := ele.GetChildNodeIds()
 	if childNodes == nil {
-		return
+		return nil
 	}
+	childElements := make([]*Element, 0)
 	for _, childID := range childNodes {
 		child, _ := t.getElementByNodeID(childID)
+		childElements = append(childElements, child)
 		htmlChild := ElementToHTMLElement(child)
 		if htmlChild == nil {
 			continue
@@ -467,6 +504,7 @@ func (t *Tab) getFormChildNodes(f *browserk.HTMLFormElement, ele *Element) {
 		f.ChildElements = append(f.ChildElements, htmlChild)
 		t.getFormChildNodes(f, child)
 	}
+	return childElements
 }
 
 // GetMessages that occurred since last called
