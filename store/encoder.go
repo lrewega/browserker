@@ -63,6 +63,13 @@ func EncodeStruct(v interface{}) ([]byte, error) {
 	return msgpack.Marshal(v)
 }
 
+// DecodeReport for plugin / vulnerabilities
+func DecodeReport(data []byte) (*browserk.Report, error) {
+	r := &browserk.Report{}
+	err := msgpack.Unmarshal(data, r)
+	return r, err
+}
+
 // DecodeNavigation takes a transaction and a nodeID and returns a navigation object or err
 func DecodeNavigation(txn *badger.Txn, predicates []*NavGraphField, nodeID []byte) (*browserk.Navigation, error) {
 	nav := &browserk.Navigation{}

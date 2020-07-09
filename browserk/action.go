@@ -81,6 +81,9 @@ func (a *Action) String() string {
 	case ActLeftClick:
 		ret += "[" + HTMLTypeToStrMap[a.Element.Type] + " "
 		for k, v := range a.Element.Attributes {
+			if len(v) > 25 {
+				v = v[0:24] + "..."
+			}
 			ret += k + "=" + v
 		}
 		ret += "]"

@@ -53,5 +53,6 @@ type PluginStorer interface {
 	AddEvent(evt *PluginEvent) bool
 	AddReport(report *Report)
 	IsUnique(evt *PluginEvent) Unique
+	GetReports() ([]*Report, error)
 	Close() error
 }

@@ -182,8 +182,8 @@ github.com/vmihailenco/msgpack/v4 v4.3.12 h1:07s4sz9IReOgdikxLTKNbBdqDMLsjPKXwvC
 github.com/vmihailenco/msgpack/v4 v4.3.12/go.mod h1:gborTTJjAo/GWTqqRjrLCn9pgNN+NXzzngzBKDPIqw4=
 github.com/vmihailenco/tagparser v0.1.1 h1:quXMXlA39OCbd2wAdTsGDlK9RkOk6Wuw+x37wVyIuWY=
 github.com/vmihailenco/tagparser v0.1.1/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgqMEUPoW2WPyhdI=
-github.com/wirepair/gcd v1.0.15 h1:rRrYwcA039jd6ycxV8Hd0toZWltsaqST1fhrUCNr6mE=
-github.com/wirepair/gcd v1.0.15/go.mod h1:17lDeaPxB0fYSh9V0o2EQ+OL3XaLsyKEqjiVP7OWJuo=
+github.com/wirepair/gcd v1.0.15-0.20200709134852-506059021634 h1:hEmbR1OrUUs+QTqcTGZgZAQJfDWXt5VcJzJ+ZZYLhF0=
+github.com/wirepair/gcd v1.0.15-0.20200709134852-506059021634/go.mod h1:17lDeaPxB0fYSh9V0o2EQ+OL3XaLsyKEqjiVP7OWJuo=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/zach-klippenstein/goregen v0.0.0-20160303162051-795b5e3961ea h1:CyhwejzVGvZ3Q2PSbQ4NRRYn+ZWv5eS1vlaEusT+bAI=
 github.com/zach-klippenstein/goregen v0.0.0-20160303162051-795b5e3961ea/go.mod h1:eNr558nEUjP8acGw8FFjTeWvSgU1stO7FAO6eknhHe4=

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"strings"
 	"time"
 
@@ -335,7 +336,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			return
 		}
 		p := message.Params
-		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
+		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("waiting")
 
 		timeoutCtx, cancel := context.WithTimeout(ctx.Ctx, time.Second*10)
 		defer cancel()
@@ -369,7 +370,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		if err := json.Unmarshal(payload, message); err != nil {
 			return
 		}
-		t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
+		//t.ctx.Log.Info().Int32("pending", t.container.OpenRequestCount()).Str("request_id", message.Params.RequestId).Msg("finished")
 		t.container.BodyReady(message.Params.RequestId)
 	})
 }
@@ -394,6 +395,23 @@ func (t *Tab) subscribeInterception(ctx *browserk.Context) {
 func (t *Tab) interceptedRequest(ctx *browserk.Context, message *gcdapi.FetchRequestPausedEvent) {
 	// we are in a request paused event
 	modified := GCDFetchRequestToIntercepted(message, t.container)
+
+	// in scope check
+	u, err := url.Parse(modified.Request.Url)
+	fail := &gcdapi.FetchFailRequestParams{
+		RequestId:   modified.RequestId,
+		ErrorReason: "ConnectionRefused",
+	}
+	if err != nil {
+		t.t.Fetch.FailRequestWithParams(fail)
+		return
+	}
+
+	if ctx.Scope.Check(u) != browserk.InScope && message.Params.ResourceType == "Document" {
+		t.t.Fetch.FailRequestWithParams(fail)
+		return
+	}
+
 	ctx.NextReq(t, modified)
 
 	reqParams := &gcdapi.FetchContinueRequestParams{

@@ -16,6 +16,9 @@ type PluginStore struct {
 	AddReportFn     func(report *browserk.Report)
 	AddReportCalled bool
 
+	GetReportsFn     func() ([]*browserk.Report, error)
+	GetReportsCalled bool
+
 	CloseFn     func() error
 	CloseCalled bool
 }
@@ -50,6 +53,11 @@ func (s *PluginStore) Close() error {
 	return s.CloseFn()
 }
 
+func (s *PluginStore) GetReports() ([]*browserk.Report, error) {
+	s.GetReportsCalled = true
+	return s.GetReportsFn()
+}
+
 func MakeMockPluginStore() *PluginStore {
 	p := &PluginStore{}
 	p.InitFn = func() error {
@@ -70,5 +78,10 @@ func MakeMockPluginStore() *PluginStore {
 	p.AddReportFn = func(report *browserk.Report) {
 
 	}
+
+	p.GetReportsFn = func() ([]*browserk.Report, error) {
+		return nil, nil
+	}
+
 	return p
 }

@@ -222,6 +222,42 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 	log.Info().Msgf("added new report: %#v", report)
 }
 
+// GetReports for reporting findings
+func (s *PluginStore) GetReports() ([]*browserk.Report, error) {
+	var err error
+	reports := make([]*browserk.Report, 0)
+	err = s.Store.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.IteratorOptions{Prefix: []byte("report")})
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			key := item.KeyCopy(nil)
+
+			id := GetID(key)
+			reportItem, err := txn.Get(id)
+			if err != nil {
+				log.Error().Err(err).Msg("error getting value for report")
+				continue
+			}
+
+			report, err := reportItem.ValueCopy(nil)
+			if err != nil {
+				log.Error().Err(err).Msg("error reading value for report")
+				continue
+			}
+
+			decodedReport, err := DecodeReport(report)
+			if err != nil {
+				log.Error().Err(err).Msg("error decoding value for report")
+				continue
+			}
+			reports = append(reports, decodedReport)
+		}
+		return nil
+	})
+	return reports, err
+}
+
 // Close the plugin store
 func (s *PluginStore) Close() error {
 	return s.Store.Close()

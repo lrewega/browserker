@@ -2,7 +2,8 @@ URL = "http://localhost/"
 AllowedHosts = ["localhost"]
 ExcludedURIs = ["/setup.php", "/logout.php", "/security.php"]
 DataPath = "browserktmp"
-NumBrowsers = 5
+DisableHeadless = true
+NumBrowsers = 7
 MaxDepth = 25
 JSPluginPath = "plugins/"
 

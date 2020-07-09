@@ -2,6 +2,7 @@ package clicmds
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -38,6 +39,11 @@ func CrawlerFlags() []cli.Flag {
 			Name:  "datadir",
 			Usage: "data directory",
 			Value: "browserktmp",
+		},
+		&cli.StringFlag{
+			Name:  "report",
+			Usage: "findings report json file",
+			Value: "findings.json",
 		},
 		&cli.BoolFlag{
 			Name:  "profile",
@@ -127,6 +133,7 @@ func Crawler(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}()
 
+	start := time.Now()
 	err := browserk.Start()
 	if err != nil {
 		log.Error().Err(err).Msg("browserk failure occurred")
@@ -136,7 +143,42 @@ func Crawler(cliCtx *cli.Context) error {
 		printSummary(crawl, cliCtx.String("dot"))
 	}
 
+	if cliCtx.String("report") != "" {
+		writeReport(cliCtx.String("report"), cfg, pluginStore, start, time.Now())
+	}
+
 	return browserk.Stop()
+}
+
+func writeReport(fileName string, cfg *browserk.Config, pluginStore browserk.PluginStorer, start, end time.Time) {
+	reports, err := pluginStore.GetReports()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get reports for scan")
+		return
+	}
+	type reportFormat struct {
+		Target   string             `json:"target"`
+		Start    time.Time          `json:"start_time"`
+		End      time.Time          `json:"end_time"`
+		Findings []*browserk.Report `json:"findings"`
+	}
+	r := &reportFormat{
+		Target:   cfg.URL,
+		Start:    start,
+		End:      end,
+		Findings: reports,
+	}
+
+	data, err := json.Marshal(r)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to marshal reports for scan")
+		return
+	}
+
+	if err := ioutil.WriteFile(fileName, data, 0744); err != nil {
+		log.Error().Err(err).Msg("failed to write reports for scan, printing to stdout")
+		fmt.Fprintf(os.Stdout, "%s\n", string(data))
+	}
 }
 
 func printSummary(crawl *store.CrawlGraph, dotFile string) error {
