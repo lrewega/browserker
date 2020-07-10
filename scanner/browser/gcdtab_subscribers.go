@@ -400,7 +400,7 @@ func (t *Tab) interceptedRequest(ctx *browserk.Context, message *gcdapi.FetchReq
 	u, err := url.Parse(modified.Request.Url)
 	fail := &gcdapi.FetchFailRequestParams{
 		RequestId:   modified.RequestId,
-		ErrorReason: "ConnectionRefused",
+		ErrorReason: "BlockedByClient",
 	}
 	if err != nil {
 		t.t.Fetch.FailRequestWithParams(fail)

@@ -264,8 +264,11 @@ func (g *CrawlGraph) GetNavigationResults() ([]*browserk.NavigationResult, error
 			if err != nil {
 				return err
 			}
+
 			nav, err := DecodeNavigationResult(txn, g.navResultPredicates, resultID)
-			if err != nil {
+			if err == badger.ErrKeyNotFound {
+				continue
+			} else if err != nil {
 				log.Warn().Err(err).Msg("failed to decode a navigation result")
 				continue
 			}
@@ -317,6 +320,7 @@ func (g *CrawlGraph) FindWithResults(ctx context.Context, byState, setState brow
 			if err != nil {
 				return err
 			}
+
 			entries, err = g.PathToNavIDsWithResults(txn, nodeIDs)
 			return errors.Wrap(err, "path to navs")
 		})
@@ -374,6 +378,7 @@ func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavSta
 			if err != nil {
 				return err
 			}
+
 			entries, err = g.PathToNavIDs(txn, nodeIDs)
 			return errors.Wrap(err, "path to navs")
 		})

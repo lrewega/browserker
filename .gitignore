@@ -4,3 +4,4 @@ store/testdata
 *.log
 /*.svg
 /*.dot
+findings.json

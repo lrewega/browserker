@@ -144,18 +144,19 @@ func Crawler(cliCtx *cli.Context) error {
 	}
 
 	if cliCtx.String("report") != "" {
-		writeReport(cliCtx.String("report"), cfg, pluginStore, start, time.Now())
+		writeReport(cliCtx.String("report"), cfg, crawl, pluginStore, start, time.Now())
 	}
 
 	return browserk.Stop()
 }
 
-func writeReport(fileName string, cfg *browserk.Config, pluginStore browserk.PluginStorer, start, end time.Time) {
+func writeReport(fileName string, cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk.PluginStorer, start, end time.Time) {
 	reports, err := pluginStore.GetReports()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get reports for scan")
 		return
 	}
+
 	type reportFormat struct {
 		Target   string             `json:"target"`
 		Start    time.Time          `json:"start_time"`
@@ -194,7 +195,7 @@ func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 	for _, entry := range results {
 		if entry.Messages != nil {
 			for _, m := range entry.Messages {
-				if m.Request == nil {
+				if m.Request == nil || !strings.HasSuffix(m.Request.DocumentURL, "http") {
 					continue
 				}
 				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url+m.Request.Request.UrlFragment)

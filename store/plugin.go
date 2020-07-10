@@ -199,7 +199,6 @@ func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) bool {
 // AddReport to the plugin store
 func (s *PluginStore) AddReport(report *browserk.Report) {
 	var err error
-	report.Result = nil // we can look this up from the crawl graph no need to re-store it
 	enc, err := EncodeStruct(report)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to encode report")
@@ -210,6 +209,7 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 		_, err := txn.Get(key)
 		if err == badger.ErrKeyNotFound {
 			txn.Set(key, enc)
+			return nil
 		} else {
 			log.Error().Msgf("this report already exists: %#v", report)
 		}
@@ -227,14 +227,13 @@ func (s *PluginStore) GetReports() ([]*browserk.Report, error) {
 	var err error
 	reports := make([]*browserk.Report, 0)
 	err = s.Store.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.IteratorOptions{Prefix: []byte("report")})
+		it := txn.NewIterator(badger.IteratorOptions{Prefix: []byte("report:")})
+
 		defer it.Close()
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			key := item.KeyCopy(nil)
-
-			id := GetID(key)
-			reportItem, err := txn.Get(id)
+			reportItem, err := txn.Get(key)
 			if err != nil {
 				log.Error().Err(err).Msg("error getting value for report")
 				continue
@@ -253,6 +252,7 @@ func (s *PluginStore) GetReports() ([]*browserk.Report, error) {
 			}
 			reports = append(reports, decodedReport)
 		}
+
 		return nil
 	})
 	return reports, err

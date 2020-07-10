@@ -6,6 +6,7 @@ import (
 	"time"
 
 	badger "github.com/dgraph-io/badger/v2"
+	"github.com/rs/zerolog/log"
 	"github.com/vmihailenco/msgpack/v4"
 	"gitlab.com/browserker/browserk"
 )
@@ -113,6 +114,7 @@ func DecodeNavigationResult(txn *badger.Txn, predicates []*NavGraphField, result
 			return nil, err
 		}
 		if err := DecodeNavigationResultItem(item, nav, pred.name); err != nil {
+			log.Error().Err(err).Str("predicate", pred.name).Msg("unable to decode result item:")
 			return nil, err
 		}
 	}

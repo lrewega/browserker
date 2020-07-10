@@ -8,7 +8,6 @@ import (
 	_ "net/http/pprof"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -96,7 +95,6 @@ func ReplayNav(cliCtx *cli.Context) error {
 		log.Error().Err(err).Msg("failed to init database for viewing")
 		return err
 	}
-	spew.Dump(cfg)
 
 	if cliCtx.Bool("list") {
 		printSummary(crawl, cliCtx.String("dot"))
