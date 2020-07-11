@@ -19,7 +19,8 @@ Iterate quickly, get small things working as soon as possible to show progress.
 - [x] Parse body for / json / xml
 - [x] Handle frames better (Yeah, Nah.)
 - [x] Export crawl graph in DOT format
-- [ ] Diff out duplicate requests for attack phase (currently wasting lots of time attacking the same requests)
+- [x] Diff out duplicate requests for attack phase (currently wasting lots of time attacking the same requests)
+- [ ] Hook common JS functions (window.print, window.open etc)
 - [ ] Actually test / get JS Active Plugins working
 - [ ] Get timing attack plugins working (SQL/OS/Code Injection etc)
 - [ ] Get browser based attacks working (injecting into URL fragments)
@@ -29,7 +30,6 @@ Iterate quickly, get small things working as soon as possible to show progress.
 - [ ] Handle failures in navigations better
 - [ ] Get page uniqueness working
 - [ ] Get 404 detection working
-- [ ] Hook common JS functions (window.print, window.open etc)
 - [ ] Handle SPAs better (vuejs, react etc) hook routers etc (this may not be necessary after recent improvements)
 - [ ] Get websocket events/attacks working
 - [ ] Handle marking navigations if anti-CSRF tokens are identified for replaying
