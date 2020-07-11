@@ -212,8 +212,10 @@ func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 	printEntries(inProcessEntries, "in process")
 	failedEntries := crawl.Find(nil, browserk.NavFailed, browserk.NavFailed, 999)
 	printEntries(failedEntries, "nav failed")
+	auditedEntries := crawl.Find(nil, browserk.NavAudited, browserk.NavAudited, 9999)
+	printEntries(failedEntries, "audited")
 	if dotFile != "" {
-		printDOT(dotFile, visitedEntries, unvisitedEntries, inProcessEntries, failedEntries)
+		printDOT(dotFile, auditedEntries, visitedEntries, unvisitedEntries, inProcessEntries, failedEntries)
 	}
 	return nil
 }
@@ -232,9 +234,10 @@ func printEntries(entries [][]*browserk.Navigation, navType string) {
 	}
 }
 
-func printDOT(fileName string, visited, unvisited, inprocess, failed [][]*browserk.Navigation) {
+func printDOT(fileName string, audited, visited, unvisited, inprocess, failed [][]*browserk.Navigation) {
 	g := dot.NewGraph(dot.Directed)
 	g.Attr("rankdir", "LR")
+	subGraph(g.Subgraph("Audited"), audited)
 	subGraph(g.Subgraph("Visited"), visited)
 	subGraph(g.Subgraph("Unvisited"), unvisited)
 	subGraph(g.Subgraph("In Process"), inprocess)

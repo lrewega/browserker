@@ -1,6 +1,6 @@
 URL = "http://localhost/"
 AllowedHosts = ["localhost"]
-ExcludedURIs = ["/setup.php", "/logout.php", "/security.php"]
+ExcludedURIs = ["/setup.php", "/logout.php", "/security.php", "/phpinfo.php"]
 DataPath = "browserktmp"
 DisableHeadless = false
 NumBrowsers = 7

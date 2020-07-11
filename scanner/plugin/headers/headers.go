@@ -1,6 +1,8 @@
 package headers
 
 import (
+	"time"
+
 	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
@@ -77,6 +79,7 @@ func createReport(evt *browserk.PluginEvent) *browserk.Report {
 			ID:     nil,
 			String: "",
 		},
+		Reported: time.Now(),
 	}
 	report.Hash()
 	return report

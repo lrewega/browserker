@@ -1,7 +1,11 @@
 package browserk
 
 import (
+	"bytes"
 	"crypto/md5"
+	"net/url"
+	"sort"
+	"strings"
 
 	"github.com/vmihailenco/msgpack/v4"
 	"github.com/wirepair/gcd/gcdapi"
@@ -29,11 +33,32 @@ func (h *HTTPRequest) Hash() []byte {
 	}
 	hash := md5.New()
 	hash.Write([]byte(h.Request.Method)) // TODO: make this better
-	hash.Write([]byte(h.Request.Url))
+	hash.Write(hashURL(h.Request.Url))
 	hash.Write([]byte(h.Request.UrlFragment))
-	hash.Write([]byte(h.DocumentURL))
+	hash.Write([]byte(h.Type))
 	h.ID = hash.Sum(nil)
 	return h.ID
+}
+
+// hashURL scheme, host (and port), path and sorted query names only (not values)
+// TODO: Do analysis of query values to see if they are dynamic or static
+// if static, they should be included: think x.jsp?page=admin&x=y vs x.jsp?page=user&x=y
+func hashURL(in string) []byte {
+	buf := &bytes.Buffer{}
+	u, err := url.Parse(in)
+	if err != nil {
+		return []byte(in)
+	}
+	buf.Write([]byte(u.Scheme))
+	buf.Write([]byte(u.Host))
+	buf.Write([]byte(u.Path))
+	queryNames := make([]string, 0)
+	for k := range u.Query() {
+		queryNames = append(queryNames, k)
+	}
+	sort.Strings(queryNames)
+	buf.Write([]byte(strings.Join(queryNames, ",")))
+	return buf.Bytes()
 }
 
 // Copy does a deep copy
@@ -73,7 +98,7 @@ func (h *HTTPResponse) Hash() []byte {
 	}
 	hash := md5.New()
 	hash.Write([]byte(h.Response.MimeType)) // TODO: make this better
-	hash.Write([]byte(h.Response.Url))
+	hash.Write(hashURL(h.Response.Url))
 	hash.Write(h.BodyHash)
 	h.ID = hash.Sum(nil)
 	return h.ID
@@ -116,7 +141,7 @@ func (h *InterceptedHTTPRequest) Hash() []byte {
 	}
 	hash := md5.New()
 	hash.Write([]byte(h.Request.Method)) // TODO: make this better
-	hash.Write([]byte(h.Request.Url))
+	hash.Write(hashURL(h.Request.Url))
 	hash.Write([]byte(h.Request.UrlFragment))
 	h.ID = hash.Sum(nil)
 	return h.ID
@@ -156,7 +181,7 @@ func (h *HTTPModifiedRequest) Hash() []byte {
 	}
 	hash := md5.New()
 	hash.Write([]byte(h.Method)) // TODO: make this better
-	hash.Write([]byte(h.Url))
+	hash.Write(hashURL(h.Url))
 	hash.Write([]byte(h.PostData))
 	h.ID = hash.Sum(nil)
 	return h.ID
@@ -220,7 +245,7 @@ func (h *InterceptedHTTPResponse) Hash() []byte {
 	}
 	hash := md5.New()
 	hash.Write([]byte(h.Request.Method)) // TODO: make this better
-	hash.Write([]byte(h.Request.Url))
+	hash.Write(hashURL(h.Request.Url))
 	hash.Write([]byte(h.Request.UrlFragment))
 	hash.Write([]byte(h.ResourceType))
 	h.ID = hash.Sum(nil)

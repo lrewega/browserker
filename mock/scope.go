@@ -61,7 +61,7 @@ func (s *ScopeService) GetTargetHost() *url.URL {
 // Check a url to see if it's in scope
 func (s *ScopeService) Check(uri *url.URL) browserk.Scope {
 	s.CheckCalled = true
-	return s.Check(uri)
+	return s.CheckFn(uri)
 }
 
 // ResolveBaseHref for html document links
@@ -95,6 +95,9 @@ func MakeMockScopeService(target *url.URL) *ScopeService {
 	s.GetTargetHostFn = func() *url.URL {
 		u, _ := url.Parse(target.Scheme + "://" + target.Host)
 		return u
+	}
+	s.CheckFn = func(uri *url.URL) browserk.Scope {
+		return browserk.InScope
 	}
 	return s
 }

@@ -52,8 +52,8 @@ func TestReporting(t *testing.T) {
 		t.Fatalf("wrong cwe")
 	}
 
-	if reports[0].Description != "don't have xss" {
-		t.Fatalf("wrong description")
+	if reports[0].Remediation != "don't have xss" {
+		t.Fatalf("wrong Remediation got \"%s\" expected \"don't have xss\"", reports[0].Remediation)
 	}
 
 }

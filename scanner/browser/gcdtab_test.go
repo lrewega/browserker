@@ -8,9 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/browser"
@@ -18,6 +16,10 @@ import (
 )
 
 var leaser = browser.NewLocalLeaser()
+
+func init() {
+	leaser.SetHeadless()
+}
 
 func testServer() (string, *http.Server) {
 	srv := &http.Server{Handler: http.FileServer(http.Dir("testdata/"))}
@@ -62,6 +64,7 @@ func TestHookRequests(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
@@ -94,6 +97,7 @@ func TestGetElements(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
@@ -107,14 +111,14 @@ func TestGetElements(t *testing.T) {
 
 	b.Navigate(ctx, "https://angularjs.org")
 
-	ele, err := b.FindElements("form")
+	ele, err := b.FindElements("form", true)
 	if err != nil {
 		t.Fatalf("error getting elements: %s\n", err)
 	}
 	if ele == nil {
 		t.Fatalf("expected form elements")
 	}
-	//spew.Dump(ele)
+
 }
 
 func TestGcdWindows(t *testing.T) {
@@ -150,6 +154,7 @@ func TestBaseHref(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 	ctx := context.Background()
 
@@ -169,7 +174,7 @@ func TestBaseHref(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
-	eles, _ := b.FindElements("base")
+	eles, _ := b.FindElements("base", true)
 	if eles == nil {
 		t.Fatalf("expected eles")
 	}
@@ -180,6 +185,7 @@ func TestInjectJS(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 	ctx := context.Background()
 
@@ -199,7 +205,7 @@ func TestInjectJS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
-	largeStr := "console.log('" + strings.Repeat("A", 10000000) + "');"
+	largeStr := "console.log('" + strings.Repeat("A", 100000) + "');"
 	action := &browserk.Action{
 		Type:  browserk.ActExecuteJS,
 		Input: []byte(largeStr),
@@ -213,7 +219,7 @@ func TestInjectJS(t *testing.T) {
 		t.Fatalf("expected console events")
 	}
 	//spew.Dump(c)
-	eles, _ := b.FindElements("base")
+	eles, _ := b.FindElements("base", true)
 	if eles == nil {
 		t.Fatalf("expected eles")
 	}
@@ -224,6 +230,7 @@ func TestFragment(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 	ctx := context.Background()
 
@@ -254,6 +261,7 @@ func TestInterceptLargeJS(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 	ctx := context.Background()
 
@@ -285,6 +293,7 @@ func TestInjectRequest(t *testing.T) {
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 	ctx := context.Background()
 
@@ -314,10 +323,8 @@ func TestInjectRequest(t *testing.T) {
 		t.Fatalf("error injecting request: %s\n", err)
 	}
 
-	r := <-respCh
+	<-respCh
 	t.Logf("GOT RESPONSE FROM CH:\n")
-	time.Sleep(time.Second * 5)
-	spew.Dump(r)
 }
 
 func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPResponse, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {

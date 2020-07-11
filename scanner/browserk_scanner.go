@@ -278,7 +278,7 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 		result, newNavs, err := crawler.Process(navCtx, browser, nav, isFinal)
 		if err != nil {
 			navCtx.Log.Error().Err(err).Msg("failed to process action")
-			b.crawlGraph.FailNavigation(nav.ID)
+			b.crawlGraph.SetNavigationState(nav.ID, browserk.NavFailed)
 			break
 		}
 
@@ -330,12 +330,16 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 			// Create request iterator
 			mIt := iterator.NewMessageIter(nav)
 			for mIt.Rewind(); mIt.Valid(); mIt.Next() {
-				// TODO: hash and store this for uniqueness otherwise we'll attack the same resources over
-				// and over unnecessarily.
+
 				navCtx.CopyHandlers(b.mainContext) // reset hooks
 				req := mIt.Request()
 
 				if req == nil || req.Request == nil {
+					continue
+				}
+
+				if state, err := b.pluginStore.SetRequestAudit(req); err != nil || state != browserk.NotAudited {
+					navCtx.Log.Info().Str("url", req.Request.Url).Msgf("already audited this request, skipping")
 					continue
 				}
 
@@ -346,6 +350,7 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 					navCtx.PluginServicer.Inject(b.mainContext, injector)
 				}
 			}
+			b.crawlGraph.SetNavigationState(nav.Navigation.ID, browserk.NavAudited)
 		} else {
 			ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
 			browser.ExecuteAction(ctx, nav.Navigation)

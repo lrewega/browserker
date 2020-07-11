@@ -114,7 +114,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if bElements, err := browser.FindElements("button"); err == nil {
+	if bElements, err := browser.FindElements("button", true); err == nil {
 		for _, ele := range bElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if !ele.Hidden {
@@ -123,7 +123,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if aElements, err := browser.FindElements("a"); err == nil {
+	if aElements, err := browser.FindElements("a", true); err == nil {
 		for _, ele := range aElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if ele.Hidden {
@@ -148,7 +148,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if txtElements, err := browser.FindElements("#text"); err == nil {
+	if txtElements, err := browser.FindElements("#text", true); err == nil {
 		for _, ele := range txtElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if !ele.Hidden {
@@ -158,7 +158,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if imgElements, err := browser.FindElements("img"); err == nil {
+	if imgElements, err := browser.FindElements("img", true); err == nil {
 		for _, ele := range imgElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if ele.Hidden {
@@ -210,7 +210,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		}
 	}
 
-	bElements, err := browser.FindElements("button")
+	bElements, err := browser.FindElements("button", true)
 	if err != nil {
 		bctx.Log.Info().Err(err).Msg("error while extracting buttons")
 	}
@@ -227,7 +227,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		navs = append(navs, browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, b, browserk.ActLeftClick))
 	}
 
-	aElements, err := browser.FindElements("a")
+	aElements, err := browser.FindElements("a", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting links")
 	}
@@ -301,7 +301,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 	}
 
 	// do last so our more focused actions are first, this is a catch all
-	imgElements, err := browser.FindElements("img")
+	imgElements, err := browser.FindElements("img", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting images")
 	}
@@ -319,7 +319,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		navs = append(navs, nav)
 	}
 
-	textElements, err := browser.FindElements("#text")
+	textElements, err := browser.FindElements("#text", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting text")
 	} else if textElements == nil || len(textElements) == 0 {

@@ -380,10 +380,9 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument 
 }
 
 // FindElements elements via querySelector, does not pull out children
-func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error) {
+func (t *Tab) FindElements(querySelector string, canRefreshDocument bool) ([]*browserk.HTMLElement, error) {
 	var err error
 	var elements []*Element
-	refreshDocument := false
 
 	bElements := make([]*browserk.HTMLElement, 0)
 	if querySelector == "#text" {
@@ -392,7 +391,7 @@ func (t *Tab) FindElements(querySelector string) ([]*browserk.HTMLElement, error
 			return bElements, err
 		}
 	} else {
-		elements, err = t.GetElementsBySelector(querySelector, refreshDocument)
+		elements, err = t.GetElementsBySelector(querySelector, canRefreshDocument)
 		if err != nil {
 			return bElements, err
 		}

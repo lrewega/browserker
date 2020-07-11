@@ -26,7 +26,7 @@ type Browser interface {
 	GetStorageEvents() []*StorageEvent
 	GetConsoleEvents() []*ConsoleEvent
 	Navigate(ctx context.Context, url string) (err error)
-	FindElements(querySelector string) ([]*HTMLElement, error)
+	FindElements(querySelector string, canRefreshDoc bool) ([]*HTMLElement, error)
 	FindForms() ([]*HTMLFormElement, error)
 	FindInteractables() ([]*HTMLElement, error)
 	GetMessages() ([]*HTTPMessage, error)

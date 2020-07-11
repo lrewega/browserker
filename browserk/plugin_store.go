@@ -47,11 +47,21 @@ func (u Unique) Response() bool {
 	return u&UniqueResponse != 0
 }
 
+type AuditedState byte
+
+const (
+	NotAudited AuditedState = iota
+	AuditFailed
+	AuditInProgress
+	AuditComplete
+)
+
 // PluginStorer handles uniqueness and state for plugins
 type PluginStorer interface {
 	Init() error
 	AddEvent(evt *PluginEvent) bool
 	AddReport(report *Report)
+	SetRequestAudit(request *HTTPRequest) (AuditedState, error)
 	IsUnique(evt *PluginEvent) Unique
 	GetReports() ([]*Report, error)
 	Close() error

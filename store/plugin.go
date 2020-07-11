@@ -196,6 +196,27 @@ func (s *PluginStore) AddEvent(evt *browserk.PluginEvent) bool {
 	return true
 }
 
+// SetRequestAudit sets and gets the audited state of this particular HTTPRequest
+func (s *PluginStore) SetRequestAudit(request *browserk.HTTPRequest) (browserk.AuditedState, error) {
+	var err error
+	audited := browserk.AuditFailed
+	err = s.Store.Update(func(txn *badger.Txn) error {
+		key := MakeKey(request.ID, "audreq")
+		_, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			txn.Set(key, []byte{byte(browserk.AuditInProgress)})
+			audited = browserk.NotAudited
+			return nil
+		} else if err == nil {
+			txn.Set(key, []byte{byte(browserk.AuditComplete)})
+			audited = browserk.AuditComplete
+			return nil
+		}
+		return errors.Wrap(err, "setting audited failed")
+	})
+	return audited, err
+}
+
 // AddReport to the plugin store
 func (s *PluginStore) AddReport(report *browserk.Report) {
 	var err error

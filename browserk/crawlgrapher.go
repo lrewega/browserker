@@ -11,7 +11,7 @@ type CrawlGrapher interface {
 	FindPathByNavID(ctx context.Context, navID []byte) []*Navigation
 	AddNavigation(nav *Navigation) error
 	AddNavigations(navs []*Navigation) error
-	FailNavigation(navID []byte) error
+	SetNavigationState(navID []byte, setState NavState) error
 	AddResult(result *NavigationResult) error
 	NavExists(nav *Navigation) bool
 	GetNavigation(id []byte) (*Navigation, error)

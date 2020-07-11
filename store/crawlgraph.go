@@ -211,13 +211,11 @@ func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 	})
 }
 
-// FailNavigation for this navID
-func (g *CrawlGraph) FailNavigation(navID []byte) error {
+// SetNavigationState for this navID (failed/audited etc)
+func (g *CrawlGraph) SetNavigationState(navID []byte, state browserk.NavState) error {
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
-		// set the navigation id to visited
-		// TODO: track failures
 		navIDkey := MakeKey(navID, "state")
-		value, _ := EncodeState(browserk.NavFailed)
+		value, _ := EncodeState(state)
 		return txn.Set(navIDkey, value)
 	})
 }
@@ -338,8 +336,8 @@ func (g *CrawlGraph) FindWithResults(ctx context.Context, byState, setState brow
 // to the final navigation state (TODO: Optimize with determining graph edges)
 func (g *CrawlGraph) Find(ctx context.Context, byState, setState browserk.NavState, limit int64) [][]*browserk.Navigation {
 	// make sure limit is sane
-	if limit <= 0 || limit > 1000 {
-		limit = 1000
+	if limit <= 0 || limit > 50000 {
+		limit = 50000
 	}
 
 	entries := make([][]*browserk.Navigation, 0)

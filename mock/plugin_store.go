@@ -19,6 +19,9 @@ type PluginStore struct {
 	GetReportsFn     func() ([]*browserk.Report, error)
 	GetReportsCalled bool
 
+	SetRequestAuditFn     func(request *browserk.HTTPRequest) (browserk.AuditedState, error)
+	SetRequestAuditCalled bool
+
 	CloseFn     func() error
 	CloseCalled bool
 }
@@ -47,6 +50,11 @@ func (s *PluginStore) AddReport(report *browserk.Report) {
 	s.AddReportFn(report)
 }
 
+func (s *PluginStore) SetRequestAudit(request *browserk.HTTPRequest) (browserk.AuditedState, error) {
+	s.SetRequestAuditCalled = true
+	return s.SetRequestAuditFn(request)
+}
+
 // Close the plugin store
 func (s *PluginStore) Close() error {
 	s.CloseCalled = true
@@ -58,6 +66,7 @@ func (s *PluginStore) GetReports() ([]*browserk.Report, error) {
 	return s.GetReportsFn()
 }
 
+// MakeMockPluginStore //
 func MakeMockPluginStore() *PluginStore {
 	p := &PluginStore{}
 	p.InitFn = func() error {
@@ -73,6 +82,10 @@ func MakeMockPluginStore() *PluginStore {
 
 	p.AddEventFn = func(evt *browserk.PluginEvent) bool {
 		return true
+	}
+
+	p.SetRequestAuditFn = func(request *browserk.HTTPRequest) (browserk.AuditedState, error) {
+		return browserk.AuditInProgress, nil
 	}
 
 	p.AddReportFn = func(report *browserk.Report) {

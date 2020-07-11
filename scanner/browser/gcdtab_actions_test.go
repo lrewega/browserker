@@ -12,10 +12,12 @@ import (
 )
 
 func TestActionClick(t *testing.T) {
+	leaser.SetHeadless()
 	pool := browser.NewGCDBrowserPool(1, leaser)
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
 	}
+
 	defer leaser.Cleanup()
 
 	ctx := context.Background()
@@ -34,7 +36,7 @@ func TestActionClick(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
-	eles, err := b.FindElements("button")
+	eles, err := b.FindElements("button", true)
 	if err != nil {
 		t.Fatalf("error getting elements: %s\n", err)
 	}

@@ -28,6 +28,10 @@ type crawlerTests struct {
 
 var leaser = browser.NewLocalLeaser()
 
+func init() {
+	leaser.SetHeadless()
+}
+
 func testServer(path string, fn gin.HandlerFunc) (string, *http.Server) {
 	router := gin.Default()
 	router.Static("/forms", "testdata/forms")
@@ -74,6 +78,7 @@ func TestCrawler(t *testing.T) {
 	}
 
 	toTest := [...]crawlerTests{
+
 		{
 			func(c *gin.Context) {
 				buf, err := ioutil.ReadAll(c.Request.Body)
@@ -114,10 +119,7 @@ func TestCrawler(t *testing.T) {
 			},
 			"http://localhost:%s/forms/floatingformrealform.html",
 		},
-		{
-			simpleCallFunc,
-			"http://localhost:%s/forms/onmousedblclick.html",
-		},
+
 		{
 			simpleCallFunc,
 			"http://localhost:%s/forms/textclick.html",
@@ -220,6 +222,10 @@ func TestCrawler(t *testing.T) {
 				c.Writer.Write([]byte(resp))
 			},
 			"http://localhost:%s/forms/login1.html",
+		},
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/onmousedblclick.html",
 		},
 	}
 
