@@ -1,6 +1,8 @@
 package injast
 
 import (
+	"bytes"
+
 	"gitlab.com/browserker/browserk"
 )
 
@@ -8,11 +10,13 @@ type (
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		NamePos  browserk.InjectionPos // identifier position
-		Name     string                // identifier name
-		Mod      string
-		Modded   bool
-		Location browserk.InjectionLocation
+		NamePos   browserk.InjectionPos // identifier position
+		Name      string                // identifier name
+		Mod       string
+		Modded    bool
+		QuoteChar rune
+		QuotePos  browserk.InjectionPos
+		Location  browserk.InjectionLocation
 	}
 
 	// An IndexExpr node represents an expression followed by an index.
@@ -34,7 +38,70 @@ type (
 		Value    browserk.InjectionExpr
 		Location browserk.InjectionLocation
 	}
+
+	// ObjectExpr represents an object (JSON/XML) with it's nested
+	// fields Modifying it will replace *everything* with a Modified string
+	// call Reset() to undo
+	ObjectExpr struct {
+		Fields   []browserk.InjectionExpr
+		LPos     browserk.InjectionPos
+		RPos     browserk.InjectionPos
+		Location browserk.InjectionLocation
+		Mod      string
+		Modded   bool
+		EncChar  rune // encapsulation character, { for objects, [ for arrays
+	}
 )
+
+// Pos of this identifier
+func (x *ObjectExpr) Pos() browserk.InjectionPos { return x.LPos }
+
+// Loc of this object
+func (x *ObjectExpr) Loc() browserk.InjectionLocation { return x.Location }
+
+// End of this identifier
+func (x *ObjectExpr) End() browserk.InjectionPos {
+	return browserk.InjectionPos(int(x.LPos) + int(x.RPos))
+}
+
+// Reset any injection modifications
+func (x *ObjectExpr) Reset() {
+	x.Modded = false
+	x.Mod = ""
+}
+
+func (x *ObjectExpr) String() string {
+	if x == nil {
+		return ""
+	}
+
+	if x.Modded {
+		return x.Mod
+	}
+	if x.Fields == nil || len(x.Fields) == 0 {
+		return ""
+	}
+
+	all := &bytes.Buffer{}
+	for _, field := range x.Fields {
+		all.Write([]byte(field.String()))
+	}
+	return string(all.Bytes())
+}
+
+// Modify sets a new field because End() and Pos() will be incorrect
+// if we modify the Name field. All access should call String()
+// so we can handle when a value is modified
+func (x *ObjectExpr) Modify(newValue string) {
+	x.Modded = true
+	x.Mod = newValue
+}
+
+// Inject a nw value
+func (x *ObjectExpr) Inject(newValue string, _ browserk.InjectionType) bool {
+	x.Modify(newValue)
+	return true
+}
 
 // Pos of this identifier
 func (x *Ident) Pos() browserk.InjectionPos { return x.NamePos }
@@ -44,14 +111,19 @@ func (x *Ident) End() browserk.InjectionPos {
 	return browserk.InjectionPos(int(x.NamePos) + len(x.Name))
 }
 
+// String the identfier, quoting it if necessary
 func (x *Ident) String() string {
-	if x != nil {
-		if x.Modded {
-			return x.Mod
-		}
-		return x.Name
+	if x == nil {
+		return ""
 	}
-	return ""
+	quote := ""
+	if x.QuoteChar != 0 {
+		quote = string(x.QuoteChar)
+	}
+	if x.Modded {
+		return quote + x.Mod + quote
+	}
+	return quote + x.Name + quote
 }
 
 // Modify sets a new field because End() and Pos() will be incorrect
@@ -157,11 +229,13 @@ func (x *KeyValueExpr) Reset() {
 func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	switch t := e.(type) {
 	case *Ident:
-		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location}
+		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location, QuoteChar: t.QuoteChar, QuotePos: t.QuotePos}
 	case *IndexExpr:
 		return CopyIndexExpr(t)
 	case *KeyValueExpr:
 		return CopyKeyValueExpr(t)
+	case *ObjectExpr:
+		return CopyObjectExpr(t)
 	default:
 		return nil
 	}
@@ -175,6 +249,18 @@ func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
 		SepChar:  kv.SepChar,
 		Value:    CopyExpr(kv.Value),
 		Location: kv.Location,
+	}
+}
+
+func CopyObjectExpr(o *ObjectExpr) *ObjectExpr {
+	copiedFields := make([]browserk.InjectionExpr, len(o.Fields))
+	for i := 0; i < len(o.Fields); i++ {
+		copiedFields[i] = CopyExpr(o.Fields[i])
+	}
+	return &ObjectExpr{
+		Fields:   o.Fields,
+		LPos:     o.LPos,
+		Location: o.Location,
 	}
 }
 

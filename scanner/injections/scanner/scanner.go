@@ -51,7 +51,7 @@ func (s *Scanner) Init(src []byte, mode Mode) {
 }
 
 func (s *Scanner) Scan() (pos browserk.InjectionPos, tok token.Token, lit string) {
-	s.skipWhitespace()
+	//s.skipWhitespace()
 	pos = browserk.InjectionPos(s.offset)
 
 	switch s.mode {
@@ -68,7 +68,7 @@ func (s *Scanner) Scan() (pos browserk.InjectionPos, tok token.Token, lit string
 	return pos, tok, lit
 }
 
-// scanPath for tokens or switch mode to Query or Fragment
+// scanPath for tokens
 func (s *Scanner) scanURI() (tok token.Token, lit string) {
 	switch s.ch {
 	case -1:
@@ -135,6 +135,8 @@ func (s *Scanner) scanBody() (tok token.Token, lit string) {
 		tok = token.GTR
 	case ':':
 		tok = token.COLON
+	case ' ':
+		tok = token.SPACE
 	case '"':
 		tok = token.DQUOTE
 	case '\'':
