@@ -107,7 +107,7 @@ func TestBodyJSON(t *testing.T) {
 		FieldCount int
 	}{
 		{
-			[]byte(`{"x": "one \"and\" two", "y": 2, "e": [1,20,3.1], "z": null}`),
+			[]byte(`{"x": "one \"and\" two", "y": 2, "arr": [1,20,3.1], "n": null}`),
 			injast.Body{
 				Fields: []browserk.InjectionExpr{
 					&injast.ObjectExpr{
@@ -117,35 +117,32 @@ func TestBodyJSON(t *testing.T) {
 						Fields: []browserk.InjectionExpr{
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:   2,
-									Name:      "x",
-									Mod:       "",
-									Modded:    false,
-									QuoteChar: '"',
-									QuotePos:  1,
-									Location:  browserk.InjectJSONName,
+									NamePos:  2,
+									Name:     "x",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
 								},
 								Sep:     4,
 								SepChar: ':',
 								Value: &injast.Ident{
-									NamePos:   5,
-									Name:      "x",
-									Mod:       "",
-									Modded:    false,
-									QuoteChar: '"',
-									QuotePos:  4,
-									Location:  browserk.InjectJSONValue,
+									NamePos:  5,
+									Name:     "one \"and\" two",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONValue,
 								},
 							},
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:   26,
-									Name:      "y",
-									Mod:       "",
-									Modded:    false,
-									QuoteChar: '"',
-									QuotePos:  1,
-									Location:  browserk.InjectJSONName,
+									NamePos:  26,
+									Name:     "y",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
 								},
 								Sep:     28,
 								SepChar: ':',
@@ -159,24 +156,52 @@ func TestBodyJSON(t *testing.T) {
 							},
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:   36,
-									Name:      "e",
-									Mod:       "",
-									Modded:    false,
-									QuoteChar: '"',
-									QuotePos:  37,
-									Location:  browserk.InjectJSONName,
+									NamePos:  36,
+									Name:     "e",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
+								},
+								Sep:     38,
+								SepChar: ':',
+								Value: &injast.ObjectExpr{
+									LPos:     0,
+									Location: browserk.InjectJSON,
+									EncChar:  '[',
+									Fields: []browserk.InjectionExpr{
+										&injast.Ident{
+											NamePos:  42,
+											Name:     "1",
+											Location: browserk.InjectJSONValue,
+										},
+										&injast.Ident{
+											NamePos:  42,
+											Name:     "20",
+											Location: browserk.InjectJSONValue,
+										},
+										&injast.Ident{
+											NamePos:  42,
+											Name:     "3.1",
+											Location: browserk.InjectJSONValue,
+										},
+									},
+								},
+							},
+							&injast.KeyValueExpr{
+								Key: &injast.Ident{
+									NamePos:  36,
+									Name:     "e",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
 								},
 								Sep:     38,
 								SepChar: ':',
 								Value: &injast.Ident{
-									NamePos:   42,
-									Name:      "",
-									Mod:       "",
-									QuoteChar: '"',
-									QuotePos:  43,
-									Modded:    false,
-									Location:  browserk.InjectJSONValue,
+									NamePos: 11,
+									Name:    "null",
 								},
 							},
 						},
@@ -194,12 +219,11 @@ func TestBodyJSON(t *testing.T) {
 			t.Fatal(err)
 		}
 		spew.Config.ContinueOnMethod = true
-		spew.Dump(body.Fields)
+		///spew.Dump(body.Fields)
 		if len(body.Fields) != in.FieldCount {
-
 			t.Fatalf("expected %d got %d", in.FieldCount, len(body.Fields))
 		}
-
+		t.Logf("%s\n", body.Fields[0].String())
 		for i, field := range body.Fields {
 			testCompareExpr(t, in.in, in.expected.Fields[i], field)
 		}

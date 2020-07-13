@@ -2,6 +2,7 @@ package injast
 
 import (
 	"bytes"
+	"strings"
 
 	"gitlab.com/browserker/browserk"
 )
@@ -10,13 +11,12 @@ type (
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		NamePos   browserk.InjectionPos // identifier position
-		Name      string                // identifier name
-		Mod       string
-		Modded    bool
-		QuoteChar rune
-		QuotePos  browserk.InjectionPos
-		Location  browserk.InjectionLocation
+		NamePos  browserk.InjectionPos // identifier position
+		Name     string                // identifier name
+		Mod      string
+		Modded   bool
+		EncChar  rune // encapsulation char ' " { or [ etc
+		Location browserk.InjectionLocation
 	}
 
 	// An IndexExpr node represents an expression followed by an index.
@@ -79,13 +79,26 @@ func (x *ObjectExpr) String() string {
 		return x.Mod
 	}
 	if x.Fields == nil || len(x.Fields) == 0 {
+		if x.EncChar == '{' {
+			return "{}"
+		} else if x.EncChar == '[' {
+			return "[]"
+		}
 		return ""
 	}
 
-	all := &bytes.Buffer{}
-	for _, field := range x.Fields {
-		all.Write([]byte(field.String()))
+	encChar := '}'
+	if x.EncChar == '[' {
+		encChar = ']'
 	}
+	all := &bytes.Buffer{}
+	all.WriteByte(byte(x.EncChar))
+	asStrs := make([]string, len(x.Fields))
+	for i, field := range x.Fields {
+		asStrs[i] = field.String()
+	}
+	all.Write([]byte(strings.Join(asStrs, ", ")))
+	all.WriteByte(byte(encChar))
 	return string(all.Bytes())
 }
 
@@ -117,8 +130,8 @@ func (x *Ident) String() string {
 		return ""
 	}
 	quote := ""
-	if x.QuoteChar != 0 {
-		quote = string(x.QuoteChar)
+	if x.EncChar != 0 {
+		quote = string(x.EncChar)
 	}
 	if x.Modded {
 		return quote + x.Mod + quote
@@ -193,6 +206,10 @@ func (x *KeyValueExpr) String() string {
 
 	if x.SepChar != 0 {
 		s += string(x.SepChar)
+		// space after k: v
+		if x.Location == browserk.InjectJSON {
+			s += " "
+		}
 	}
 	if x.Value != nil {
 		s += x.Value.String()
@@ -229,7 +246,7 @@ func (x *KeyValueExpr) Reset() {
 func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	switch t := e.(type) {
 	case *Ident:
-		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location, QuoteChar: t.QuoteChar, QuotePos: t.QuotePos}
+		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location, EncChar: t.EncChar}
 	case *IndexExpr:
 		return CopyIndexExpr(t)
 	case *KeyValueExpr:

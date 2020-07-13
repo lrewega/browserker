@@ -213,7 +213,7 @@ func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 	failedEntries := crawl.Find(nil, browserk.NavFailed, browserk.NavFailed, 999)
 	printEntries(failedEntries, "nav failed")
 	auditedEntries := crawl.Find(nil, browserk.NavAudited, browserk.NavAudited, 9999)
-	printEntries(failedEntries, "audited")
+	printEntries(auditedEntries, "audited")
 	if dotFile != "" {
 		printDOT(dotFile, auditedEntries, visitedEntries, unvisitedEntries, inProcessEntries, failedEntries)
 	}

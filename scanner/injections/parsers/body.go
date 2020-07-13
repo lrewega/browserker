@@ -3,7 +3,6 @@ package parsers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strconv"
 
@@ -51,25 +50,26 @@ func (b *BodyParser) Parse(body []byte) (*injast.Body, error) {
 	case JSON:
 		dec := json.NewDecoder(bytes.NewReader(b.body.Original))
 		tok, err := dec.Token()
-		pos := dec.InputOffset()
 		if err == io.EOF {
 			return b.body, nil
 		}
-		object := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0), LPos: pos}
+		object := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0), LPos: 0}
 		if tok == json.Delim('[') {
 			object.EncChar = '['
-			b.parseJSONArray(dec, object, browserk.InjectJSON)
+			b.parseJSONArray(dec, object, 0)
 		} else if tok == json.Delim('{') {
 			object.EncChar = '{'
-			b.parseJSONObject(dec, object, browserk.InjectJSON)
+			b.parseJSONObject(dec, object, 0)
 		}
-
+		b.body.Fields = append(b.body.Fields, object)
 	}
 
 	return b.body, nil
 }
 
-func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExpr, paramLoc browserk.InjectionLocation) {
+func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExpr, depth int) {
+	kv := &injast.KeyValueExpr{}
+	subObject := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 	for {
 		tok, err := dec.Token()
 		pos := dec.InputOffset()
@@ -79,26 +79,108 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 
 		switch t := tok.(type) {
 		case json.Delim:
-			if tok == json.Delim('{') {
-
-				fmt.Printf("in object @ %d\n", pos)
-			} else if tok == json.Delim('[') {
-				fmt.Printf("in array @ %d\n", pos)
+			delim := rune(t)
+			switch delim {
+			case '{':
+				subObject.EncChar = '{'
+				subObject.LPos = browserk.InjectionPos(pos)
+				b.parseJSONObject(dec, subObject, depth+1)
+				object.Fields = append(object.Fields, subObject)
+			case '}':
+				kv.Value = subObject
+				if depth == 0 {
+					return
+				}
+			case '[':
+				subObject.EncChar = '['
+				subObject.LPos = browserk.InjectionPos(pos)
+				b.parseJSONArray(dec, subObject, depth+1)
+				kv.Value = subObject
+				object.Fields = append(object.Fields, kv)
+				kv = &injast.KeyValueExpr{}
 			}
 		case string:
-			// sub 2 for ": and sub length of str
-			fmt.Printf("in string %v @ %d-%d\n", t, int(pos)-2-len(t), pos)
+			ident := &injast.Ident{
+				NamePos: browserk.InjectionPos(int(pos) - 1 - len(t)),
+				Name:    t,
+				EncChar: '"',
+			}
+
+			if kv.Key == nil {
+				ident.Location = browserk.InjectJSONName
+				kv.Key = ident
+				kv.Sep = browserk.InjectionPos(int(pos))
+				kv.SepChar = ':'
+			} else {
+				ident.Location = browserk.InjectJSONValue
+				kv.Value = ident
+				object.Fields = append(object.Fields, kv)
+				kv = &injast.KeyValueExpr{}
+			}
+
 		case float64:
-			fmt.Printf("in float64 %v @ %d-%d\n", t, int(pos)-floatLen(t), pos)
+			asStr := floatStr(t)
+			ident := &injast.Ident{
+				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:    strconv.FormatFloat(t, 'f', -1, 64),
+			}
+			// this probably shouldn't happen? (float as a name)
+			if kv.Key == nil {
+				ident.Location = browserk.InjectJSONName
+				kv.Key = ident
+				kv.Sep = browserk.InjectionPos(int(pos))
+				kv.SepChar = ':'
+			} else {
+				ident.Location = browserk.InjectJSONValue
+				kv.Value = ident
+				object.Fields = append(object.Fields, kv)
+				kv = &injast.KeyValueExpr{}
+			}
 		case bool:
-			fmt.Printf("in bool %v @ %d-%d\n", t, pos-4, pos)
+			asStr := "false"
+			if t {
+				asStr = "true"
+			}
+			ident := &injast.Ident{
+				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:    asStr,
+			}
+			// this probably shouldn't happen? (bool as a name)
+			if kv.Key == nil {
+				ident.Location = browserk.InjectJSONName
+				kv.Key = ident
+				kv.Sep = browserk.InjectionPos(int(pos))
+				kv.SepChar = ':'
+			} else {
+				ident.Location = browserk.InjectJSONValue
+				kv.Value = ident
+				object.Fields = append(object.Fields, kv)
+				kv = &injast.KeyValueExpr{}
+			}
 		case nil:
-			fmt.Printf("in null %v @ %d-%d\n", t, pos-4, pos) // pos-len(null)
+			asStr := "null"
+			ident := &injast.Ident{
+				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:    asStr,
+			}
+			// this probably shouldn't happen? (null as a name)
+			if kv.Key == nil {
+				ident.Location = browserk.InjectJSONName
+				kv.Key = ident
+				kv.Sep = browserk.InjectionPos(int(pos))
+				kv.SepChar = ':'
+			} else {
+				ident.Location = browserk.InjectJSONValue
+				kv.Value = ident
+				object.Fields = append(object.Fields, kv)
+				kv = &injast.KeyValueExpr{}
+			}
 		}
 	}
 }
 
-func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr, paramLoc browserk.InjectionLocation) {
+func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr, depth int) {
+	subObject := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 	for {
 		tok, err := dec.Token()
 		pos := dec.InputOffset()
@@ -108,21 +190,56 @@ func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr
 
 		switch t := tok.(type) {
 		case json.Delim:
-			if tok == json.Delim('{') {
 
-				fmt.Printf("in object @ %d\n", pos)
-			} else if tok == json.Delim('[') {
-				fmt.Printf("in array @ %d\n", pos)
+			delim := rune(t)
+			switch delim {
+			case '{':
+				subObject.EncChar = '{'
+				subObject.LPos = browserk.InjectionPos(pos)
+				b.parseJSONObject(dec, subObject, depth+1)
+			case '}':
+			case '[':
+				subObject.EncChar = '['
+				subObject.LPos = browserk.InjectionPos(pos)
+				b.parseJSONArray(dec, subObject, depth+1)
+			case ']':
+				return
 			}
 		case string:
-			// sub 2 for ": and sub length of str
-			fmt.Printf("in string %v @ %d-%d\n", t, int(pos)-2-len(t), pos)
+			ident := &injast.Ident{
+				NamePos:  browserk.InjectionPos(int(pos) - 2 - len(t)),
+				Name:     t,
+				EncChar:  '"',
+				Location: browserk.InjectJSONValue,
+			}
+			object.Fields = append(object.Fields, ident)
 		case float64:
-			fmt.Printf("in float64 %v @ %d-%d\n", t, int(pos)-floatLen(t), pos)
+			asStr := floatStr(t)
+			ident := &injast.Ident{
+				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:     strconv.FormatFloat(t, 'f', -1, 64),
+				Location: browserk.InjectJSONValue,
+			}
+			object.Fields = append(object.Fields, ident)
 		case bool:
-			fmt.Printf("in bool %v @ %d-%d\n", t, pos-4, pos)
+			asStr := "false"
+			if t {
+				asStr = "true"
+			}
+			ident := &injast.Ident{
+				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:     asStr,
+				Location: browserk.InjectJSONValue,
+			}
+			object.Fields = append(object.Fields, ident)
 		case nil:
-			fmt.Printf("in null %v @ %d-%d\n", t, pos-4, pos) // pos-len(null)
+			asStr := "null"
+			ident := &injast.Ident{
+				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
+				Name:     asStr,
+				Location: browserk.InjectJSONValue,
+			}
+			object.Fields = append(object.Fields, ident)
 		}
 	}
 }
@@ -222,251 +339,6 @@ func (b *BodyParser) handleIndexExpr(originalPos browserk.InjectionPos, lit stri
 	}
 }
 
-func floatLen(f float64) int {
-	c := strconv.FormatFloat(f, 'f', -1, 64)
-	fmt.Printf("formatted; %s\n", c)
-	return len(c)
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
-
-/*
-func (b *BodyParser) parseJSONObject(param *injast.ObjectExpr, paramLoc browserk.InjectionLocation) {
-	b.body.Fields = append(b.body.Fields, param)
-	for {
-		pos, tok, _ := b.s.Scan()
-
-		switch tok {
-		case token.RBRACE, token.RBRACK:
-			param.RPos = pos
-			return
-		case token.EOF:
-			return
-		case token.LBRACK:
-			if paramLoc == browserk.InjectJSON {
-				paramLoc = browserk.InjectJSONName
-			}
-			arr := &injast.ObjectExpr{Location: paramLoc, LPos: pos, EncChar: '['}
-			param.Fields = append(param.Fields, arr)
-			b.parseJSONArray(arr, paramLoc)
-		case token.LBRACE:
-			if paramLoc == browserk.InjectJSON {
-				paramLoc = browserk.InjectJSONName
-			}
-			kv := &injast.KeyValueExpr{Location: paramLoc}
-			param.EncChar = '{'
-			param.LPos = pos
-			param.Fields = append(param.Fields, kv)
-			key := &injast.Ident{}
-			namePos := b.parseJSONName(key) // should return after : seperator
-			kv.Key = key
-			kv.Sep = namePos
-			kv.SepChar = ':'
-			// we don't know what type of object it is yet
-			kv.Value, param.RPos = b.parseJSONValue()
-
-		}
-	}
-}
-
-// we don't know what type of value this is yet, could be KeyValue, Object, or Ident
-func (b *BodyParser) parseJSONValue() (browserk.InjectionExpr, browserk.InjectionPos) {
-	var v browserk.InjectionExpr
-
-	for {
-		pos, tok, lit := b.s.Scan()
-
-		switch tok {
-		case token.COLON:
-			if v == nil {
-				continue
-			}
-			ident, _ := v.(*injast.Ident)
-			ident.Name += ":"
-		case token.EOF:
-			return v, pos
-		case token.COMMA:
-			return v, pos
-		case token.LBRACE:
-			o := &injast.ObjectExpr{Location: browserk.InjectJSONValue, LPos: pos, EncChar: '{'}
-			kv := &injast.KeyValueExpr{Location: browserk.InjectJSON}
-			o.Fields = append(o.Fields, kv)
-			key := &injast.Ident{}
-			b.parseJSONName(key)
-			kv.Key = key
-			kv.Value, o.RPos = b.parseJSONValue()
-			v = o
-		case token.LBRACK:
-			o := &injast.ObjectExpr{Location: browserk.InjectJSONValue, LPos: pos, EncChar: '['}
-			v = o
-		case token.SQUOTE:
-			if v == nil {
-				v = &injast.Ident{
-					Name:      lit,
-					QuoteChar: '\'',
-					QuotePos:  pos,
-					Location:  browserk.InjectJSONValue,
-				}
-				continue
-			}
-			ident, _ := v.(*injast.Ident)
-			ident.Name += "'"
-		case token.DQUOTE:
-			if v == nil {
-				v = &injast.Ident{
-					Name:      lit,
-					QuoteChar: '"',
-					QuotePos:  pos,
-					Location:  browserk.InjectJSONValue,
-				}
-				continue
-			}
-			ident, _ := v.(*injast.Ident)
-			ident.Name += "\""
-		case token.SPACE:
-			if v == nil {
-				continue
-			}
-			ident, _ := v.(*injast.Ident)
-			ident.Name += " "
-		default:
-			if v == nil {
-				v = &injast.Ident{
-					NamePos:  pos,
-					Name:     lit,
-					Location: browserk.InjectJSONValue,
-				}
-			}
-			ident, _ := v.(*injast.Ident)
-			if lit == "" {
-				lit = tok.String()
-			}
-			ident.Name += lit
-		}
-	}
-}
-
-func (b *BodyParser) parseJSONArray(param *injast.ObjectExpr, paramLoc browserk.InjectionLocation) {
-	b.body.Fields = append(b.body.Fields, param)
-	for {
-		pos, tok, _ := b.s.Scan()
-
-		switch tok {
-		case token.EOF:
-			return
-		case token.RBRACK:
-			param.RPos = pos
-			return
-		}
-	}
-}
-
-func (b *BodyParser) parseJSONKeyValue(param *injast.KeyValueExpr, paramLoc browserk.InjectionLocation) {
-	b.body.Fields = append(b.body.Fields, param)
-
-	for {
-		pos, tok, lit := b.s.Scan()
-
-		switch tok {
-		case token.EOF:
-			return
-		case token.LBRACE:
-			if paramLoc == browserk.InjectJSON {
-				paramLoc = browserk.InjectJSONName
-			} else if paramLoc == browserk.InjectJSONValue {
-				kv := &injast.KeyValueExpr{Location: browserk.InjectJSONName}
-				param.Value = kv
-				b.parseJSONKeyValue(kv, browserk.InjectJSONName)
-			}
-		case token.LBRACK:
-			if paramLoc == browserk.InjectJSONValue {
-				newArray := &injast.ObjectExpr{
-					Fields:   make([]browserk.InjectionExpr, 0),
-					LPos:     pos,
-					Location: paramLoc,
-					Mod:      "",
-					Modded:   false,
-					EncChar:  '[',
-				}
-				param.Value = newArray
-				b.parseJSONArray(newArray, paramLoc)
-			}
-		case token.COLON:
-			if paramLoc == browserk.InjectJSONName {
-				paramLoc = browserk.InjectJSONValue
-				param.Sep = pos
-				param.SepChar = ':'
-			}
-		case token.DQUOTE, token.SQUOTE:
-			if paramLoc == browserk.InjectJSONName || paramLoc == browserk.InjectJSON {
-				if param.Key == nil {
-					paramLoc = browserk.InjectJSONName
-					key := &injast.Ident{QuotePos: pos, QuoteChar: rune(tok.String()[0]), Location: browserk.InjectJSONName}
-					b.parseJSONName(key)
-					param.Key = key
-				}
-			} else if paramLoc == browserk.InjectJSONValue {
-				if param.Value == nil {
-					param.Value = &injast.Ident{QuotePos: pos, QuoteChar: rune(tok.String()[0])}
-				}
-			}
-		case token.COMMA:
-			nextParam := &injast.KeyValueExpr{Location: browserk.InjectJSONName}
-			b.parseJSONKeyValue(nextParam, browserk.InjectJSONName)
-		default:
-			if lit == "" {
-				lit = tok.String()
-			}
-			if paramLoc == browserk.InjectJSONName || paramLoc == browserk.InjectJSON {
-				// we don't capture quotes encapsulating the name
-				if param.Key == nil {
-					param.Key = &injast.Ident{NamePos: pos, Name: lit}
-				} else if k, ok := param.Key.(*injast.Ident); ok {
-					k.Name += lit
-				}
-			} else if paramLoc == browserk.InjectJSONValue {
-				// we don't capture quotes encapsulating the value
-				if param.Value == nil {
-					param.Value = &injast.Ident{NamePos: pos, Name: lit}
-				} else if v, ok := param.Value.(*injast.Ident); ok {
-					v.Name += lit
-				}
-			}
-		}
-	}
-}
-
-func (b *BodyParser) parseJSONName(ident *injast.Ident) browserk.InjectionPos {
-	for {
-		pos, tok, lit := b.s.Scan()
-		peek := b.s.PeekBackwards()
-		switch tok {
-		case token.EOF:
-			return pos
-		case token.DQUOTE:
-
-			if ident.QuoteChar == '"' && peek == '0' || peek == ':' {
-				return pos
-			} else if ident.Name == "" && ident.QuoteChar == 0 {
-				ident.QuoteChar = '"'
-				ident.QuotePos = pos
-			} else if ident.Name != "" {
-				ident.Name += "\""
-			}
-		case token.SQUOTE:
-			if ident.QuoteChar == '\'' && peek == '0' || peek == ':' {
-				return pos
-			} else if ident.Name == "" && ident.QuoteChar == 0 {
-				ident.QuoteChar = '\''
-				ident.QuotePos = pos
-			} else if ident.Name != "" {
-				ident.Name += "'"
-			}
-		default:
-			if ident.NamePos == 0 {
-				ident.NamePos = pos
-			}
-			ident.Name += lit
-		}
-	}
-}
-
-*/

@@ -314,6 +314,22 @@ func testCompareExpr(t *testing.T, in []byte, exp, res browserk.InjectionExpr) {
 	} else if r, isKeyValue := res.(*injast.KeyValueExpr); isKeyValue {
 		e, _ := exp.(*injast.KeyValueExpr)
 		testCompareKeyValue(t, in, e, r)
+	} else if r, isObject := res.(*injast.ObjectExpr); isObject {
+		e, _ := exp.(*injast.ObjectExpr)
+		testCompareObject(t, in, e, r)
+	}
+}
+
+func testCompareObject(t *testing.T, in []byte, exp, res *injast.ObjectExpr) {
+	if exp == nil && res == nil {
+		return
+	}
+	if len(res.Fields) != len(exp.Fields) {
+		t.Fatalf("(in: %s) val res: %s != exp: %s\n", string(in), res.String(), exp.String())
+	}
+
+	for i := 0; i < len(exp.Fields); i++ {
+		testCompareExpr(t, in, exp.Fields[i], res.Fields[i])
 	}
 }
 
