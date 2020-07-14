@@ -111,23 +111,19 @@ func TestBodyJSON(t *testing.T) {
 			injast.Body{
 				Fields: []browserk.InjectionExpr{
 					&injast.ObjectExpr{
-						LPos:     0,
 						Location: browserk.InjectJSON,
 						EncChar:  '{',
 						Fields: []browserk.InjectionExpr{
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:  2,
 									Name:     "x",
 									Mod:      "",
 									Modded:   false,
 									EncChar:  '"',
 									Location: browserk.InjectJSONName,
 								},
-								Sep:     4,
 								SepChar: ':',
 								Value: &injast.Ident{
-									NamePos:  5,
 									Name:     "one \"and\" two",
 									Mod:      "",
 									Modded:   false,
@@ -137,17 +133,14 @@ func TestBodyJSON(t *testing.T) {
 							},
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:  26,
 									Name:     "y",
 									Mod:      "",
 									Modded:   false,
 									EncChar:  '"',
 									Location: browserk.InjectJSONName,
 								},
-								Sep:     28,
 								SepChar: ':',
 								Value: &injast.Ident{
-									NamePos:  5,
 									Name:     "2",
 									Mod:      "",
 									Modded:   false,
@@ -156,32 +149,26 @@ func TestBodyJSON(t *testing.T) {
 							},
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:  36,
 									Name:     "e",
 									Mod:      "",
 									Modded:   false,
 									EncChar:  '"',
 									Location: browserk.InjectJSONName,
 								},
-								Sep:     38,
 								SepChar: ':',
 								Value: &injast.ObjectExpr{
-									LPos:     0,
 									Location: browserk.InjectJSON,
 									EncChar:  '[',
 									Fields: []browserk.InjectionExpr{
 										&injast.Ident{
-											NamePos:  42,
 											Name:     "1",
 											Location: browserk.InjectJSONValue,
 										},
 										&injast.Ident{
-											NamePos:  42,
 											Name:     "20",
 											Location: browserk.InjectJSONValue,
 										},
 										&injast.Ident{
-											NamePos:  42,
 											Name:     "3.1",
 											Location: browserk.InjectJSONValue,
 										},
@@ -190,18 +177,15 @@ func TestBodyJSON(t *testing.T) {
 							},
 							&injast.KeyValueExpr{
 								Key: &injast.Ident{
-									NamePos:  36,
 									Name:     "e",
 									Mod:      "",
 									Modded:   false,
 									EncChar:  '"',
 									Location: browserk.InjectJSONName,
 								},
-								Sep:     38,
 								SepChar: ':',
 								Value: &injast.Ident{
-									NamePos: 11,
-									Name:    "null",
+									Name: "null",
 								},
 							},
 						},

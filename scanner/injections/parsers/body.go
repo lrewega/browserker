@@ -53,7 +53,7 @@ func (b *BodyParser) Parse(body []byte) (*injast.Body, error) {
 		if err == io.EOF {
 			return b.body, nil
 		}
-		object := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0), LPos: 0}
+		object := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 		if tok == json.Delim('[') {
 			object.EncChar = '['
 			b.parseJSONArray(dec, object, 0)
@@ -72,7 +72,6 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 	subObject := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 	for {
 		tok, err := dec.Token()
-		pos := dec.InputOffset()
 		if err == io.EOF {
 			return
 		}
@@ -83,7 +82,6 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 			switch delim {
 			case '{':
 				subObject.EncChar = '{'
-				subObject.LPos = browserk.InjectionPos(pos)
 				b.parseJSONObject(dec, subObject, depth+1)
 				object.Fields = append(object.Fields, subObject)
 			case '}':
@@ -93,7 +91,6 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 				}
 			case '[':
 				subObject.EncChar = '['
-				subObject.LPos = browserk.InjectionPos(pos)
 				b.parseJSONArray(dec, subObject, depth+1)
 				kv.Value = subObject
 				object.Fields = append(object.Fields, kv)
@@ -101,7 +98,6 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 			}
 		case string:
 			ident := &injast.Ident{
-				NamePos: browserk.InjectionPos(int(pos) - 1 - len(t)),
 				Name:    t,
 				EncChar: '"',
 			}
@@ -109,7 +105,6 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 			if kv.Key == nil {
 				ident.Location = browserk.InjectJSONName
 				kv.Key = ident
-				kv.Sep = browserk.InjectionPos(int(pos))
 				kv.SepChar = ':'
 			} else {
 				ident.Location = browserk.InjectJSONValue
@@ -119,16 +114,13 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 			}
 
 		case float64:
-			asStr := floatStr(t)
 			ident := &injast.Ident{
-				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
-				Name:    strconv.FormatFloat(t, 'f', -1, 64),
+				Name: floatStr(t),
 			}
 			// this probably shouldn't happen? (float as a name)
 			if kv.Key == nil {
 				ident.Location = browserk.InjectJSONName
 				kv.Key = ident
-				kv.Sep = browserk.InjectionPos(int(pos))
 				kv.SepChar = ':'
 			} else {
 				ident.Location = browserk.InjectJSONValue
@@ -142,14 +134,12 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 				asStr = "true"
 			}
 			ident := &injast.Ident{
-				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
-				Name:    asStr,
+				Name: asStr,
 			}
 			// this probably shouldn't happen? (bool as a name)
 			if kv.Key == nil {
 				ident.Location = browserk.InjectJSONName
 				kv.Key = ident
-				kv.Sep = browserk.InjectionPos(int(pos))
 				kv.SepChar = ':'
 			} else {
 				ident.Location = browserk.InjectJSONValue
@@ -160,14 +150,12 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 		case nil:
 			asStr := "null"
 			ident := &injast.Ident{
-				NamePos: browserk.InjectionPos(int(pos) - len(asStr)),
-				Name:    asStr,
+				Name: asStr,
 			}
 			// this probably shouldn't happen? (null as a name)
 			if kv.Key == nil {
 				ident.Location = browserk.InjectJSONName
 				kv.Key = ident
-				kv.Sep = browserk.InjectionPos(int(pos))
 				kv.SepChar = ':'
 			} else {
 				ident.Location = browserk.InjectJSONValue
@@ -183,7 +171,6 @@ func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr
 	subObject := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 	for {
 		tok, err := dec.Token()
-		pos := dec.InputOffset()
 		if err == io.EOF {
 			return
 		}
@@ -195,29 +182,24 @@ func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr
 			switch delim {
 			case '{':
 				subObject.EncChar = '{'
-				subObject.LPos = browserk.InjectionPos(pos)
 				b.parseJSONObject(dec, subObject, depth+1)
 			case '}':
 			case '[':
 				subObject.EncChar = '['
-				subObject.LPos = browserk.InjectionPos(pos)
 				b.parseJSONArray(dec, subObject, depth+1)
 			case ']':
 				return
 			}
 		case string:
 			ident := &injast.Ident{
-				NamePos:  browserk.InjectionPos(int(pos) - 2 - len(t)),
 				Name:     t,
 				EncChar:  '"',
 				Location: browserk.InjectJSONValue,
 			}
 			object.Fields = append(object.Fields, ident)
 		case float64:
-			asStr := floatStr(t)
 			ident := &injast.Ident{
-				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
-				Name:     strconv.FormatFloat(t, 'f', -1, 64),
+				Name:     floatStr(t),
 				Location: browserk.InjectJSONValue,
 			}
 			object.Fields = append(object.Fields, ident)
@@ -227,7 +209,6 @@ func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr
 				asStr = "true"
 			}
 			ident := &injast.Ident{
-				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
 				Name:     asStr,
 				Location: browserk.InjectJSONValue,
 			}
@@ -235,7 +216,6 @@ func (b *BodyParser) parseJSONArray(dec *json.Decoder, object *injast.ObjectExpr
 		case nil:
 			asStr := "null"
 			ident := &injast.Ident{
-				NamePos:  browserk.InjectionPos(int(pos) - len(asStr)),
 				Name:     asStr,
 				Location: browserk.InjectJSONValue,
 			}
@@ -250,7 +230,7 @@ func (b *BodyParser) parseApplicationURLEncoded(paramLoc browserk.InjectionLocat
 		param := &injast.KeyValueExpr{SepChar: '=', Location: paramLoc}
 		b.body.Fields = append(b.body.Fields, param)
 	SCAN:
-		pos, tok, lit := b.s.Scan()
+		_, tok, lit := b.s.Scan()
 		if tok == token.EOF {
 			return
 		}
@@ -262,30 +242,29 @@ func (b *BodyParser) parseApplicationURLEncoded(paramLoc browserk.InjectionLocat
 		case token.ASSIGN:
 			if paramLoc == browserk.InjectBodyName {
 				paramLoc = browserk.InjectBodyValue
-				param.Sep = pos
 				goto SCAN
 			}
 		default:
 			if paramLoc == browserk.InjectBody || paramLoc == browserk.InjectBodyName {
 				if b.s.PeekBackwards() == '[' {
-					param.Key = b.handleIndexExpr(pos, lit)
+					param.Key = b.handleIndexExpr(lit)
 				} else {
-					param.Key = &injast.Ident{NamePos: pos, Name: lit}
+					param.Key = &injast.Ident{Name: lit}
 				}
 				paramLoc = browserk.InjectBodyName
 			} else {
-				param.Value = b.handleValueExpr(pos, tok, lit)
+				param.Value = b.handleValueExpr(tok, lit)
 			}
 			goto SCAN
 		}
 	}
 }
 
-func (b *BodyParser) handleValueExpr(originalPos browserk.InjectionPos, originalTok token.Token, originalLit string) browserk.InjectionExpr {
+func (b *BodyParser) handleValueExpr(originalTok token.Token, originalLit string) browserk.InjectionExpr {
 	if originalLit == "" {
 		originalLit = originalTok.String()
 	}
-	value := &injast.Ident{NamePos: originalPos, Name: originalLit}
+	value := &injast.Ident{Name: originalLit}
 	for {
 		// short circuit so we don't consume the body name provided we don't start with a [ or ]
 		if b.s.PeekBackwards() == '&' && (originalTok != token.LBRACK && originalTok != token.RBRACK) {
@@ -305,14 +284,12 @@ func (b *BodyParser) handleValueExpr(originalPos browserk.InjectionPos, original
 	}
 }
 
-func (b *BodyParser) handleIndexExpr(originalPos browserk.InjectionPos, lit string) browserk.InjectionExpr {
+func (b *BodyParser) handleIndexExpr(lit string) browserk.InjectionExpr {
 	paramLoc := browserk.InjectBodyIndex
 
 	expr := &injast.IndexExpr{
-		X:        &injast.Ident{NamePos: originalPos, Name: lit, Location: paramLoc},
-		Lbrack:   0,
+		X:        &injast.Ident{Name: lit, Location: paramLoc},
 		Index:    nil,
-		Rbrack:   0,
 		Location: paramLoc,
 	}
 
@@ -321,19 +298,17 @@ func (b *BodyParser) handleIndexExpr(originalPos browserk.InjectionPos, lit stri
 	paramLoc = browserk.InjectBodyName
 
 	for {
-		pos, tok, lit := b.s.Scan()
+		_, tok, lit := b.s.Scan()
 		switch tok {
 		case token.EOF, token.ASSIGN:
-			return &injast.Ident{NamePos: originalPos, Name: notIndexExpr, Location: paramLoc}
+			return &injast.Ident{Name: notIndexExpr, Location: paramLoc}
 		case token.LBRACK:
 			notIndexExpr += "["
-			expr.Lbrack = pos
 		case token.RBRACK:
 			notIndexExpr += "]"
-			expr.Rbrack = pos
 			return expr
 		default:
-			expr.Index = &injast.Ident{NamePos: pos, Name: lit, Location: paramLoc}
+			expr.Index = &injast.Ident{Name: lit, Location: paramLoc}
 			notIndexExpr += lit
 		}
 	}
