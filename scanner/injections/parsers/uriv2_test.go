@@ -28,16 +28,14 @@ func TestQueryV2(t *testing.T) {
 					&injast.KeyValueExpr{
 						Key: &injast.Ident{
 							Name:     "asdf",
-							Location: browserk.InjectQueryValue,
+							Location: browserk.InjectFragment,
 						},
-					},
-					&injast.KeyValueExpr{
 						SepChar: '=',
 					},
 					&injast.KeyValueExpr{
 						Key: &injast.Ident{
 							Name:     "asdf",
-							Location: browserk.InjectQueryValue,
+							Location: browserk.InjectFragment,
 						},
 					},
 				},
@@ -167,8 +165,9 @@ func TestQueryV2(t *testing.T) {
 
 		// validate paths
 		if len(uri.Fields) != len(in.expected.Fields) {
-			spew.Dump(uri.Paths)
-			t.Fatalf("expected paths to be equal length")
+			spew.Config.ContinueOnMethod = true
+			spew.Dump(uri.Fields)
+			t.Fatalf("expected Fields to be equal length")
 		}
 
 		for i := 0; i < len(uri.Fields); i++ {
