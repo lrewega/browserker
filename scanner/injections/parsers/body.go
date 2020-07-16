@@ -23,11 +23,9 @@ const (
 )
 
 type BodyParser struct {
-	s       *scanner.Scanner
-	mode    BodyMode
-	kvMode  keyValueMode
-	kvIndex int
-	body    *injast.Body
+	s    *scanner.Scanner
+	mode BodyMode
+	body *injast.Body
 }
 
 // Parse body data
@@ -36,8 +34,6 @@ func (b *BodyParser) Parse(body []byte) (*injast.Body, error) {
 	b.s.Init([]byte(body), scanner.Body)
 	b.body = injast.NewBody(body)
 	b.mode = ApplicationURLEncoded
-	b.kvMode = keyMode
-	b.kvIndex = 0
 	if b.s.PeekIsBodyJSON() {
 		b.mode = JSON
 	} else if b.s.PeekIsBodyXML() {

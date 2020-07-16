@@ -202,7 +202,10 @@ func (x *KeyValueExpr) Pos() browserk.InjectionPos { return x.Key.Pos() }
 func (x *KeyValueExpr) End() browserk.InjectionPos { return x.Value.End() }
 
 func (x *KeyValueExpr) String() string {
-	s := x.Key.String()
+	s := ""
+	if x.Key != nil {
+		s = x.Key.String()
+	}
 
 	if x.SepChar != 0 {
 		s += string(x.SepChar)

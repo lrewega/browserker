@@ -17,6 +17,7 @@ type InjectionIterator struct {
 	req          *browserk.HTTPRequest
 	method       browserk.InjectionExpr
 	uri          *injast.URI
+	body         *injast.Body
 	locs         []browserk.InjectionExpr
 	currentInj   browserk.InjectionExpr
 	currentIndex int
@@ -33,6 +34,7 @@ func NewInjectionIter(req *browserk.HTTPRequest) *InjectionIterator {
 	it.method = &injast.Ident{Name: req.Request.Method, NamePos: 0, Location: browserk.InjectMethod}
 	it.locs = append(it.locs, it.method)
 	it.parseURI()
+	//it.parseBody()
 	return it
 }
 
@@ -65,6 +67,21 @@ func (it *InjectionIterator) parseURI() {
 	it.locs = append(it.locs, it.uri.Fields...)
 }
 
+func (it *InjectionIterator) parseBody() {
+	var err error
+	if it.req == nil || it.req.Request == nil || it.req.Request.PostData == "" {
+		it.invalidParse = true
+		return
+	}
+
+	p := &parsers.BodyParser{}
+	it.body, err = p.Parse(it.req.Request.PostData)
+	if err != nil {
+		it.invalidParse = true
+	}
+	it.locs = append(it.locs, it.body.Fields...)
+}
+
 func (it *InjectionIterator) Method() string {
 	return it.method.String()
 }
@@ -72,6 +89,11 @@ func (it *InjectionIterator) Method() string {
 // URI Returns the entire parsed URI for injection
 func (it *InjectionIterator) URI() *injast.URI {
 	return it.uri
+}
+
+// Body returns the entire parsed Body for injection
+func (it *InjectionIterator) Body() *injast.Body {
+	return it.body
 }
 
 func (it *InjectionIterator) Path() string {
@@ -91,14 +113,17 @@ func (it *InjectionIterator) Seek(index int) {
 	it.currentInj = it.locs[index]
 }
 
+// Next injection expr, move iterator up one
 func (it *InjectionIterator) Next() {
 	it.Seek(it.currentIndex + 1)
 }
 
+// Expr is the current injection expr
 func (it *InjectionIterator) Expr() browserk.InjectionExpr {
 	return it.currentInj
 }
 
+// Key of the current injection expr
 func (it *InjectionIterator) Key() (string, browserk.InjectionLocation) {
 	v, ok := it.currentInj.(*injast.KeyValueExpr)
 	if !ok {
@@ -107,6 +132,7 @@ func (it *InjectionIterator) Key() (string, browserk.InjectionLocation) {
 	return v.Key.String(), v.Location
 }
 
+// Value of the current injection expr
 func (it *InjectionIterator) Value() (string, browserk.InjectionLocation) {
 	v, ok := it.currentInj.(*injast.KeyValueExpr)
 	if !ok {
@@ -115,6 +141,7 @@ func (it *InjectionIterator) Value() (string, browserk.InjectionLocation) {
 	return v.Value.String(), v.Location
 }
 
+// Valid returns if we had issues parsing
 func (it *InjectionIterator) Valid() bool {
 	if it.invalidParse || it.currentInj == nil {
 		return false
@@ -122,11 +149,13 @@ func (it *InjectionIterator) Valid() bool {
 	return true
 }
 
+// Rewind the iterator
 func (it *InjectionIterator) Rewind() {
 	it.currentIndex = 0
 	it.Seek(it.currentIndex)
 }
 
+// SplitHost into host / uri
 func SplitHost(u string) (string, string) {
 	uriStart := 0
 	slashCount := 0
