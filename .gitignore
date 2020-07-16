@@ -5,3 +5,6 @@ store/testdata
 /*.svg
 /*.dot
 findings.json
+
+test/end-to-end/.webgoat-8.0.0.M21
+test/end-to-end/output/
