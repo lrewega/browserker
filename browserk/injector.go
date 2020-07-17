@@ -55,10 +55,6 @@ const (
 	InjectQueryValue
 	InjectQueryIndex
 	InjectFragment
-	InjectFragmentPath
-	InjectFragmentName
-	InjectFragmentValue
-	InjectFragmentIndex
 	InjectHeader
 	InjectHeaderName
 	InjectHeaderValue
@@ -79,14 +75,68 @@ const (
 
 const (
 	// InjectAll injects into literally any point we can
-	InjectAll InjectionLocation = InjectMethod | InjectPath | InjectFile | InjectQuery | InjectQueryName | InjectQueryValue | InjectQueryIndex | InjectFragment | InjectFragmentPath | InjectFragmentName | InjectFragmentValue | InjectFragmentIndex | InjectHeader | InjectHeaderName | InjectHeaderValue | InjectCookie | InjectCookieName | InjectCookieValue | InjectBody | InjectBodyName | InjectBodyValue | InjectBodyIndex | InjectJSON | InjectJSONName | InjectJSONValue | InjectXML | InjectXMLName | InjectXMLValue
+	InjectAll InjectionLocation = InjectMethod | InjectPath | InjectFile | InjectQuery | InjectQueryName | InjectQueryValue | InjectQueryIndex | InjectFragment | InjectHeader | InjectHeaderName | InjectHeaderValue | InjectCookie | InjectCookieName | InjectCookieValue | InjectBody | InjectBodyName | InjectBodyValue | InjectBodyIndex | InjectJSON | InjectJSONName | InjectJSONValue | InjectXML | InjectXMLName | InjectXMLValue
 	// InjectCommon injects into common path/value parameters
-	InjectCommon InjectionLocation = InjectPath | InjectFile | InjectQuery | InjectQueryValue | InjectFragmentPath | InjectFragmentValue | InjectHeaderValue | InjectCookieValue | InjectBody | InjectBodyValue | InjectJSON | InjectJSONValue | InjectXML | InjectXMLValue
+	InjectCommon InjectionLocation = InjectPath | InjectFile | InjectQuery | InjectQueryValue | InjectFragment | InjectHeaderValue | InjectCookieValue | InjectBody | InjectBodyValue | InjectJSON | InjectJSONValue | InjectXML | InjectXMLValue
 	// InjectNameValue Names and Values
-	InjectNameValue InjectionLocation = InjectQuery | InjectQueryValue | InjectQueryName | InjectQueryIndex | InjectHeaderName | InjectHeaderValue | InjectCookieValue | InjectBodyName | InjectBodyValue | InjectJSONName | InjectJSONValue | InjectXMLName | InjectXMLValue
-	// InjectValues only
+	InjectNameValue InjectionLocation = InjectQuery | InjectQueryValue | InjectQueryName | InjectQueryIndex | InjectHeaderName | InjectHeaderValue | InjectCookieValue | InjectBody | InjectBodyName | InjectBodyValue | InjectJSON | InjectJSONName | InjectJSONValue | InjectXML | InjectXMLName | InjectXMLValue
+	// InjectValues only TODO doesn't work since we don't peek into KV yet
 	InjectValues InjectionLocation = InjectQuery | InjectQueryValue | InjectHeaderValue | InjectJSONValue | InjectBody | InjectBodyValue | InjectXMLValue
 )
+
+func (i InjectionLocation) String() string {
+	switch i {
+	case InjectMethod:
+		return "InjectMethod"
+	case InjectPath:
+		return "InjectPath"
+	case InjectFile:
+		return "InjectFile"
+	case InjectQuery:
+		return "InjectQuery"
+	case InjectQueryName:
+		return "InjectQueryName"
+	case InjectQueryValue:
+		return "InjectQueryValue"
+	case InjectQueryIndex:
+		return "InjectQueryIndex"
+	case InjectFragment:
+		return "InjectFragment"
+	case InjectHeader:
+		return "InjectHeader"
+	case InjectHeaderName:
+		return "InjectHeaderName"
+	case InjectHeaderValue:
+		return "InjectHeaderValue"
+	case InjectCookie:
+		return "InjectCookie"
+	case InjectCookieName:
+		return "InjectCookieName"
+	case InjectCookieValue:
+		return "InjectCookieValue"
+	case InjectBody:
+		return "InjectBody"
+	case InjectBodyName:
+		return "InjectBodyName"
+	case InjectBodyValue:
+		return "InjectBodyValue"
+	case InjectBodyIndex:
+		return "InjectBodyIndex"
+	case InjectJSON:
+		return "InjectJSON"
+	case InjectJSONName:
+		return "InjectJSONName"
+	case InjectJSONValue:
+		return "InjectJSONValue"
+	case InjectXML:
+		return "InjectXML"
+	case InjectXMLName:
+		return "InjectXMLName"
+	case InjectXMLValue:
+		return "InjectXMLValue"
+	}
+	return ""
+}
 
 // Injector handles injecting into target requests/pages using different methods
 type Injector interface {
@@ -94,6 +144,8 @@ type Injector interface {
 	BCtx() *Context
 	Message() *HTTPMessage
 	InjectionExpr() InjectionExpr
+	Nav() *Navigation
+	NavResultID() []byte
 	ReplacePath(newValue string, index int)
 	ReplaceFile(newValue string)
 	ReplaceURI(newURI string)

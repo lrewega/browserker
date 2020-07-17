@@ -40,7 +40,7 @@ func (h *Plugin) InitContext(bctx *browserk.Context) {
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenResponses: true,
-		ExecutionType:   browserk.ExecOncePerPath,
+		ExecutionType:   browserk.ExecOnce,
 	}
 }
 

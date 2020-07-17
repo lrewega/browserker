@@ -42,7 +42,7 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		WriteRequests: true,
 		ExecutionType: browserk.ExecAlways,
-		Injections:    []browserk.InjectionLocation{browserk.InjectValues},
+		Injections:    []browserk.InjectionLocation{browserk.InjectNameValue},
 	}
 }
 
@@ -73,10 +73,11 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 			injector.BCtx().Reporter.Add(&browserk.Report{
 				CheckID:     "1",
 				CWE:         78,
+				URL:         injector.Message().Request.DocumentURL,
 				Description: "you have oscmd injection",
 				Remediation: "don't have oscmd injection",
-				Nav:         nil,
-				NavResultID: nil,
+				Nav:         injector.Nav(),
+				NavResultID: injector.NavResultID(),
 				Evidence: &browserk.Evidence{
 					String: body,
 				},

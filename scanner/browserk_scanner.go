@@ -312,6 +312,7 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 	}
 	logger := log.With().
 		Int64("browser_id", browser.ID()).
+		Str("path", b.printAttackActionStep(navs)).
 		Logger()
 	navCtx.Log = &logger
 	b.addLeased(browser.ID())
@@ -338,6 +339,12 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 					continue
 				}
 
+				u, _ := url.Parse(req.Request.Url)
+				if navCtx.Scope.Check(u) != browserk.InScope {
+					navCtx.Log.Info().Str("url", req.Request.Url).Msgf("was out of scope, not attacking")
+					continue
+				}
+
 				if state, err := b.pluginStore.SetRequestAudit(req); err != nil || state != browserk.NotAudited {
 					navCtx.Log.Info().Str("url", req.Request.Url).Msgf("already audited this request, skipping")
 					continue
@@ -346,7 +353,14 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				// Create injection iterator
 				injIt := iterator.NewInjectionIter(req)
 				injector := injections.New(navCtx, browser, nav, mIt, injIt)
+
 				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+					navCtx.Log.Info().
+						Str("location", injIt.Expr().Loc().String()).
+						Str("method", req.Request.Method).
+						Str("url", req.Request.Url).
+						Str("body", req.Request.PostData).
+						Msgf("auditing this injection")
 					navCtx.PluginServicer.Inject(b.mainContext, injector)
 				}
 			}
@@ -396,11 +410,22 @@ func (b *Browserk) Stop() error {
 func (b *Browserk) printActionStep(navs []*browserk.Navigation) string {
 	pathString := ""
 	for i, path := range navs {
-		if len(navs)-1 == i {
-			pathString += fmt.Sprintf("%s %s", browserk.ActionTypeMap[path.Action.Type], path.Action)
-			break
-		}
-		pathString += fmt.Sprintf("%s %s -> ", browserk.ActionTypeMap[path.Action.Type], path.Action)
+		pathString += b.actionStep(path, len(navs), i)
 	}
 	return pathString
+}
+
+func (b *Browserk) printAttackActionStep(navs []*browserk.NavigationWithResult) string {
+	pathString := ""
+	for i, path := range navs {
+		pathString += b.actionStep(path.Navigation, len(navs), i)
+	}
+	return pathString
+}
+
+func (b *Browserk) actionStep(path *browserk.Navigation, navLen, i int) string {
+	if navLen-1 == i {
+		return fmt.Sprintf("%s %s", browserk.ActionTypeMap[path.Action.Type], path.Action)
+	}
+	return fmt.Sprintf("%s %s -> ", browserk.ActionTypeMap[path.Action.Type], path.Action)
 }

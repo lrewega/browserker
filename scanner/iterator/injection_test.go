@@ -3,6 +3,7 @@ package iterator_test
 import (
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
 	"gitlab.com/browserker/scanner/iterator"
@@ -12,7 +13,7 @@ func TestInjectionIter(t *testing.T) {
 
 	msg := mock.MakeMockMessages()
 	req := msg[0].Request
-	req.Request.Url = "http://example:8080/some/path.js?x=1&y=2#/test" //
+	req.Request.Url = "http://localhost/vulnerabilities/fi/?page=include.php" //
 
 	it := iterator.NewInjectionIter(req)
 	for it.Rewind(); it.Valid(); it.Next() {
@@ -24,7 +25,59 @@ func TestInjectionIter(t *testing.T) {
 				it.Expr().Inject("xss", browserk.InjectValue)
 			}
 			t.Logf("key: %s , val: %s\n", key, val)
-			if it.URI().String() != "/some/path.js?x=xss&y=2#/test" {
+			if it.URI().String() != "/vulnerabilities/fi/?page=xss" {
+				t.Fatalf("failed to inject value")
+			}
+		}
+		t.Logf("%s\n", name)
+	}
+}
+
+func TestInjectionWithBodyIter(t *testing.T) {
+
+	msg := mock.MakeMockMessages()
+	req := msg[0].Request
+	req.Request.Url = "http://example:8080/some" //
+	req.Request.PostData = "x=1&y=2"
+
+	it := iterator.NewInjectionIter(req)
+	for it.Rewind(); it.Valid(); it.Next() {
+		name, loc := it.Value()
+		spew.Dump(loc)
+		if loc == browserk.InjectBody {
+			key, _ := it.Key()
+			val, _ := it.Value()
+			if val == "1" {
+				it.Expr().Inject("xss", browserk.InjectValue)
+			}
+			t.Logf("key: %s , val: %s\n", key, val)
+			if it.Body().String() != "x=xss&y=2" {
+				t.Fatalf("failed to inject value")
+			}
+		}
+		t.Logf("%s\n", name)
+	}
+}
+
+func TestInjectionWithJSONBodyIter(t *testing.T) {
+
+	msg := mock.MakeMockMessages()
+	req := msg[0].Request
+	req.Request.Url = "http://example:8080/some" //
+	req.Request.PostData = "{\"x\": \"hi\"}"
+
+	it := iterator.NewInjectionIter(req)
+	for it.Rewind(); it.Valid(); it.Next() {
+		name, loc := it.Value()
+		spew.Dump(loc)
+		if loc == browserk.InjectBody {
+			key, _ := it.Key()
+			val, _ := it.Value()
+			if val == "hi" {
+				it.Expr().Inject("xs\"s", browserk.InjectValue)
+			}
+			t.Logf("key: %s , val: %s\n", key, val)
+			if it.Body().String() != "{\"x\": \"xs\\\"s\"}" {
 				t.Fatalf("failed to inject value")
 			}
 		}

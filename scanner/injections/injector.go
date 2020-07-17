@@ -30,6 +30,14 @@ func New(bCtx *browserk.Context, browser browserk.Browser, nav *browserk.Navigat
 	}
 }
 
+func (i *BrowserkerInjector) Nav() *browserk.Navigation {
+	return i.nav.Navigation
+}
+
+func (i *BrowserkerInjector) NavResultID() []byte {
+	return i.nav.Result.Hash()
+}
+
 func (i *BrowserkerInjector) BCtx() *browserk.Context {
 	return i.bCtx
 }
@@ -68,11 +76,12 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 
 		host, _ := iterator.SplitHost(i.req.Request.Url)
 		// TODO: replace headers with injIterator.Headers body with injIterator.Body (those three should be separate)
-		i.bCtx.Log.Debug().Str("attack_METHOD", i.injIterator.Method()).Str("attack_URL", host+i.injIterator.URI().String()).Msg("injecting attack")
+		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).Str("attack_METHOD", i.injIterator.Method()).Str("attack_URL", host+i.injIterator.URI().String()).Str("attack_BODY", i.injIterator.Body().String()).Msg("injecting attack")
 
-		i.bCtx.AddReqHandler(InjectFetchReq(respCh, i.injIterator.Method(), host+i.injIterator.URI().String(), i.req.Request.Headers, i.req.Request.PostData, attackID))
+		injectFn := InjectFetchReq(respCh, i.injIterator.Method(), host+i.injIterator.SerializeURI(), i.req.Request.Headers, i.injIterator.SerializeBody(), attackID)
+		i.bCtx.AddReqHandler(injectFn)
 
-		i.bCtx.Log.Debug().Msg("injecting xhr")
+		i.bCtx.Log.Debug().Msg("injecting js fetch")
 		i.injIterator.Expr().Reset() // un-inject ourselves
 
 		// issue request to hijack
@@ -113,12 +122,10 @@ func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequ
 			i.bCtx.Log.Error().Err(err).Msg("failed to inject fetch attack")
 			return nil, fmt.Errorf("injection failed")
 		}
-		//i.browser.
-		timer := time.NewTimer(time.Minute * 1)
 		select {
 		case r := <-respCh:
 			return r, nil
-		case <-timer.C:
+		case <-time.After(time.Minute * 1):
 			return nil, fmt.Errorf("failed to get response from injection")
 		}
 	}

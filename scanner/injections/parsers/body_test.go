@@ -3,6 +3,7 @@ package parsers_test
 import (
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/parsers"
@@ -90,7 +91,7 @@ func TestBody(t *testing.T) {
 		}
 
 		if len(body.Fields) != in.FieldCount {
-			t.Fatalf("expeected %d got %d", in.FieldCount, len(body.Fields))
+			t.Fatalf("expected %d got %d", in.FieldCount, len(body.Fields))
 		}
 
 		for i, field := range body.Fields {
@@ -106,23 +107,92 @@ func TestBodyJSON(t *testing.T) {
 		FieldCount int
 	}{
 		{
-			[]byte(`{"x": "one", "y": 2}`),
+			[]byte(`{"x": "one \"and\" two", "y": 2, "arr": [1,20,3.1], "n": null}`),
 			injast.Body{
 				Fields: []browserk.InjectionExpr{
-					&injast.KeyValueExpr{
-						Key:     &injast.Ident{NamePos: 0, Name: ""},
-						Sep:     1,
-						SepChar: ':',
-						Value: &injast.KeyValueExpr{
-							Key:     &injast.Ident{NamePos: 2, Name: "x"},
-							Sep:     1,
-							SepChar: ':',
-							Value:   &injast.Ident{NamePos: 2, Name: "one"},
+					&injast.ObjectExpr{
+						Location: browserk.InjectJSON,
+						EncChar:  '{',
+						Fields: []browserk.InjectionExpr{
+							&injast.KeyValueExpr{
+								Key: &injast.Ident{
+									Name:     "x",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
+								},
+								SepChar: ':',
+								Value: &injast.Ident{
+									Name:     "one \"and\" two",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONValue,
+								},
+							},
+							&injast.KeyValueExpr{
+								Key: &injast.Ident{
+									Name:     "y",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
+								},
+								SepChar: ':',
+								Value: &injast.Ident{
+									Name:     "2",
+									Mod:      "",
+									Modded:   false,
+									Location: browserk.InjectJSONValue,
+								},
+							},
+							&injast.KeyValueExpr{
+								Key: &injast.Ident{
+									Name:     "e",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
+								},
+								SepChar: ':',
+								Value: &injast.ObjectExpr{
+									Location: browserk.InjectJSON,
+									EncChar:  '[',
+									Fields: []browserk.InjectionExpr{
+										&injast.Ident{
+											Name:     "1",
+											Location: browserk.InjectJSONValue,
+										},
+										&injast.Ident{
+											Name:     "20",
+											Location: browserk.InjectJSONValue,
+										},
+										&injast.Ident{
+											Name:     "3.1",
+											Location: browserk.InjectJSONValue,
+										},
+									},
+								},
+							},
+							&injast.KeyValueExpr{
+								Key: &injast.Ident{
+									Name:     "e",
+									Mod:      "",
+									Modded:   false,
+									EncChar:  '"',
+									Location: browserk.InjectJSONName,
+								},
+								SepChar: ':',
+								Value: &injast.Ident{
+									Name: "null",
+								},
+							},
 						},
 					},
 				},
 			},
-			2,
+			1,
 		},
 	}
 
@@ -132,11 +202,12 @@ func TestBodyJSON(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		spew.Config.ContinueOnMethod = true
+		///spew.Dump(body.Fields)
 		if len(body.Fields) != in.FieldCount {
-			t.Fatalf("expeected %d got %d", in.FieldCount, len(body.Fields))
+			t.Fatalf("expected %d got %d", in.FieldCount, len(body.Fields))
 		}
-
+		t.Logf("%s\n", body.Fields[0].String())
 		for i, field := range body.Fields {
 			testCompareExpr(t, in.in, in.expected.Fields[i], field)
 		}

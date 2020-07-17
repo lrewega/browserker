@@ -1,6 +1,9 @@
 package injast
 
 import (
+	"bytes"
+	"strings"
+
 	"gitlab.com/browserker/browserk"
 )
 
@@ -12,6 +15,7 @@ type (
 		Name     string                // identifier name
 		Mod      string
 		Modded   bool
+		EncChar  rune // encapsulation char ' " { or [ etc
 		Location browserk.InjectionLocation
 	}
 
@@ -34,7 +38,83 @@ type (
 		Value    browserk.InjectionExpr
 		Location browserk.InjectionLocation
 	}
+
+	// ObjectExpr represents an object (JSON/XML) with it's nested
+	// fields Modifying it will replace *everything* with a Modified string
+	// call Reset() to undo
+	ObjectExpr struct {
+		Fields   []browserk.InjectionExpr
+		LPos     browserk.InjectionPos
+		RPos     browserk.InjectionPos
+		Location browserk.InjectionLocation
+		Mod      string
+		Modded   bool
+		EncChar  rune // encapsulation character, { for objects, [ for arrays
+	}
 )
+
+// Pos of this identifier
+func (x *ObjectExpr) Pos() browserk.InjectionPos { return x.LPos }
+
+// Loc of this object
+func (x *ObjectExpr) Loc() browserk.InjectionLocation { return x.Location }
+
+// End of this identifier
+func (x *ObjectExpr) End() browserk.InjectionPos {
+	return browserk.InjectionPos(int(x.LPos) + int(x.RPos))
+}
+
+// Reset any injection modifications
+func (x *ObjectExpr) Reset() {
+	x.Modded = false
+	x.Mod = ""
+}
+
+func (x *ObjectExpr) String() string {
+	if x == nil {
+		return ""
+	}
+
+	if x.Modded {
+		return x.Mod
+	}
+	if x.Fields == nil || len(x.Fields) == 0 {
+		if x.EncChar == '{' {
+			return "{}"
+		} else if x.EncChar == '[' {
+			return "[]"
+		}
+		return ""
+	}
+
+	encChar := '}'
+	if x.EncChar == '[' {
+		encChar = ']'
+	}
+	all := &bytes.Buffer{}
+	all.WriteByte(byte(x.EncChar))
+	asStrs := make([]string, len(x.Fields))
+	for i, field := range x.Fields {
+		asStrs[i] = field.String()
+	}
+	all.Write([]byte(strings.Join(asStrs, ", ")))
+	all.WriteByte(byte(encChar))
+	return string(all.Bytes())
+}
+
+// Modify sets a new field because End() and Pos() will be incorrect
+// if we modify the Name field. All access should call String()
+// so we can handle when a value is modified
+func (x *ObjectExpr) Modify(newValue string) {
+	x.Modded = true
+	x.Mod = newValue
+}
+
+// Inject a nw value
+func (x *ObjectExpr) Inject(newValue string, _ browserk.InjectionType) bool {
+	x.Modify(newValue)
+	return true
+}
 
 // Pos of this identifier
 func (x *Ident) Pos() browserk.InjectionPos { return x.NamePos }
@@ -44,14 +124,34 @@ func (x *Ident) End() browserk.InjectionPos {
 	return browserk.InjectionPos(int(x.NamePos) + len(x.Name))
 }
 
+// String the identfier, quoting/escaping it if necessary
 func (x *Ident) String() string {
-	if x != nil {
-		if x.Modded {
-			return x.Mod
-		}
-		return x.Name
+	if x == nil {
+		return ""
 	}
-	return ""
+	quote := ""
+	if x.EncChar != 0 {
+		quote = string(x.EncChar)
+	}
+
+	// TODO break this into an 'encoder' method to handle xml/attribs etc etc.
+	if x.Modded {
+		if x.Location >= browserk.InjectJSON && x.Location <= browserk.InjectJSONValue {
+			buf := &bytes.Buffer{}
+			// escape " characters
+			for i, ch := range x.Mod {
+				if ch == '"' && i != 0 && x.Mod[i-1] != '\\' {
+					buf.WriteRune('\\')
+				} else if ch == '"' && i == 0 {
+					buf.WriteRune('\\')
+				}
+				buf.WriteRune(ch)
+			}
+			return quote + buf.String() + quote
+		}
+		return quote + x.Mod + quote
+	}
+	return quote + x.Name + quote
 }
 
 // Modify sets a new field because End() and Pos() will be incorrect
@@ -103,8 +203,12 @@ func (x *IndexExpr) Inject(newValue string, injType browserk.InjectionType) bool
 
 // Reset any modifications
 func (x *IndexExpr) Reset() {
-	x.Index.Reset()
-	x.X.Reset()
+	if x.Index != nil {
+		x.Index.Reset()
+	}
+	if x.X != nil {
+		x.X.Reset()
+	}
 }
 
 // Loc for injection
@@ -117,10 +221,17 @@ func (x *KeyValueExpr) Pos() browserk.InjectionPos { return x.Key.Pos() }
 func (x *KeyValueExpr) End() browserk.InjectionPos { return x.Value.End() }
 
 func (x *KeyValueExpr) String() string {
-	s := x.Key.String()
+	s := ""
+	if x.Key != nil {
+		s = x.Key.String()
+	}
 
 	if x.SepChar != 0 {
 		s += string(x.SepChar)
+		// space after k: v
+		if x.Location == browserk.InjectJSON {
+			s += " "
+		}
 	}
 	if x.Value != nil {
 		s += x.Value.String()
@@ -134,10 +245,17 @@ func (x *KeyValueExpr) Loc() browserk.InjectionLocation { return x.Location }
 // Inject a new value of InjectionType
 func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) bool {
 	if injType == browserk.InjectName {
-		x.Key.Inject(newValue, injType)
+		if x.Key != nil {
+			x.Key.Inject(newValue, injType)
+		}
 	} else if injType == browserk.InjectValue {
-		x.Value.Inject(newValue, injType)
+		if x.Value != nil {
+			x.Value.Inject(newValue, injType)
+		}
 	} else if injType == browserk.InjectIndex {
+		if x.Key == nil {
+			return false
+		}
 		if index, ok := x.Key.(*IndexExpr); ok {
 			return index.Inject(newValue, injType)
 		}
@@ -149,19 +267,25 @@ func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) b
 
 // Reset any modifications
 func (x *KeyValueExpr) Reset() {
-	x.Key.Reset()
-	x.Value.Reset()
+	if x.Key != nil {
+		x.Key.Reset()
+	}
+	if x.Value != nil {
+		x.Value.Reset()
+	}
 }
 
 // CopyExpr returns a deep copy
 func CopyExpr(e browserk.InjectionExpr) browserk.InjectionExpr {
 	switch t := e.(type) {
 	case *Ident:
-		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location}
+		return &Ident{NamePos: t.NamePos, Name: t.Name, Location: t.Location, EncChar: t.EncChar}
 	case *IndexExpr:
 		return CopyIndexExpr(t)
 	case *KeyValueExpr:
 		return CopyKeyValueExpr(t)
+	case *ObjectExpr:
+		return CopyObjectExpr(t)
 	default:
 		return nil
 	}
@@ -175,6 +299,18 @@ func CopyKeyValueExpr(kv *KeyValueExpr) *KeyValueExpr {
 		SepChar:  kv.SepChar,
 		Value:    CopyExpr(kv.Value),
 		Location: kv.Location,
+	}
+}
+
+func CopyObjectExpr(o *ObjectExpr) *ObjectExpr {
+	copiedFields := make([]browserk.InjectionExpr, len(o.Fields))
+	for i := 0; i < len(o.Fields); i++ {
+		copiedFields[i] = CopyExpr(o.Fields[i])
+	}
+	return &ObjectExpr{
+		Fields:   copiedFields,
+		LPos:     o.LPos,
+		Location: o.Location,
 	}
 }
 

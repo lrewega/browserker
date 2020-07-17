@@ -37,7 +37,7 @@ func (c *Container) Remove(plugin browserk.Plugin) {
 // Inject iterates over plugins and if they accept write requests and location matches then we inject
 func (c *Container) Inject(mainContext *browserk.Context, injector browserk.Injector) {
 	for _, plugin := range c.plugins {
-		injector.BCtx().Log.Debug().Msgf("inj: %s %v plugin opts: %v (%t)", injector.InjectionExpr().String(), injector.InjectionExpr().Loc(), plugin.Options().Injections, injector.InjectionExpr().Loc().HasIn(plugin.Options().Injections))
+		injector.BCtx().Log.Debug().Str("plugin_name", plugin.Name()).Msgf("inj: %s %v plugin opts: %v (%t)", injector.InjectionExpr().String(), injector.InjectionExpr().Loc(), plugin.Options().Injections, injector.InjectionExpr().Loc().HasIn(plugin.Options().Injections))
 		if plugin.Options().WriteRequests && injector.InjectionExpr().Loc().HasIn(plugin.Options().Injections) {
 
 			injector.BCtx().Log.Debug().Str("name", plugin.Name()).Msg("calling plugin")

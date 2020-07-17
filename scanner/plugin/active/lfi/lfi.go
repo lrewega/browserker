@@ -42,7 +42,7 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		WriteRequests: true,
 		ExecutionType: browserk.ExecAlways,
-		Injections:    []browserk.InjectionLocation{browserk.InjectValues},
+		Injections:    []browserk.InjectionLocation{browserk.InjectNameValue},
 	}
 }
 
@@ -75,8 +75,9 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 				CWE:         78,
 				Description: "you have lfi",
 				Remediation: "don't have lfi",
-				Nav:         nil,
-				NavResultID: nil,
+				URL:         injector.Message().Request.DocumentURL,
+				Nav:         injector.Nav(),
+				NavResultID: injector.NavResultID(),
 				Evidence: &browserk.Evidence{
 					String: body,
 				},
