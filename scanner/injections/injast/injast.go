@@ -124,7 +124,7 @@ func (x *Ident) End() browserk.InjectionPos {
 	return browserk.InjectionPos(int(x.NamePos) + len(x.Name))
 }
 
-// String the identfier, quoting it if necessary
+// String the identfier, quoting/escaping it if necessary
 func (x *Ident) String() string {
 	if x == nil {
 		return ""
@@ -133,7 +133,22 @@ func (x *Ident) String() string {
 	if x.EncChar != 0 {
 		quote = string(x.EncChar)
 	}
+
+	// TODO break this into an 'encoder' method to handle xml/attribs etc etc.
 	if x.Modded {
+		if x.Location >= browserk.InjectJSON && x.Location <= browserk.InjectJSONValue {
+			buf := &bytes.Buffer{}
+			// escape " characters
+			for i, ch := range x.Mod {
+				if ch == '"' && i != 0 && x.Mod[i-1] != '\\' {
+					buf.WriteRune('\\')
+				} else if ch == '"' && i == 0 {
+					buf.WriteRune('\\')
+				}
+				buf.WriteRune(ch)
+			}
+			return quote + buf.String() + quote
+		}
 		return quote + x.Mod + quote
 	}
 	return quote + x.Name + quote
@@ -188,8 +203,12 @@ func (x *IndexExpr) Inject(newValue string, injType browserk.InjectionType) bool
 
 // Reset any modifications
 func (x *IndexExpr) Reset() {
-	x.Index.Reset()
-	x.X.Reset()
+	if x.Index != nil {
+		x.Index.Reset()
+	}
+	if x.X != nil {
+		x.X.Reset()
+	}
 }
 
 // Loc for injection
@@ -226,10 +245,17 @@ func (x *KeyValueExpr) Loc() browserk.InjectionLocation { return x.Location }
 // Inject a new value of InjectionType
 func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) bool {
 	if injType == browserk.InjectName {
-		x.Key.Inject(newValue, injType)
+		if x.Key != nil {
+			x.Key.Inject(newValue, injType)
+		}
 	} else if injType == browserk.InjectValue {
-		x.Value.Inject(newValue, injType)
+		if x.Value != nil {
+			x.Value.Inject(newValue, injType)
+		}
 	} else if injType == browserk.InjectIndex {
+		if x.Key == nil {
+			return false
+		}
 		if index, ok := x.Key.(*IndexExpr); ok {
 			return index.Inject(newValue, injType)
 		}
@@ -241,8 +267,12 @@ func (x *KeyValueExpr) Inject(newValue string, injType browserk.InjectionType) b
 
 // Reset any modifications
 func (x *KeyValueExpr) Reset() {
-	x.Key.Reset()
-	x.Value.Reset()
+	if x.Key != nil {
+		x.Key.Reset()
+	}
+	if x.Value != nil {
+		x.Value.Reset()
+	}
 }
 
 // CopyExpr returns a deep copy
@@ -278,7 +308,7 @@ func CopyObjectExpr(o *ObjectExpr) *ObjectExpr {
 		copiedFields[i] = CopyExpr(o.Fields[i])
 	}
 	return &ObjectExpr{
-		Fields:   o.Fields,
+		Fields:   copiedFields,
 		LPos:     o.LPos,
 		Location: o.Location,
 	}

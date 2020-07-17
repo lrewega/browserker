@@ -220,6 +220,7 @@ func (s *PluginStore) SetRequestAudit(request *browserk.HTTPRequest) (browserk.A
 // AddReport to the plugin store
 func (s *PluginStore) AddReport(report *browserk.Report) {
 	var err error
+	report.Hash()
 	enc, err := EncodeStruct(report)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to encode report")

@@ -33,6 +33,11 @@ func (b *BodyParser) Parse(body []byte) (*injast.Body, error) {
 	b.s = scanner.New()
 	b.s.Init([]byte(body), scanner.Body)
 	b.body = injast.NewBody(body)
+
+	if body == nil || string(body) == "" {
+		return b.body, nil
+	}
+
 	b.mode = ApplicationURLEncoded
 	if b.s.PeekIsBodyJSON() {
 		b.mode = JSON
@@ -64,7 +69,7 @@ func (b *BodyParser) Parse(body []byte) (*injast.Body, error) {
 }
 
 func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExpr, depth int) {
-	kv := &injast.KeyValueExpr{}
+	kv := &injast.KeyValueExpr{Location: browserk.InjectJSON}
 	subObject := &injast.ObjectExpr{Location: browserk.InjectJSON, Fields: make([]browserk.InjectionExpr, 0)}
 	for {
 		tok, err := dec.Token()
@@ -90,7 +95,7 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 				b.parseJSONArray(dec, subObject, depth+1)
 				kv.Value = subObject
 				object.Fields = append(object.Fields, kv)
-				kv = &injast.KeyValueExpr{}
+				kv = &injast.KeyValueExpr{Location: browserk.InjectJSON}
 			}
 		case string:
 			ident := &injast.Ident{
@@ -106,7 +111,7 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 				ident.Location = browserk.InjectJSONValue
 				kv.Value = ident
 				object.Fields = append(object.Fields, kv)
-				kv = &injast.KeyValueExpr{}
+				kv = &injast.KeyValueExpr{Location: browserk.InjectJSON}
 			}
 
 		case float64:
@@ -122,7 +127,7 @@ func (b *BodyParser) parseJSONObject(dec *json.Decoder, object *injast.ObjectExp
 				ident.Location = browserk.InjectJSONValue
 				kv.Value = ident
 				object.Fields = append(object.Fields, kv)
-				kv = &injast.KeyValueExpr{}
+				kv = &injast.KeyValueExpr{Location: browserk.InjectJSON}
 			}
 		case bool:
 			asStr := "false"

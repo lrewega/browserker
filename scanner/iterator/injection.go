@@ -3,6 +3,7 @@ package iterator
 import (
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/parsers"
@@ -34,7 +35,7 @@ func NewInjectionIter(req *browserk.HTTPRequest) *InjectionIterator {
 	it.method = &injast.Ident{Name: req.Request.Method, NamePos: 0, Location: browserk.InjectMethod}
 	it.locs = append(it.locs, it.method)
 	it.parseURI()
-	//it.parseBody()
+	it.parseBody()
 	return it
 }
 
@@ -62,26 +63,30 @@ func (it *InjectionIterator) parseURI() {
 
 	it.uri, err = p.Parse(uri)
 	if err != nil {
+		log.Warn().Err(err).Msg("failed to parse uri")
 		it.invalidParse = true
 	}
+	log.Debug().Int("uri_inj_count", len(it.uri.Fields)).Msg("parsed URI for injection")
 	it.locs = append(it.locs, it.uri.Fields...)
 }
 
 func (it *InjectionIterator) parseBody() {
 	var err error
 	if it.req == nil || it.req.Request == nil || it.req.Request.PostData == "" {
-		it.invalidParse = true
 		return
 	}
 
 	p := &parsers.BodyParser{}
-	it.body, err = p.Parse(it.req.Request.PostData)
+	it.body, err = p.Parse([]byte(it.req.Request.PostData))
 	if err != nil {
-		it.invalidParse = true
+		log.Warn().Err(err).Msg("failed to parse postdata")
+		return
 	}
+	log.Debug().Int("body_inj_count", len(it.body.Fields)).Msg("parsed body for injection")
 	it.locs = append(it.locs, it.body.Fields...)
 }
 
+// Method of this request
 func (it *InjectionIterator) Method() string {
 	return it.method.String()
 }
@@ -91,19 +96,42 @@ func (it *InjectionIterator) URI() *injast.URI {
 	return it.uri
 }
 
+// SerializeURI or return the original if we failed to parse
+func (it *InjectionIterator) SerializeURI() string {
+	if it.uri != nil {
+		return it.uri.String()
+	}
+	// if parsed wrong/bad or whatever just return the original
+	_, uri := SplitHost(it.req.Request.Url)
+	uri += it.req.Request.UrlFragment
+	return uri
+}
+
 // Body returns the entire parsed Body for injection
 func (it *InjectionIterator) Body() *injast.Body {
 	return it.body
 }
 
+// SerializeBody or return the original if we failed to parse
+func (it *InjectionIterator) SerializeBody() string {
+	if it.body != nil {
+		return it.body.String()
+	}
+	// if parsed wrong/bad or whatever just return the original
+	return it.req.Request.PostData
+}
+
+// Path only for this URI
 func (it *InjectionIterator) Path() string {
 	return it.uri.PathOnly()
 }
 
+// File only for this URI
 func (it *InjectionIterator) File() string {
 	return it.uri.FileOnly()
 }
 
+// Seek to a specific injection index
 func (it *InjectionIterator) Seek(index int) {
 	if index >= len(it.locs) {
 		it.currentInj = nil

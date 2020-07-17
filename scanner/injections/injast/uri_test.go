@@ -39,6 +39,7 @@ func TestURIParts(t *testing.T) {
 func TestURIString(t *testing.T) {
 	p := &parsers.URIParser{}
 	inputs := []string{
+		"/vulnerabilities/fi/?page=include.php",
 		"/asdf?x=1&y=2",
 		"/?#/asdf/1?x=y&y=z&a[]=1",
 		"/WebGoat/login?error",

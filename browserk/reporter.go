@@ -27,6 +27,7 @@ type Report struct {
 	CWE         int
 	Description string
 	Remediation string
+	URL         string
 	Nav         *Navigation
 	Result      *NavigationResult
 	NavResultID []byte
@@ -41,12 +42,14 @@ func (r *Report) Hash() []byte {
 	hash := md5.New()
 	hash.Write([]byte(r.CheckID))
 	hash.Write([]byte{byte(r.CWE)})
+	hash.Write(r.Nav.ID)
+	hash.Write([]byte(r.URL))
 	if r.Result != nil && r.Result.ID != nil {
-		r.NavResultID = r.Result.ID
-		hash.Write(r.Result.ID)
+		r.NavResultID = r.Result.Hash()
+		hash.Write(r.Result.Hash())
 		hash.Write(r.Result.NavigationID)
-		hash.Write(r.Evidence.Hash())
 	}
+	hash.Write(r.Evidence.Hash())
 	r.ID = hash.Sum(nil)
 	return r.ID
 }

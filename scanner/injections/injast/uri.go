@@ -11,8 +11,8 @@ type URI struct {
 	Modified []byte
 }
 
-// NewURIv2 for injection purposes
-func NewURIv2(original []byte) *URI {
+// NewURI for injection purposes
+func NewURI(original []byte) *URI {
 	return &URI{
 		Original: original,
 		Fields:   make([]browserk.InjectionExpr, 0),
@@ -22,7 +22,7 @@ func NewURIv2(original []byte) *URI {
 // Copy does a deep copy of the URIv2
 func (u *URI) Copy() *URI {
 	orig := append([]byte(nil), u.Original...)
-	n := NewURIv2(orig)
+	n := NewURI(orig)
 
 	if u.Fields != nil && len(u.Fields) > 0 {
 		n.Fields = make([]browserk.InjectionExpr, len(u.Fields))
@@ -52,7 +52,7 @@ func (u *URI) String() string {
 			} else {
 				uri += "&"
 			}
-		case browserk.InjectFragment, browserk.InjectFragmentName:
+		case browserk.InjectFragment:
 			if setFrag == false {
 				uri += "#"
 				setFrag = true

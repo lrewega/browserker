@@ -3,7 +3,6 @@ package parsers
 import (
 	"fmt"
 
-	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/injections/injast"
 	"gitlab.com/browserker/scanner/injections/scanner"
@@ -18,10 +17,9 @@ type URIParser struct {
 // Parse a uri into it's parts
 // TODO: Clean this up it's a disaster
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
-	log.Debug().Str("uri", uri).Msg("parsing for injection")
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)
-	u.uri = injast.NewURIv2([]byte(uri))
+	u.uri = injast.NewURI([]byte(uri))
 
 	for {
 		_, tok, lit := u.s.Scan()
