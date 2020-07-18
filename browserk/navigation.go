@@ -133,7 +133,7 @@ func NewNavigationFromElement(from *Navigation, triggeredBy TriggeredBy, ele *HT
 	// we don't want to keep going to /page if it exists on *every* page.
 	if link, ok := ele.Attributes["href"]; ok && ele.Type == A {
 		if strings.HasPrefix(link, "#") {
-			h.Write(n.OriginID)
+			//h.Write(n.OriginID)
 		}
 	}
 	h.Write([]byte{byte(aType)})

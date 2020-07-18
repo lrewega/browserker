@@ -2,8 +2,8 @@ URL = "http://localhost:8080/WebGoat/login"
 AllowedHosts = ["localhost"]
 ExcludedURIs = ["/WebGoat/logout", "/WebGoat/login?logout"]
 DataPath = "browserktmp"
-NumBrowsers = 10
-MaxDepth = 25
+NumBrowsers = 3
+MaxDepth = 5
 JSPluginPath = "plugins/"
 
 [FormData]
