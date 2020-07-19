@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/vmihailenco/msgpack/v4"
 	"github.com/wirepair/gcd/gcdapi"
@@ -38,6 +39,22 @@ func (h *HTTPRequest) Hash() []byte {
 	hash.Write([]byte(h.Type))
 	h.ID = hash.Sum(nil)
 	return h.ID
+}
+
+func (h *HTTPRequest) StrHeaders() string {
+	if h.Request == nil || h.Request.Headers == nil {
+		return ""
+	}
+	headers := ""
+	for n, v := range h.Request.Headers {
+		switch t := v.(type) {
+		case string:
+			headers += n + ": " + t
+		case []string:
+			headers += n + ": " + strings.Join(t, ", ")
+		}
+	}
+	return headers
 }
 
 // hashURL scheme, host (and port), path and sorted query names only (not values)
@@ -104,6 +121,31 @@ func (h *HTTPResponse) Hash() []byte {
 	return h.ID
 }
 
+func (h *HTTPResponse) StrHeaders() string {
+	if h.Response == nil || h.Response.Headers == nil {
+		return ""
+	}
+	headers := ""
+	for n, v := range h.Response.Headers {
+		switch t := v.(type) {
+		case string:
+			headers += n + ": " + t
+		case []string:
+			headers += n + ": " + strings.Join(t, ", ")
+		}
+	}
+	return headers
+}
+
+// ResponseTimeMs returns how long the response took from when we finished sending
+// to when we got response headers.
+func (h *HTTPResponse) ResponseTimeMs() float64 {
+	if h.Response == nil || h.Response.Timing == nil {
+		return 0
+	}
+	return h.Response.Timing.ReceiveHeadersEnd - h.Response.Timing.SendEnd
+}
+
 // Copy does a deep copy
 // TODO: write a small astutil to generate deep copy with nil checks of nested objects
 // for now, be super lazy
@@ -131,8 +173,8 @@ type InterceptedHTTPRequest struct {
 	ResourceType   string                     `json:"resourceType"`              // How the requested resource will be used. enum values: Document, Stylesheet, Image, Media, Font, Script, TextTrack, XHR, Fetch, EventSource, WebSocket, Manifest, SignedExchange, Ping, CSPViolationReport, Other
 	RequestHeaders []*gcdapi.FetchHeaderEntry `json:"responseHeaders,omitempty"` // Response headers if intercepted at the response stage.
 	NetworkId      string                     `json:"networkId,omitempty"`       // If the intercepted request had a corresponding Network.requestWillBeSent event fired for it, then this networkId will be the same as the requestId present in the requestWillBeSent event.
-
-	Modified *HTTPModifiedRequest
+	SentTimestamp  time.Time                  `json:"sentTimestamp,omitempty"`
+	Modified       *HTTPModifiedRequest
 }
 
 func (h *InterceptedHTTPRequest) Hash() []byte {
@@ -236,6 +278,7 @@ type InterceptedHTTPResponse struct {
 	NetworkId           string                     `json:"networkId,omitempty"`           // If the intercepted request had a corresponding Network.requestWillBeSent event fired for it, then this networkId will be the same as the requestId present in the requestWillBeSent event.
 	Body                string                     `json:"body,omitempty"`
 	BodyEncoded         bool                       `json:"body_encoded,omitempty"`
+	RecvTimestamp       time.Time                  `json:"recvTimestamp,omitempty"`
 	Modified            *HTTPModifiedResponse
 }
 

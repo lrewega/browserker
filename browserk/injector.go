@@ -153,7 +153,7 @@ type Injector interface {
 	AddHeader(name, value string)
 	RemoveHeader(name string)
 	ReplaceBody(newBody []byte)
-	Send(ctx context.Context, withRender bool) (*InterceptedHTTPResponse, error)
-	SendNew(ctx context.Context, req *HTTPRequest, withRender bool) (*InterceptedHTTPResponse, error)
+	Send(ctx context.Context, withRender bool) (*InterceptedHTTPMessage, error)
+	SendNew(ctx context.Context, req *HTTPRequest, withRender bool) (*InterceptedHTTPMessage, error)
 	// BrowserSend ..? (for xss/plugins that send through the current page).
 }

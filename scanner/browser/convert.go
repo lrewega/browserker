@@ -165,6 +165,7 @@ func GCDFetchRequestToIntercepted(m *gcdapi.FetchRequestPausedEvent, container *
 		ResourceType:   p.ResourceType,
 		RequestHeaders: headers,
 		NetworkId:      p.NetworkId,
+		SentTimestamp:  time.Now(),
 		Modified: &browserk.HTTPModifiedRequest{
 			RequestId: "",
 			Url:       "",
@@ -191,6 +192,7 @@ func GCDFetchResponseToIntercepted(m *gcdapi.FetchRequestPausedEvent, body strin
 		ResponseStatusCode:  p.ResponseStatusCode,
 		Body:                body,
 		BodyEncoded:         encoded,
+		RecvTimestamp:       time.Now(),
 		Modified: &browserk.HTTPModifiedResponse{
 			ResponseCode:    0,
 			ResponseHeaders: nil,

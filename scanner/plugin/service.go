@@ -17,6 +17,11 @@ import (
 	"gitlab.com/browserker/scanner/plugin/storage"
 )
 
+type intercepted struct {
+	respCh chan<- *browserk.InterceptedHTTPMessage
+	req    *browserk.InterceptedHTTPRequest
+}
+
 // Service of plugins
 type Service struct {
 	cfg         *browserk.Config
@@ -33,7 +38,7 @@ type Service struct {
 	alwaysPlugins   *Container
 
 	respLock       *sync.RWMutex
-	respDispatcher map[string]chan<- *browserk.InterceptedHTTPResponse
+	respDispatcher map[string]*intercepted
 }
 
 // New plugin manager
@@ -50,7 +55,7 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 		responsePlugins: NewContainer(),
 		alwaysPlugins:   NewContainer(),
 		respLock:        &sync.RWMutex{},
-		respDispatcher:  make(map[string]chan<- *browserk.InterceptedHTTPResponse),
+		respDispatcher:  make(map[string]*intercepted, 0),
 	}
 }
 
@@ -156,20 +161,20 @@ func (s *Service) listenForEvents() {
 }
 
 // RegisterForResponse registers the requestID to a channel for dispatching the response (used for injections)
-func (s *Service) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+func (s *Service) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPMessage, injected *browserk.InterceptedHTTPRequest) {
 	s.respLock.Lock()
-	s.respDispatcher[requestID] = respCh
+	s.respDispatcher[requestID] = &intercepted{req: injected, respCh: respCh}
 	s.respLock.Unlock()
 }
 
 // DispatchResponse to whomever registered for this requestID, deletes it from the map after access
 // returns immediately if it doesn't exist
 func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedHTTPResponse) {
-	var respCh chan<- *browserk.InterceptedHTTPResponse
+	var inj *intercepted
 	var ok bool
 
 	s.respLock.Lock()
-	if respCh, ok = s.respDispatcher[requestID]; !ok {
+	if inj, ok = s.respDispatcher[requestID]; !ok {
 		s.respLock.Unlock()
 		return
 	}
@@ -177,10 +182,11 @@ func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedH
 	s.respLock.Unlock()
 	t := time.NewTimer(time.Second * 5)
 
+	respMsg := &browserk.InterceptedHTTPMessage{Request: inj.req, Response: resp}
 	select {
 	case <-s.ctx.Done():
 		return
-	case respCh <- resp:
+	case inj.respCh <- respMsg:
 		return
 	case <-t.C:
 		log.Warn().Str("url", resp.Request.Url).

@@ -303,7 +303,7 @@ func TestInjectRequest(t *testing.T) {
 	u := fmt.Sprintf("http://localhost:%s/index.html", p)
 	target, _ := url.Parse(u)
 	bCtx := mock.MakeMockContext(ctx, target)
-	respCh := make(chan *browserk.InterceptedHTTPResponse)
+	respCh := make(chan *browserk.InterceptedHTTPMessage)
 
 	bCtx.AddReqHandler(testInjectXHRReq(t, respCh, u+"?asdf=asdf", nil, "", []byte("")))
 
@@ -327,7 +327,7 @@ func TestInjectRequest(t *testing.T) {
 	t.Logf("GOT RESPONSE FROM CH:\n")
 }
 
-func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPResponse, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {
+func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPMessage, newURI string, headers map[string]interface{}, body string, match []byte) browserk.RequestHandler {
 	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		t.Logf("INTERCEPTED: %s = %s [%s]\n", i.RequestId, i.Request.Url, i.NetworkId)
 		if !strings.HasSuffix(i.Request.Url, "someur.html") {
@@ -337,7 +337,7 @@ func testInjectXHRReq(t *testing.T, respCh chan *browserk.InterceptedHTTPRespons
 		i.Modified.Url = newURI
 		i.Modified.SetHeaders(headers)
 		i.Modified.PostData = body
-		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
+		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh, i)
 		return true
 	}
 }

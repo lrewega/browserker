@@ -1,6 +1,7 @@
 package oscmd
 
 import (
+	"context"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -52,16 +53,18 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	expr := injector.InjectionExpr()
 	for _, attack := range []string{"cat /etc/passwd", "|cat /etc/passwd", ";cat /etc/passwd"} {
 		expr.Inject(attack, browserk.InjectValue)
-		// s.AddHeader... s.AddParams/Fragments etc
-		resp, err := injector.Send(injector.BCtx().Ctx, false)
+
+		ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, time.Second*15)
+		defer cancel()
+		m, err := injector.Send(ctx, false)
 		if err != nil {
 			injector.BCtx().Log.Error().Err(err).Msg("failed to inject")
 			return false, nil
 		}
 		injector.BCtx().Log.Info().Msg("attacked!")
-		body := resp.Body
-		if resp.BodyEncoded {
-			b, err := base64.StdEncoding.DecodeString(resp.Body)
+		body := m.Response.Body
+		if m.Response.BodyEncoded {
+			b, err := base64.StdEncoding.DecodeString(m.Response.Body)
 			if err != nil {
 				injector.BCtx().Log.Error().Err(err).Msg("failed to decode body response")
 				return true, nil
@@ -73,7 +76,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 			injector.BCtx().Reporter.Add(&browserk.Report{
 				CheckID:     "1",
 				CWE:         78,
-				URL:         injector.Message().Request.DocumentURL,
+				URL:         m.Request.Modified.Url,
 				Description: "you have oscmd injection",
 				Remediation: "don't have oscmd injection",
 				Nav:         injector.Nav(),
