@@ -12,6 +12,7 @@ import (
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/plugin/active/lfi"
 	"gitlab.com/browserker/scanner/plugin/active/oscmd"
+	"gitlab.com/browserker/scanner/plugin/active/sqli"
 	"gitlab.com/browserker/scanner/plugin/cookies"
 	"gitlab.com/browserker/scanner/plugin/headers"
 	"gitlab.com/browserker/scanner/plugin/storage"
@@ -201,6 +202,7 @@ func (s *Service) importPlugins() {
 	s.Register(cookies.New(s))
 	s.Register(headers.New(s))
 	s.Register(storage.New(s))
+	s.Register(sqli.New(s))
 	s.Register(oscmd.New(s))
 	s.Register(lfi.New(s))
 }

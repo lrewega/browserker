@@ -2,9 +2,7 @@ package sqli
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"strings"
 	"time"
 
 	"gitlab.com/browserker/browserk"
@@ -39,7 +37,7 @@ func (p *Plugin) Name() string {
 
 // ID unique to browserker
 func (p *Plugin) ID() string {
-	return "BR-A-0003"
+	return "BR-A-0001"
 }
 
 // Config for this plugin
@@ -63,8 +61,9 @@ func (p *Plugin) Options() *browserk.PluginOpts {
 // Ready to attack
 func (p *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	// msg := injector.Message() // get original req/resp
-	expr := injector.InjectionExpr()
+	// expr := injector.InjectionExpr()
 	for _, attack := range p.attacks {
+		injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attempting SQLi")
 		if attack.IsTiming {
 			found, err := p.doTimingAttack(injector, attack)
 			if err != nil {
@@ -74,76 +73,98 @@ func (p *Plugin) Ready(injector browserk.Injector) (bool, error) {
 				return true, nil
 			}
 		}
-
-		expr.Inject(attack.Prefix+attack.Attack+attack.Suffix, browserk.InjectValue)
-
-		ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, time.Second*15)
-		defer cancel()
-		m, err := injector.Send(ctx, false)
-		if err != nil {
-			injector.BCtx().Log.Error().Err(err).Msg("failed to inject")
-			return false, nil
-		}
-		injector.BCtx().Log.Info().Msg("attacked!")
-		body := m.Response.Body
-		if m.Response.BodyEncoded {
-			b, err := base64.StdEncoding.DecodeString(m.Response.Body)
-			if err != nil {
-				injector.BCtx().Log.Error().Err(err).Msg("failed to decode body response")
-				return true, nil
-			} else {
-				body = string(b)
-			}
-		}
-
-		if strings.Contains(body, "root:") {
-			injector.BCtx().Reporter.Add(&browserk.Report{
-				CheckID:     "1",
-				CWE:         78,
-				URL:         injector.Message().Request.DocumentURL,
-				Description: "you have sql injection",
-				Remediation: "don't have sqli injection",
-				Nav:         injector.Nav(),
-				NavResultID: injector.NavResultID(),
-				Evidence: &browserk.Evidence{
-					String: body,
-				},
-				Reported: time.Now(),
-			})
-			return true, nil
-		}
+		/*
+			TODO: handle generic sql i and match against common exceptions/error messages}
+		*/
 	}
-	return true, nil
+	return false, nil
 }
 
 // TODO get 'median' response time for all requests by capturing stats across all response timing.
-// this check will run the attack 3x alternating between slow sleep(15) and fast sleep(0) accounting for baseline
+// this check will run the attack 4x alternating between slow sleep(15) and fast sleep(0) accounting for baseline
 // timing etc. If 2 of the slow attacks work, and the fast attack returns 'fast' then we can be semi-certain it's a legit
 // finding. Tweak this algo as necessary with various network conditions.
 func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) (bool, error) {
 	expr := injector.InjectionExpr()
-	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, p.sleepTimeSec)+attack.Suffix, browserk.InjectValue)
 
-	originalBaseline := injector.Message().Response.ResponseTimeMs()
+	originalBaseline := (time.Millisecond * time.Duration(injector.Message().Response.ResponseTimeMs()))
+
 	longSleep := (time.Second * p.sleepTimeSec) + (time.Millisecond * time.Duration(originalBaseline))
-	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, longSleep+(time.Second*5)) // give it 5 extra seconds to timeout
+
+	injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attempting SQLi long sleep")
+	// long sleep
+	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, p.sleepTimeSec)+attack.Suffix, browserk.InjectValue)
+	t, success := p.sendTiming(longSleep, injector)
+	if success && t < longSleep {
+		return false, nil
+	}
+
+	injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attempting SQLi short sleep")
+	// short sleep
+	shortSleepFailCount := 0
+	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, 0)+attack.Suffix, browserk.InjectValue)
+	t, success = p.sendTiming(longSleep, injector)
+
+	// if the connection timed out on the short sleep attack, it's probably just a busted page
+	if !success || (success && t-originalBaseline > longSleep) {
+		shortSleepFailCount++
+	}
+	injector.BCtx().Log.Info().Int("short_fail_cnt", shortSleepFailCount).Str("attack", attack.Attack).Msg("attempting SQLi short sleep x2")
+
+	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, 0)+attack.Suffix, browserk.InjectValue)
+	t, success = p.sendTiming(longSleep, injector)
+	if !success || (success && t-originalBaseline > longSleep) {
+		shortSleepFailCount++
+	}
+
+	injector.BCtx().Log.Info().Int("short_fail_cnt", shortSleepFailCount).Str("attack", attack.Attack).Msg("short sleep results")
+	if shortSleepFailCount == 2 {
+		return false, nil
+	}
+
+	injector.BCtx().Log.Info().Int("short_fail_cnt", shortSleepFailCount).Str("attack", attack.Attack).Msg("attempting long sleep x 2")
+	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, p.sleepTimeSec)+attack.Suffix, browserk.InjectValue)
+	t, success = p.sendTiming(longSleep, injector)
+	if success && t < longSleep {
+		return false, nil
+	}
+	injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attack successful, creating report")
+
+	p.reportTimingSuccess(injector, attack)
+	return true, nil
+}
+
+func (p *Plugin) reportTimingSuccess(injector browserk.Injector, attack *SQLIAttack) {
+	injector.BCtx().Reporter.Add(&browserk.Report{
+		CheckID:     "2",
+		CWE:         89,
+		URL:         injector.Message().Request.Request.Url,
+		Description: fmt.Sprintf("you have sql injection in %s. %s", attack.DBTech.String(), attack.Description),
+		Remediation: "don't have sqli injection",
+		Nav:         injector.Nav(),
+		NavResultID: injector.NavResultID(),
+		Evidence: &browserk.Evidence{
+			String: fmt.Sprintf("%s", attack.Prefix+attack.Attack+attack.Suffix),
+		},
+		Reported: time.Now(),
+	})
+}
+
+func (p *Plugin) sendTiming(timeout time.Duration, injector browserk.Injector) (time.Duration, bool) {
+	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, timeout+(time.Second*10)) // give it 10 extra seconds to timeout
 	defer cancel()
+	start := time.Now()
 	m, err := injector.Send(ctx, false)
 	if err != nil && err != browserk.ErrInjectionTimeout {
-		return false, nil
+		return 0, false
 	}
 
 	// quite possible we ran over the timelimit still a potential sqli
 	if err == browserk.ErrInjectionTimeout || m == nil {
+		return start.Sub(time.Now()), false
 		// do something
-	} else {
-		// TODO: verify this is right
-		if m.Response.RecvTimestamp.Sub(m.Request.SentTimestamp) > time.Duration(p.sleepTimeSec)*time.Second {
-			// do stuff
-		}
 	}
-
-	return false, nil
+	return m.Response.RecvTimestamp.Sub(m.Request.SentTimestamp), true
 }
 
 // OnEvent handles passive events

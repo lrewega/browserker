@@ -2,6 +2,7 @@ package injast
 
 import (
 	"bytes"
+	"net/url"
 	"strings"
 
 	"gitlab.com/browserker/browserk"
@@ -134,24 +135,32 @@ func (x *Ident) String() string {
 		quote = string(x.EncChar)
 	}
 
-	// TODO break this into an 'encoder' method to handle xml/attribs etc etc.
 	if x.Modded {
-		if x.Location >= browserk.InjectJSON && x.Location <= browserk.InjectJSONValue {
-			buf := &bytes.Buffer{}
-			// escape " characters
-			for i, ch := range x.Mod {
-				if ch == '"' && i != 0 && x.Mod[i-1] != '\\' {
-					buf.WriteRune('\\')
-				} else if ch == '"' && i == 0 {
-					buf.WriteRune('\\')
-				}
-				buf.WriteRune(ch)
-			}
-			return quote + buf.String() + quote
-		}
-		return quote + x.Mod + quote
+		return x.encode(quote)
 	}
 	return quote + x.Name + quote
+}
+
+func (x *Ident) encode(quote string) string {
+	if x.Location >= browserk.InjectJSON && x.Location <= browserk.InjectJSONValue {
+		buf := &bytes.Buffer{}
+		// escape " characters
+		for i, ch := range x.Mod {
+			if ch == '"' && i != 0 && x.Mod[i-1] != '\\' {
+				buf.WriteRune('\\')
+			} else if ch == '"' && i == 0 {
+				buf.WriteRune('\\')
+			}
+			buf.WriteRune(ch)
+		}
+		return quote + buf.String() + quote
+	} else if x.Location >= browserk.InjectQuery && x.Location <= browserk.InjectQueryValue {
+		return quote + url.QueryEscape(x.Mod) + quote
+	} else if x.Location >= browserk.InjectBody && x.Location <= browserk.InjectBodyValue {
+		m := strings.Replace(x.Mod, "&", "%26", -1)
+		return quote + strings.Replace(m, "=", "%3d", -1) + quote
+	}
+	return quote + x.Mod + quote
 }
 
 // Modify sets a new field because End() and Pos() will be incorrect

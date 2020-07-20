@@ -115,7 +115,7 @@ func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
 		IncludeCommandLineAPI: false,
 		Silent:                false,
 		//ContextId:             ctxID,
-		Timeout: 60000,
+		Timeout: 45000,
 	}
 	_, _, err = t.t.Runtime.EvaluateWithParams(params)
 	return err

@@ -140,7 +140,7 @@ func (h *HTTPResponse) StrHeaders() string {
 // ResponseTimeMs returns how long the response took from when we finished sending
 // to when we got response headers.
 func (h *HTTPResponse) ResponseTimeMs() float64 {
-	if h.Response == nil || h.Response.Timing == nil {
+	if h == nil || h.Response == nil || h.Response.Timing == nil {
 		return 0
 	}
 	return h.Response.Timing.ReceiveHeadersEnd - h.Response.Timing.SendEnd

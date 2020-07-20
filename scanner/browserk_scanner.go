@@ -206,7 +206,12 @@ func (b *Browserk) Start() error {
 			b.attackCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
-		<-b.readyCh
+		select {
+		case <-b.readyCh:
+			break
+		case <-b.mainContext.Ctx.Done():
+			break
+		}
 	}
 }
 
@@ -230,7 +235,6 @@ func (b *Browserk) processEntries() {
 		case nav := <-b.navCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing nav")
 			go b.crawl(nav)
-			log.Info().Msg("Crawler to complete")
 		case nav := <-b.attackCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing attack nav")
 			go b.attack(nav)
@@ -354,6 +358,7 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 				injIt := iterator.NewInjectionIter(req)
 				injector := injections.New(navCtx, browser, nav, mIt, injIt)
 
+				// Iterate over injection expressions
 				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
 					navCtx.Log.Info().
 						Str("location", injIt.Expr().Loc().String()).
