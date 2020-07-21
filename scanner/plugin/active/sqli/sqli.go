@@ -89,9 +89,14 @@ func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) 
 
 	originalBaseline := (time.Millisecond * time.Duration(injector.Message().Response.ResponseTimeMs()))
 
-	longSleep := (time.Second * p.sleepTimeSec) + (time.Millisecond * time.Duration(originalBaseline))
+	longSleep := (time.Second * p.sleepTimeSec) + originalBaseline
 
-	injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attempting SQLi long sleep")
+	injector.BCtx().Log.Info().
+		Str("attack", attack.Attack).
+		Str("original_resp_ms", originalBaseline.String()).
+		Str("sleep_time", longSleep.String()).
+		Msg("attempting SQLi long sleep")
+
 	// long sleep
 	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, p.sleepTimeSec)+attack.Suffix, browserk.InjectValue)
 	t, success := p.sendTiming(longSleep, injector)

@@ -175,7 +175,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 	navs := make([]*browserk.Navigation, 0)
 	browser.RefreshDocument()
 	baseHref := browser.GetBaseHref()
-
+	docURL, _ := browser.GetURL()
 	navDiff := NewElementDiffer()
 	// Pull out forms (highest priority)
 	formElements, err := browser.FindForms()
@@ -204,7 +204,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 		scope := bctx.Scope.ResolveBaseHref(baseHref, form.GetAttribute("action"))
 		if scope == browserk.InScope {
-			nav := browserk.NewNavigationFromForm(entry, browserk.TrigCrawler, form)
+			nav := browserk.NewNavigationFromForm(entry, browserk.TrigCrawler, docURL, form)
 			bctx.FormHandler.Fill(form)
 			navs = append(navs, nav)
 		}

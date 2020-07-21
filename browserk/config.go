@@ -105,9 +105,9 @@ var DefaultFormValues = FormData{
 	CommentText:       "why yes indeed",
 	DocumentName:      "file.txt",
 	URL:               "https://example.com/browserker",
-	Network:           "192.168.1.1",
-	IPV4:              "192.168.1.20",
-	IPV6:              "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+	Network:           "8.8.8.1",
+	IPV4:              "8.8.8.8",
+	IPV6:              "2001:4860:4860::8888",
 }
 
 // Config for browserker

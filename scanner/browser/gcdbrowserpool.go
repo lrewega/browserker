@@ -201,6 +201,7 @@ func (b *GCDBrowserPool) Take(ctx *browserk.Context) (browserk.Browser, string, 
 		return nil, "", fmt.Errorf("failed to aquire valid tab from browser")
 	}
 	gtab := NewTab(ctx, br, t)
+	gtab.t.SetApiTimeout(b.browserTimeout) // default of 2 min is too long
 	return gtab, br.Port(), nil
 }
 
