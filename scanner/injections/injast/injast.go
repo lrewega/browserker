@@ -158,6 +158,8 @@ func (x *Ident) encode(quote string) string {
 		return quote + url.QueryEscape(x.Mod) + quote
 	} else if x.Location >= browserk.InjectBody && x.Location <= browserk.InjectBodyValue {
 		m := strings.Replace(x.Mod, "&", "%26", -1)
+		m = strings.Replace(m, ";", "%3b", -1)
+		m = strings.Replace(m, "+", "%2b", -1)
 		return quote + strings.Replace(m, "=", "%3d", -1) + quote
 	}
 	return quote + x.Mod + quote

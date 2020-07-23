@@ -126,6 +126,9 @@ func (b *Browserk) Init(ctx context.Context) error {
 	if !b.cfg.DisableHeadless {
 		leaser.SetHeadless()
 	}
+	if b.cfg.Proxy != "" {
+		leaser.SetProxy(b.cfg.Proxy)
+	}
 
 	log.Logger.Info().Msg("leaser started")
 	pool := browser.NewGCDBrowserPool(b.cfg.NumBrowsers, leaser)
@@ -363,6 +366,10 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 			injIt := iterator.NewInjectionIter(req)
 			injector := injections.New(navCtx, browser, nav, mIt, injIt)
 
+			// if we are stuck on a slow path, let's spread out the work load
+			if b.browsers.Leased() < b.cfg.NumBrowsers {
+
+			}
 			// Iterate over injection expressions
 			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
 				navCtx.Log.Info().

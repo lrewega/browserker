@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/wirepair/gcd"
@@ -65,6 +66,12 @@ func NewLocalLeaser() *LocalLeaser {
 
 func (l *LocalLeaser) SetHeadless() {
 	startupFlags = append(startupFlags, "--headless")
+}
+
+func (l *LocalLeaser) SetProxy(addr string) {
+	proxyFlag := setProxy(addr)
+	spew.Dump(proxyFlag)
+	startupFlags = append(startupFlags, proxyFlag...)
 }
 
 // Acquire a new browser

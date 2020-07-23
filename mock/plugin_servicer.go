@@ -73,7 +73,7 @@ func (p *PluginServicer) DispatchResponse(requestID string, resp *browserk.Inter
 
 func (p *PluginServicer) Inject(mainContext *browserk.Context, injector browserk.Injector) {
 	p.InjectCalled = true
-	p.Inject(mainContext, injector)
+	p.InjectFn(mainContext, injector)
 }
 
 func MakeMockPluginServicer() *PluginServicer {

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/iterator"
@@ -77,24 +78,32 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 
 		host, _ := iterator.SplitHost(i.req.Request.Url)
 		// TODO: replace headers with injIterator.Headers body with injIterator.Body (those three should be separate)
-		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).Str("attack_METHOD", i.injIterator.Method()).Str("attack_URL", host+i.injIterator.URI().String()).Str("attack_BODY", i.injIterator.Body().String()).Msg("injecting attack")
+		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).
+			Str("attack_METHOD", i.injIterator.Method()).
+			Str("attack_URL", host+i.injIterator.URI().String()).
+			Str("attack_BODY", i.injIterator.SerializeBody()).
+			Int64("attack_id", id).
+			Msg("injecting attack")
 
 		injectFn := InjectFetchReq(respCh, i.injIterator.Method(), host+i.injIterator.SerializeURI(), i.req.Request.Headers, i.injIterator.SerializeBody(), attackID)
 		i.bCtx.AddReqHandler(injectFn)
 
-		i.bCtx.Log.Debug().Msg("injecting js fetch")
+		i.bCtx.Log.Debug().Int64("attack_id", id).Msg("injecting js fetch")
 		i.injIterator.Expr().Reset() // un-inject ourselves
 
 		// issue request to hijack
 		if err := i.browser.InjectRequest(ctx, i.req.Request.Method, host+attackID); err != nil {
-			i.bCtx.Log.Error().Err(err).Msg("failed to inject fetch attack")
+			i.bCtx.Log.Error().Err(err).Int64("attack_id", id).Msg("failed to inject fetch attack")
 			return nil, fmt.Errorf("injection failed")
 		}
 
 		select {
 		case r := <-respCh:
+			i.bCtx.Log.Debug().Msg("got response from attack")
+			spew.Dump(r)
 			return r, nil
 		case <-ctx.Done():
+			i.bCtx.Log.Error().Int64("attack_id", id).Msg("injection timeout")
 			return nil, browserk.ErrInjectionTimeout
 		}
 	}
@@ -124,6 +133,7 @@ func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequ
 		}
 		select {
 		case r := <-respCh:
+
 			return r, nil
 		case <-ctx.Done():
 			return nil, fmt.Errorf("failed to get response, context done")
