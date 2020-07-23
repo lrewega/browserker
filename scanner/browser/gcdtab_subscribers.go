@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wirepair/gcd"
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2"
+	"github.com/wirepair/gcd/v2/gcdapi"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -276,7 +276,7 @@ func (t *Tab) subscribeDialogEvents() {
 	t.t.Subscribe("Page.javascriptDialogOpening", func(target *gcd.ChromeTarget, payload []byte) {
 		message := &gcdapi.PageJavascriptDialogOpeningEvent{}
 		if err := json.Unmarshal(payload, message); err == nil {
-			t.t.Page.HandleJavaScriptDialog(true, "browserk")
+			t.t.Page.HandleJavaScriptDialog(t.ctx.Ctx, true, "browserk")
 		}
 	})
 
@@ -345,7 +345,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			t.container.DecRequest() // we never got the response so decrement
 			return
 		}
-		bodyStr, encoded, err := t.t.Network.GetResponseBody(message.Params.RequestId)
+		bodyStr, encoded, err := t.t.Network.GetResponseBody(t.ctx.Ctx, message.Params.RequestId)
 		if err != nil {
 			t.ctx.Log.Warn().Str("url", message.Params.Response.Url).Err(err).Msg("failed to get body")
 		}
@@ -403,12 +403,12 @@ func (t *Tab) interceptedRequest(ctx *browserk.Context, message *gcdapi.FetchReq
 		ErrorReason: "BlockedByClient",
 	}
 	if err != nil {
-		t.t.Fetch.FailRequestWithParams(fail)
+		t.t.Fetch.FailRequestWithParams(t.ctx.Ctx, fail)
 		return
 	}
 
 	if ctx.Scope.Check(u) != browserk.InScope && message.Params.ResourceType == "Document" {
-		t.t.Fetch.FailRequestWithParams(fail)
+		t.t.Fetch.FailRequestWithParams(t.ctx.Ctx, fail)
 		return
 	}
 
@@ -430,7 +430,7 @@ func (t *Tab) interceptedRequest(ctx *browserk.Context, message *gcdapi.FetchReq
 	if modified.Modified.PostData != "" {
 		reqParams.PostData = modified.Modified.PostData
 	}
-	t.t.Fetch.ContinueRequestWithParams(reqParams)
+	t.t.Fetch.ContinueRequestWithParams(t.ctx.Ctx, reqParams)
 }
 
 func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRequestPausedEvent) {
@@ -447,17 +447,17 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 		modified := GCDFetchResponseToIntercepted(message, "", false)
 		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
-		t.t.Fetch.FulfillRequestWithParams(respParams)
+		t.t.Fetch.FulfillRequestWithParams(t.ctx.Ctx, respParams)
 		return
 	}
 
-	bodyStr, encoded, err := t.t.Fetch.GetResponseBody(p.RequestId)
+	bodyStr, encoded, err := t.t.Fetch.GetResponseBody(t.ctx.Ctx, p.RequestId)
 	if err != nil {
 		modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
 		// t.ctx.Log.Debug().Str("response_key", modified.FrameId+modified.NetworkId).Msg("(no body) dispatching response!!!!!!!!!")
 		ctx.PluginServicer.DispatchResponse(modified.FrameId+modified.NetworkId, modified)
 		t.ctx.Log.Warn().Err(err).Str("request_id", p.RequestId).Msg("unable to get body")
-		t.t.Fetch.FulfillRequestWithParams(respParams)
+		t.t.Fetch.FulfillRequestWithParams(t.ctx.Ctx, respParams)
 		return
 	}
 	modified := GCDFetchResponseToIntercepted(message, bodyStr, encoded)
@@ -485,7 +485,7 @@ func (t *Tab) interceptedResponse(ctx *browserk.Context, message *gcdapi.FetchRe
 	if modified.Modified.ResponsePhrase != "" {
 		respParams.ResponsePhrase = modified.Modified.ResponsePhrase
 	}
-	t.t.Fetch.FulfillRequestWithParams(respParams)
+	t.t.Fetch.FulfillRequestWithParams(t.ctx.Ctx, respParams)
 }
 
 func hasBody(headers []*gcdapi.FetchHeaderEntry) bool {

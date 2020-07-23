@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2/gcdapi"
 	"gitlab.com/browserker/browserk"
 )
 

@@ -3,6 +3,7 @@ package sqli_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"testing"
@@ -16,6 +17,10 @@ import (
 	"gitlab.com/browserker/scanner/crawler"
 	"gitlab.com/browserker/scanner/plugin/active/sqli"
 	"gitlab.com/browserker/scanner/plugin/plugintest"
+
+	_ "net/http/pprof"
+
+	_ "net/http"
 )
 
 var leaser = browser.NewLocalLeaser()
@@ -26,6 +31,9 @@ func init() {
 }
 
 func TestSQLi(t *testing.T) {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	pool := browser.NewGCDBrowserPool(1, leaser)
 	if err := pool.Init(); err != nil {
 		t.Fatalf("failed to init pool")
@@ -41,7 +49,7 @@ func TestSQLi(t *testing.T) {
 				resp := "<html><body>You made it!</body></html>"
 				if user == "'+(select(sleep(15)))+'" {
 					t.Logf("calling sleep...")
-					time.Sleep(time.Second * 15)
+					time.Sleep(time.Second * 2)
 					calledCh <- struct{}{}
 				}
 

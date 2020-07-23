@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -156,10 +157,11 @@ func (p *Plugin) reportTimingSuccess(injector browserk.Injector, attack *SQLIAtt
 }
 
 func (p *Plugin) sendTiming(timeout time.Duration, injector browserk.Injector) (time.Duration, bool) {
-	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, timeout+(time.Second*10)) // give it 10 extra seconds to timeout
+	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, timeout+(time.Second*5)) // give it 5 extra seconds to timeout
 	defer cancel()
 	start := time.Now()
 	m, err := injector.Send(ctx, false)
+	log.Info().Err(ctx.Err()).Msg("ctx error?")
 	if err != nil && err != browserk.ErrInjectionTimeout {
 		return 0, false
 	}

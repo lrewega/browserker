@@ -2,8 +2,8 @@ package browser
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wirepair/gcd"
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2"
+	"github.com/wirepair/gcd/v2/gcdapi"
 	"gitlab.com/browserker/browserk"
 )
 

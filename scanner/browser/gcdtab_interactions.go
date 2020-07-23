@@ -1,6 +1,6 @@
 package browser
 
-import "github.com/wirepair/gcd/gcdapi"
+import "github.com/wirepair/gcd/v2/gcdapi"
 
 // Click the x, y coords one time
 func (t *Tab) Click(x, y float64) error {
@@ -18,7 +18,7 @@ func (t *Tab) click(x, y float64, clickCount int) error {
 		ClickCount: clickCount,
 	}
 
-	if _, err := t.t.Input.DispatchMouseEventWithParams(mousePressedParams); err != nil {
+	if _, err := t.t.Input.DispatchMouseEventWithParams(t.ctx.Ctx, mousePressedParams); err != nil {
 		return err
 	}
 
@@ -29,7 +29,7 @@ func (t *Tab) click(x, y float64, clickCount int) error {
 		ClickCount: clickCount,
 	}
 
-	if _, err := t.t.Input.DispatchMouseEventWithParams(mouseReleasedParams); err != nil {
+	if _, err := t.t.Input.DispatchMouseEventWithParams(t.ctx.Ctx, mouseReleasedParams); err != nil {
 		return err
 	}
 	return nil
@@ -47,7 +47,7 @@ func (t *Tab) MoveMouse(x, y float64) error {
 		Y: y,
 	}
 
-	_, err := t.t.Input.DispatchMouseEventWithParams(mouseMovedParams)
+	_, err := t.t.Input.DispatchMouseEventWithParams(t.ctx.Ctx, mouseMovedParams)
 	return err
 }
 
@@ -69,7 +69,7 @@ func (t *Tab) SendKeys(text string) error {
 			continue
 		}
 		inputParams.Text = input
-		_, err := t.t.Input.DispatchKeyEventWithParams(inputParams)
+		_, err := t.t.Input.DispatchKeyEventWithParams(t.ctx.Ctx, inputParams)
 		if err != nil {
 			return err
 		}
@@ -99,17 +99,17 @@ func (t *Tab) pressSystemKey(systemKey string) error {
 		inputParams.NativeVirtualKeyCode = 13
 	}
 
-	if _, err := t.t.Input.DispatchKeyEventWithParams(inputParams); err != nil {
+	if _, err := t.t.Input.DispatchKeyEventWithParams(t.ctx.Ctx, inputParams); err != nil {
 		return err
 	}
 
 	inputParams.TheType = "char"
-	if _, err := t.t.Input.DispatchKeyEventWithParams(inputParams); err != nil {
+	if _, err := t.t.Input.DispatchKeyEventWithParams(t.ctx.Ctx, inputParams); err != nil {
 		return err
 	}
 
 	inputParams.TheType = "keyUp"
-	if _, err := t.t.Input.DispatchKeyEventWithParams(inputParams); err != nil {
+	if _, err := t.t.Input.DispatchKeyEventWithParams(t.ctx.Ctx, inputParams); err != nil {
 		return err
 	}
 	return nil

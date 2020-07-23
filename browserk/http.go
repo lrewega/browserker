@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vmihailenco/msgpack/v4"
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2/gcdapi"
 )
 
 // HTTPRequest contains all information regarding a network request

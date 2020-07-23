@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"unicode"
 
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2/gcdapi"
 )
 
 // Code taken from https://github.com/chromedp/chromedp/blob/master/kb/keys.go

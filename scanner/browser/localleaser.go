@@ -8,7 +8,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/wirepair/gcd"
+	"github.com/wirepair/gcd/v2"
 )
 
 var startupFlags = []string{

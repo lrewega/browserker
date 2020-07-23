@@ -42,6 +42,7 @@ func (u *URIParser) parsePath(paramLoc browserk.InjectionLocation) {
 		switch tok {
 		case token.EOF:
 			if path != nil {
+				path.Location = browserk.InjectFile
 				u.uri.Fields = append(u.uri.Fields, path)
 			}
 			return
