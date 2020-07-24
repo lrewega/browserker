@@ -125,6 +125,7 @@ func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) 
 
 	injector.BCtx().Log.Info().Int("short_fail_cnt", shortSleepFailCount).Str("attack", attack.Attack).Msg("short sleep results")
 	if shortSleepFailCount == 2 {
+		injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attack not successful, short sleep failed 2x")
 		return false, nil
 	}
 
@@ -132,10 +133,10 @@ func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) 
 	expr.Inject(attack.Prefix+fmt.Sprintf(attack.Attack, p.sleepTimeSec)+attack.Suffix, browserk.InjectValue)
 	t, success = p.sendTiming(longSleep, injector)
 	if success && t < longSleep {
+		injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attack not successful, time was < longSleep for 2nd attack")
 		return false, nil
 	}
 	injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attack successful, creating report")
-
 	p.reportTimingSuccess(injector, attack)
 	return true, nil
 }

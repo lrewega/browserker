@@ -26,8 +26,8 @@ import (
 var leaser = browser.NewLocalLeaser()
 
 func init() {
-	//leaser.SetHeadless()
-	leaser.SetProxy("http://127.0.0.1:8080")
+	leaser.SetHeadless()
+	//leaser.SetProxy("http://127.0.0.1:8080")
 }
 
 func TestSQLi(t *testing.T) {
@@ -49,7 +49,7 @@ func TestSQLi(t *testing.T) {
 				resp := "<html><body>You made it!</body></html>"
 				if user == "'+(select(sleep(15)))+'" {
 					t.Logf("calling sleep...")
-					time.Sleep(time.Second * 2)
+					time.Sleep(time.Second * 15)
 					calledCh <- struct{}{}
 				}
 
@@ -58,13 +58,14 @@ func TestSQLi(t *testing.T) {
 			},
 			URL: "http://localhost:%s/forms/simplePOST.html",
 		},
+
 		{
 			FormHandler: func(c *gin.Context) {
 				user, _ := c.GetQuery("username")
 				resp := "<html><body>You made it!</body></html>"
 				if user == "'+(select(sleep(15)))+'" {
 					t.Logf("calling sleep...")
-					time.Sleep(time.Second * 15)
+					time.Sleep(time.Second * 2)
 					calledCh <- struct{}{}
 				}
 
@@ -79,7 +80,7 @@ func TestSQLi(t *testing.T) {
 				resp := "<html><body>You made it!</body></html>"
 				if user == "'+(select(sleep(15)))+'" {
 					t.Logf("calling sleep (for timeout)...")
-					time.Sleep(time.Second * 60)
+					time.Sleep(time.Second * 2)
 					calledCh <- struct{}{}
 				}
 

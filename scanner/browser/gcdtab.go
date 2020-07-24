@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/browser/keymap"
@@ -30,11 +29,12 @@ type Tab struct {
 	eleMutex  *sync.RWMutex    // locks our elements when added/removed.
 	elements  map[int]*Element // our map of elements for this tab
 
-	topNodeID             atomic.Value           // the nodeID of the current top level #document
-	topFrameID            atomic.Value           // the frameID of the current top level #document
-	baseHref              atomic.Value           // the base href for the current top document
-	isNavigatingFlag      atomic.Value           // are we currently navigating (between Page.Navigate -> page.loadEventFired)
-	isTransitioningFlag   atomic.Value           // has navigation occurred on the top frame (not due to Navigate() being called)
+	topNodeID           atomic.Value // the nodeID of the current top level #document
+	topFrameID          atomic.Value // the frameID of the current top level #document
+	baseHref            atomic.Value // the base href for the current top document
+	isNavigatingFlag    atomic.Value // are we currently navigating (between Page.Navigate -> page.loadEventFired)
+	isTransitioningFlag atomic.Value // has navigation occurred on the top frame (not due to Navigate() being called)
+
 	debug                 bool                   // for debug printing
 	nodeChange            chan *NodeChangeEvent  // for receiving node change events from tab_subscribers
 	navigationCh          chan int               // for receiving navigation complete messages while isNavigating is true
@@ -104,26 +104,27 @@ func (t *Tab) Close() {
 
 // InjectRequest from the browser, meant to be captured in a hook
 func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
+
 	ctxID, err := t.t.Page.CreateIsolatedWorld(ctx, t.getTopFrameID(), "injection", true)
 	if err != nil {
+		t.ctx.Log.Error().Err(err).Msg("failed to create isolated world")
 		return err
 	}
+
 	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\", credentials: \"include\"})", URI, method)
+	//script := fmt.Sprintf("try{var x = new XMLHttpRequest();x.timeout=500;x.open(\"%s\", \"%s\");x.send(null)}catch(e){}", method, URI)
 
 	params := &gcdapi.RuntimeEvaluateParams{
 		Expression:            script,
 		ObjectGroup:           "injection",
 		IncludeCommandLineAPI: false,
 		Silent:                false,
-		AwaitPromise:          true,
+		AwaitPromise:          false,
 		ContextId:             ctxID,
 		Timeout:               45000,
 	}
-	go func() {
-		r, e, err := t.t.Runtime.EvaluateWithParams(ctx, params)
-		spew.Dump(r, e, err)
-		t.t.Runtime.TerminateExecution(context.Background())
-	}()
+
+	_, _, err = t.t.Runtime.EvaluateWithParams(ctx, params)
 	return err
 }
 

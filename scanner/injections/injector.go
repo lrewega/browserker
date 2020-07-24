@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/iterator"
@@ -100,7 +99,6 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 		select {
 		case r := <-respCh:
 			i.bCtx.Log.Debug().Msg("got response from attack")
-			spew.Dump(r)
 			return r, nil
 		case <-ctx.Done():
 			i.bCtx.Log.Error().Int64("attack_id", id).Msg("injection timeout")

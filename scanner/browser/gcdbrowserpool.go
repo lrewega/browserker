@@ -202,6 +202,8 @@ func (b *GCDBrowserPool) Take(ctx *browserk.Context) (browserk.Browser, string, 
 	}
 	gtab := NewTab(ctx, br, t)
 	gtab.t.SetApiTimeout(b.browserTimeout) // default of 2 min is too long
+	//gtab.t.DebugEvents(true)
+	//gtab.t.Debug(true)
 	return gtab, br.Port(), nil
 }
 

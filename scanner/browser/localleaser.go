@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/wirepair/gcd/v2"
@@ -70,7 +69,6 @@ func (l *LocalLeaser) SetHeadless() {
 
 func (l *LocalLeaser) SetProxy(addr string) {
 	proxyFlag := setProxy(addr)
-	spew.Dump(proxyFlag)
 	startupFlags = append(startupFlags, proxyFlag...)
 }
 

