@@ -126,6 +126,9 @@ func (b *Browserk) Init(ctx context.Context) error {
 	if !b.cfg.DisableHeadless {
 		leaser.SetHeadless()
 	}
+	if b.cfg.Proxy != "" {
+		leaser.SetProxy(b.cfg.Proxy)
+	}
 
 	log.Logger.Info().Msg("leaser started")
 	pool := browser.NewGCDBrowserPool(b.cfg.NumBrowsers, leaser)
@@ -206,7 +209,12 @@ func (b *Browserk) Start() error {
 			b.attackCh <- nav
 		}
 		log.Info().Msg("Waiting for crawler to complete")
-		<-b.readyCh
+		select {
+		case <-b.readyCh:
+			break
+		case <-b.mainContext.Ctx.Done():
+			break
+		}
 	}
 }
 
@@ -230,7 +238,6 @@ func (b *Browserk) processEntries() {
 		case nav := <-b.navCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing nav")
 			go b.crawl(nav)
-			log.Info().Msg("Crawler to complete")
 		case nav := <-b.attackCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing attack nav")
 			go b.attack(nav)
@@ -326,59 +333,63 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 
 		// Add GlobalHooks (stored xss function listener)
 
-		if isFinal {
-
-			// Create request iterator
-			mIt := iterator.NewMessageIter(nav)
-			for mIt.Rewind(); mIt.Valid(); mIt.Next() {
-
-				navCtx.CopyHandlers(b.mainContext) // reset hooks
-				req := mIt.Request()
-
-				if req == nil || req.Request == nil {
-					continue
-				}
-
-				u, _ := url.Parse(req.Request.Url)
-				if navCtx.Scope.Check(u) != browserk.InScope {
-					navCtx.Log.Info().Str("url", req.Request.Url).Msgf("was out of scope, not attacking")
-					continue
-				}
-
-				if state, err := b.pluginStore.SetRequestAudit(req); err != nil || state != browserk.NotAudited {
-					navCtx.Log.Info().Str("url", req.Request.Url).Msgf("already audited this request, skipping")
-					continue
-				}
-
-				// Create injection iterator
-				injIt := iterator.NewInjectionIter(req)
-				injector := injections.New(navCtx, browser, nav, mIt, injIt)
-
-				for injIt.Rewind(); injIt.Valid(); injIt.Next() {
-					navCtx.Log.Info().
-						Str("location", injIt.Expr().Loc().String()).
-						Str("method", req.Request.Method).
-						Str("url", req.Request.Url).
-						Str("body", req.Request.PostData).
-						Msgf("auditing this injection")
-					navCtx.PluginServicer.Inject(b.mainContext, injector)
-				}
-			}
-			b.crawlGraph.SetNavigationState(nav.Navigation.ID, browserk.NavAudited)
-		} else {
+		if !isFinal {
 			ctx, cancel := context.WithTimeout(navCtx.Ctx, time.Second*45)
 			browser.ExecuteAction(ctx, nav.Navigation)
 			cancel()
+			continue
 		}
 
+		// Create request iterator
+		mIt := iterator.NewMessageIter(nav)
+		for mIt.Rewind(); mIt.Valid(); mIt.Next() {
+
+			navCtx.CopyHandlers(b.mainContext) // reset hooks
+			req := mIt.Request()
+
+			if req == nil || req.Request == nil {
+				continue
+			}
+
+			u, _ := url.Parse(req.Request.Url)
+			if navCtx.Scope.Check(u) != browserk.InScope {
+				navCtx.Log.Info().Str("url", req.Request.Url).Msgf("was out of scope, not attacking")
+				continue
+			}
+
+			if state, err := b.pluginStore.SetRequestAudit(req); err != nil || state != browserk.NotAudited {
+				navCtx.Log.Info().Str("url", req.Request.Url).Msgf("already audited this request, skipping")
+				continue
+			}
+
+			// Create injection iterator
+			injIt := iterator.NewInjectionIter(req)
+			injector := injections.New(navCtx, browser, nav, mIt, injIt)
+
+			// if we are stuck on a slow path, let's spread out the work load
+			if b.browsers.Leased() < b.cfg.NumBrowsers {
+
+			}
+			// Iterate over injection expressions
+			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+				navCtx.Log.Info().
+					Str("location", injIt.Expr().Loc().String()).
+					Str("method", req.Request.Method).
+					Str("url", req.Request.Url).
+					Str("body", req.Request.PostData).
+					Msgf("auditing this injection")
+				navCtx.PluginServicer.Inject(b.mainContext, injector)
+			}
+		}
+		b.crawlGraph.SetNavigationState(nav.Navigation.ID, browserk.NavAudited)
 	}
+
 	navCtx.Log.Info().Msgf("closing attack browser %v", isFinal)
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
 
 	b.removeLeased(browser.ID())
 	b.readyCh <- struct{}{}
-
 }
 
 // Stop the browsers

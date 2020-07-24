@@ -63,3 +63,17 @@ func MessagesBeforeResponseTime(m []*HTTPMessage, t time.Time) []*HTTPMessage {
 	}
 	return messages
 }
+
+// InterceptedHTTPMessage is the intercepted request/response pair
+type InterceptedHTTPMessage struct {
+	Request  *InterceptedHTTPRequest
+	Response *InterceptedHTTPResponse
+}
+
+// Copy the message
+func (m *InterceptedHTTPMessage) Copy() *InterceptedHTTPMessage {
+	return &InterceptedHTTPMessage{
+		Request:  m.Request.Copy(),
+		Response: m.Response.Copy(),
+	}
+}

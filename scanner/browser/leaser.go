@@ -14,9 +14,16 @@ import (
 type LeaserService interface {
 	Acquire() (string, error) // returns port number
 	SetHeadless()
+	SetProxy(addr string)
 	Return(port string) error
 	Cleanup() (string, error)
 	Count() (string, error)
+}
+
+func setProxy(addr string) []string {
+	proxyFlag := "--proxy-server=" + addr
+	byPass := "--proxy-bypass-list=<-loopback>"
+	return []string{proxyFlag, byPass}
 }
 
 func randPort() string {

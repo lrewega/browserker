@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/wirepair/gcd"
+	"github.com/wirepair/gcd/v2"
 )
 
 var startupFlags = []string{
@@ -65,6 +65,11 @@ func NewLocalLeaser() *LocalLeaser {
 
 func (l *LocalLeaser) SetHeadless() {
 	startupFlags = append(startupFlags, "--headless")
+}
+
+func (l *LocalLeaser) SetProxy(addr string) {
+	proxyFlag := setProxy(addr)
+	startupFlags = append(startupFlags, proxyFlag...)
 }
 
 // Acquire a new browser

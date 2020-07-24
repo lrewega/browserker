@@ -250,7 +250,7 @@ func (b *BodyParser) parseApplicationURLEncoded(paramLoc browserk.InjectionLocat
 				if b.s.PeekBackwards() == '[' {
 					param.Key = b.handleIndexExpr(lit)
 				} else {
-					param.Key = &injast.Ident{Name: lit}
+					param.Key = &injast.Ident{Name: lit, Location: browserk.InjectBodyName}
 				}
 				paramLoc = browserk.InjectBodyName
 			} else {
@@ -265,7 +265,7 @@ func (b *BodyParser) handleValueExpr(originalTok token.Token, originalLit string
 	if originalLit == "" {
 		originalLit = originalTok.String()
 	}
-	value := &injast.Ident{Name: originalLit}
+	value := &injast.Ident{Name: originalLit, Location: browserk.InjectBodyValue}
 	for {
 		// short circuit so we don't consume the body name provided we don't start with a [ or ]
 		if b.s.PeekBackwards() == '&' && (originalTok != token.LBRACK && originalTok != token.RBRACK) {

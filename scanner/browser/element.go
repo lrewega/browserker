@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2/gcdapi"
 	"gitlab.com/browserker/scanner/browser/keymap"
 )
 
@@ -196,7 +196,7 @@ func (e *Element) GetSource() (string, error) {
 	}
 
 	outerParams := &gcdapi.DOMGetOuterHTMLParams{NodeId: id}
-	return e.tab.t.DOM.GetOuterHTMLWithParams(outerParams)
+	return e.tab.t.DOM.GetOuterHTMLWithParams(e.tab.ctx.Ctx, outerParams)
 }
 
 // IsDocument Is this Element a #document?
@@ -261,11 +261,11 @@ func (e *Element) GetEventListeners() ([]*gcdapi.DOMDebuggerEventListener, error
 		NodeId: id,
 	}
 
-	rro, err := e.tab.t.DOM.ResolveNodeWithParams(params)
+	rro, err := e.tab.t.DOM.ResolveNodeWithParams(e.tab.ctx.Ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	eventListeners, err := e.tab.t.DOMDebugger.GetEventListeners(rro.ObjectId, 1, false)
+	eventListeners, err := e.tab.t.DOMDebugger.GetEventListeners(e.tab.ctx.Ctx, rro.ObjectId, 1, false)
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +464,7 @@ func (e *Element) IsSelected() (bool, error) {
 // and the attribute style second, or error.
 func (e *Element) GetCSSInlineStyleText() (string, string, error) {
 	e.lock.RLock()
-	inline, attribute, err := e.tab.t.CSS.GetInlineStylesForNode(e.ID)
+	inline, attribute, err := e.tab.t.CSS.GetInlineStylesForNode(e.tab.ctx.Ctx, e.ID)
 	e.lock.RUnlock()
 
 	if err != nil {
@@ -476,7 +476,7 @@ func (e *Element) GetCSSInlineStyleText() (string, string, error) {
 // GetComputedCSSStyle returns all of the computed css styles in form of name value map.
 func (e *Element) GetComputedCSSStyle() (map[string]string, error) {
 	e.lock.RLock()
-	styles, err := e.tab.t.CSS.GetComputedStyleForNode(e.ID)
+	styles, err := e.tab.t.CSS.GetComputedStyleForNode(e.tab.ctx.Ctx, e.ID)
 	e.lock.RUnlock()
 
 	if err != nil {
@@ -492,7 +492,7 @@ func (e *Element) GetComputedCSSStyle() (map[string]string, error) {
 // GetAttributes of the node returning a map of name,value pairs.
 func (e *Element) GetAttributes() (map[string]string, error) {
 	e.lock.RLock()
-	attr, err := e.tab.t.DOM.GetAttributes(e.ID)
+	attr, err := e.tab.t.DOM.GetAttributes(e.tab.ctx.Ctx, e.ID)
 	e.lock.RUnlock()
 
 	if err != nil {
@@ -532,7 +532,7 @@ func (e *Element) SetAttributeValue(name, value string) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	_, err := e.tab.t.DOM.SetAttributeValue(e.ID, name, value)
+	_, err := e.tab.t.DOM.SetAttributeValue(e.tab.ctx.Ctx, e.ID, name, value)
 	if err != nil {
 		return err
 	}
@@ -556,9 +556,9 @@ func (e *Element) Clear() error {
 	}
 
 	if e.nodeName == "textarea" {
-		_, err = e.tab.t.DOM.SetNodeValue(e.ID, "")
+		_, err = e.tab.t.DOM.SetNodeValue(e.tab.ctx.Ctx, e.ID, "")
 	} else if e.nodeName == "input" {
-		_, err = e.tab.t.DOM.SetAttributeValue(e.ID, "value", "")
+		_, err = e.tab.t.DOM.SetAttributeValue(e.tab.ctx.Ctx, e.ID, "value", "")
 	} else {
 		err = &ErrIncorrectElementType{ExpectedName: "textarea or input", NodeName: e.nodeName}
 	}
@@ -583,7 +583,7 @@ func (e *Element) ClickParent() error {
 	params := &gcdapi.DOMGetBoxModelParams{
 		NodeId: parentID,
 	}
-	box, err := e.tab.t.DOM.GetBoxModelWithParams(params)
+	box, err := e.tab.t.DOM.GetBoxModelWithParams(e.tab.ctx.Ctx, params)
 
 	if err != nil {
 		return err
@@ -619,7 +619,7 @@ func (e *Element) Focus() error {
 	params := &gcdapi.DOMFocusParams{
 		NodeId: e.ID,
 	}
-	_, err := e.tab.t.DOM.FocusWithParams(params)
+	_, err := e.tab.t.DOM.FocusWithParams(e.tab.ctx.Ctx, params)
 	return err
 }
 
@@ -631,7 +631,7 @@ func (e *Element) ScrollTo() error {
 	params := &gcdapi.DOMScrollIntoViewIfNeededParams{
 		NodeId: e.ID,
 	}
-	_, err := e.tab.t.DOM.ScrollIntoViewIfNeededWithParams(params)
+	_, err := e.tab.t.DOM.ScrollIntoViewIfNeededWithParams(e.tab.ctx.Ctx, params)
 	return err
 }
 
@@ -653,7 +653,7 @@ func (e *Element) Dimensions() ([]float64, error) {
 	params := &gcdapi.DOMGetBoxModelParams{
 		NodeId: e.ID,
 	}
-	box, err := e.tab.t.DOM.GetBoxModelWithParams(params)
+	box, err := e.tab.t.DOM.GetBoxModelWithParams(e.tab.ctx.Ctx, params)
 
 	e.lock.RUnlock()
 
@@ -698,7 +698,7 @@ func (e *Element) SendRawKeys(keys string) error {
 	for _, c := range keys {
 		toSend := keymap.KeyEncode(c)
 		for _, key := range toSend {
-			_, err = e.tab.t.Input.DispatchKeyEventWithParams(key)
+			_, err = e.tab.t.Input.DispatchKeyEventWithParams(e.tab.ctx.Ctx, key)
 			time.Sleep(time.Millisecond * 70) // small delay inbetween key presses
 		}
 	}

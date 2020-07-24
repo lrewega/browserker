@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/wirepair/gcd"
+	"github.com/wirepair/gcd/v2"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -201,6 +201,9 @@ func (b *GCDBrowserPool) Take(ctx *browserk.Context) (browserk.Browser, string, 
 		return nil, "", fmt.Errorf("failed to aquire valid tab from browser")
 	}
 	gtab := NewTab(ctx, br, t)
+	gtab.t.SetApiTimeout(b.browserTimeout) // default of 2 min is too long
+	//gtab.t.DebugEvents(true)
+	//gtab.t.Debug(true)
 	return gtab, br.Port(), nil
 }
 

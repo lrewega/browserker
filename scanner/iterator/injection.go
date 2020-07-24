@@ -39,7 +39,7 @@ func NewInjectionIter(req *browserk.HTTPRequest) *InjectionIterator {
 	return it
 }
 
-// Request returns a copy of the http request for modification?
+// Request returns a copy of the http request for modification
 func (it *InjectionIterator) Request() *browserk.HTTPRequest {
 	return it.req.Copy()
 }

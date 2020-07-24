@@ -34,6 +34,11 @@ func (l *SocketLeaser) SetHeadless() {
 	startupFlags = append(startupFlags, "--headless")
 }
 
+func (l *SocketLeaser) SetProxy(addr string) {
+	proxyFlag := setProxy(addr)
+	startupFlags = append(startupFlags, proxyFlag...)
+}
+
 // Acquire a new browser
 func (s *SocketLeaser) Acquire() (string, error) {
 	resp, err := s.leaserClient.Get("http://unix/acquire")

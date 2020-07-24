@@ -23,10 +23,10 @@ type PluginServicer struct {
 	StoreFn     func() browserk.PluginStorer
 	StoreCalled bool
 
-	RegisterForResponseFn     func(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse)
+	RegisterForResponseFn     func(requestID string, respCh chan<- *browserk.InterceptedHTTPMessage, injection *browserk.InterceptedHTTPRequest)
 	RegisterForResponseCalled bool
 
-	DispatchResponseFn     func(requestID string, resp *browserk.InterceptedHTTPResponse)
+	DispatchResponseFn     func(requestID string, interceptedMessage *browserk.InterceptedHTTPResponse)
 	DispatchResponseCalled bool
 
 	InjectFn     func(mainContext *browserk.Context, injector browserk.Injector)
@@ -61,9 +61,9 @@ func (p *PluginServicer) Store() browserk.PluginStorer {
 	return p.StoreFn()
 }
 
-func (p *PluginServicer) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+func (p *PluginServicer) RegisterForResponse(requestID string, respCh chan<- *browserk.InterceptedHTTPMessage, injection *browserk.InterceptedHTTPRequest) {
 	p.RegisterForResponseCalled = true
-	p.RegisterForResponseFn(requestID, respCh)
+	p.RegisterForResponseFn(requestID, respCh, injection)
 }
 
 func (p *PluginServicer) DispatchResponse(requestID string, resp *browserk.InterceptedHTTPResponse) {
@@ -73,7 +73,7 @@ func (p *PluginServicer) DispatchResponse(requestID string, resp *browserk.Inter
 
 func (p *PluginServicer) Inject(mainContext *browserk.Context, injector browserk.Injector) {
 	p.InjectCalled = true
-	p.Inject(mainContext, injector)
+	p.InjectFn(mainContext, injector)
 }
 
 func MakeMockPluginServicer() *PluginServicer {
@@ -81,9 +81,13 @@ func MakeMockPluginServicer() *PluginServicer {
 	p.InitFn = func(ctx context.Context) error {
 		return nil
 	}
+	type intercepted struct {
+		req    *browserk.InterceptedHTTPRequest
+		respCh chan<- *browserk.InterceptedHTTPMessage
+	}
 
 	plugins := make(map[string]browserk.Plugin)
-	resps := make(map[string]chan<- *browserk.InterceptedHTTPResponse)
+	interceptedMsgs := make(map[string]*intercepted)
 	pLock := &sync.RWMutex{}
 
 	p.RegisterFn = func(plugin browserk.Plugin) {
@@ -122,16 +126,16 @@ func MakeMockPluginServicer() *PluginServicer {
 	p.DispatchResponseFn = func(requestID string, resp *browserk.InterceptedHTTPResponse) {
 		pLock.RLock()
 		defer pLock.RUnlock()
-		if respCh, ok := resps[requestID]; ok {
-			delete(resps, requestID)
-			respCh <- resp.Copy()
+		if m, ok := interceptedMsgs[requestID]; ok {
+			delete(interceptedMsgs, requestID)
+			m.respCh <- &browserk.InterceptedHTTPMessage{Response: resp.Copy(), Request: m.req.Copy()}
 		}
 	}
 
-	p.RegisterForResponseFn = func(requestID string, respCh chan<- *browserk.InterceptedHTTPResponse) {
+	p.RegisterForResponseFn = func(requestID string, respCh chan<- *browserk.InterceptedHTTPMessage, injection *browserk.InterceptedHTTPRequest) {
 		pLock.RLock()
 		defer pLock.RUnlock()
-		resps[requestID] = respCh
+		interceptedMsgs[requestID] = &intercepted{respCh: respCh, req: injection}
 	}
 
 	p.StoreFn = func() browserk.PluginStorer {

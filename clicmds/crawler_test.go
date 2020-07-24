@@ -8,7 +8,7 @@ import (
 )
 
 func TestCrawler(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{
 		{

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/pkg/errors"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/iterator"
 )
@@ -63,46 +64,52 @@ func (i *BrowserkerInjector) RemoveHeader(name string)               {}
 func (i *BrowserkerInjector) ReplaceBody(newBody []byte)             {}
 
 // Send this injection attack
-func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browserk.InterceptedHTTPResponse, error) {
+func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
 	//i.injIterator.URI()
 	if withRender {
 		// inject <form>
 
 		i.bCtx.Log.Debug().Msg("injecting form")
 	} else {
-		respCh := make(chan *browserk.InterceptedHTTPResponse)
+		respCh := make(chan *browserk.InterceptedHTTPMessage)
 		id := rand.Int63()
 		attackID := fmt.Sprintf("/injection%d", id)
 
 		host, _ := iterator.SplitHost(i.req.Request.Url)
 		// TODO: replace headers with injIterator.Headers body with injIterator.Body (those three should be separate)
-		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).Str("attack_METHOD", i.injIterator.Method()).Str("attack_URL", host+i.injIterator.URI().String()).Str("attack_BODY", i.injIterator.Body().String()).Msg("injecting attack")
+		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).
+			Str("attack_METHOD", i.injIterator.Method()).
+			Str("attack_URL", host+i.injIterator.URI().String()).
+			Str("attack_BODY", i.injIterator.SerializeBody()).
+			Int64("attack_id", id).
+			Msg("injecting attack")
 
 		injectFn := InjectFetchReq(respCh, i.injIterator.Method(), host+i.injIterator.SerializeURI(), i.req.Request.Headers, i.injIterator.SerializeBody(), attackID)
 		i.bCtx.AddReqHandler(injectFn)
 
-		i.bCtx.Log.Debug().Msg("injecting js fetch")
+		i.bCtx.Log.Debug().Int64("attack_id", id).Msg("injecting js fetch")
 		i.injIterator.Expr().Reset() // un-inject ourselves
 
 		// issue request to hijack
 		if err := i.browser.InjectRequest(ctx, i.req.Request.Method, host+attackID); err != nil {
-			i.bCtx.Log.Error().Err(err).Msg("failed to inject fetch attack")
+			i.bCtx.Log.Error().Err(err).Int64("attack_id", id).Msg("failed to inject fetch attack")
 			return nil, fmt.Errorf("injection failed")
 		}
 
-		timer := time.NewTimer(time.Second * 15)
 		select {
 		case r := <-respCh:
+			i.bCtx.Log.Debug().Msg("got response from attack")
 			return r, nil
-		case <-timer.C:
-			return nil, fmt.Errorf("failed to get response from injection")
+		case <-ctx.Done():
+			i.bCtx.Log.Error().Int64("attack_id", id).Msg("injection timeout")
+			return nil, browserk.ErrInjectionTimeout
 		}
 	}
 	return nil, nil
 }
 
 // SendNew request instead of the modified one
-func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPResponse, error) {
+func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
 	//i.injIterator.URI()
 	if withRender {
 		// inject <form>
@@ -114,26 +121,27 @@ func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequ
 		attackID := fmt.Sprintf("/injection%d", id)
 		host, _ := iterator.SplitHost(req.Request.Url)
 
-		respCh := make(chan *browserk.InterceptedHTTPResponse)
+		respCh := make(chan *browserk.InterceptedHTTPMessage)
 		i.bCtx.AddReqHandler(InjectFetchReq(respCh, req.Request.Method, req.Request.Url, req.Request.Headers, req.Request.PostData, attackID))
 		i.bCtx.Log.Debug().Msg("injecting fetch attack")
 
 		if err := i.browser.InjectRequest(ctx, "GET", host+attackID); err != nil {
 			i.bCtx.Log.Error().Err(err).Msg("failed to inject fetch attack")
-			return nil, fmt.Errorf("injection failed")
+			return nil, errors.Wrap(err, "injection failed")
 		}
 		select {
 		case r := <-respCh:
+
 			return r, nil
-		case <-time.After(time.Minute * 1):
-			return nil, fmt.Errorf("failed to get response from injection")
+		case <-ctx.Done():
+			return nil, fmt.Errorf("failed to get response, context done")
 		}
 	}
 	return nil, nil
 }
 
 // InjectFetchReq into the browser
-func InjectFetchReq(respCh chan *browserk.InterceptedHTTPResponse, newMethod, newURI string, headers map[string]interface{}, body string, match string) browserk.RequestHandler {
+func InjectFetchReq(respCh chan *browserk.InterceptedHTTPMessage, newMethod, newURI string, headers map[string]interface{}, body string, match string) browserk.RequestHandler {
 	return func(bctx *browserk.Context, browser browserk.Browser, i *browserk.InterceptedHTTPRequest) bool {
 		_, uri := iterator.SplitHost(i.Request.Url)
 		bctx.Log.Debug().Str("intercept_uri", uri).Str("inject_url_id", match).Msg("intercepted")
@@ -146,8 +154,9 @@ func InjectFetchReq(respCh chan *browserk.InterceptedHTTPResponse, newMethod, ne
 		i.Modified.Url = newURI
 		i.Modified.SetHeaders(headers)
 		i.Modified.PostData = body
+		i.SentTimestamp = time.Now()
 		bctx.Log.Debug().Str("response_key", i.FrameId+i.NetworkId).Msg("registered for response")
-		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh)
+		bctx.PluginServicer.RegisterForResponse(i.FrameId+i.NetworkId, respCh, i)
 		return true
 	}
 }

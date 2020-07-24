@@ -15,8 +15,8 @@ import (
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/scanner/browser/keymap"
 
-	"github.com/wirepair/gcd"
-	"github.com/wirepair/gcd/gcdapi"
+	"github.com/wirepair/gcd/v2"
+	"github.com/wirepair/gcd/v2/gcdapi"
 )
 
 // Tab is a chromium browser tab we use for instrumentation
@@ -29,11 +29,12 @@ type Tab struct {
 	eleMutex  *sync.RWMutex    // locks our elements when added/removed.
 	elements  map[int]*Element // our map of elements for this tab
 
-	topNodeID             atomic.Value           // the nodeID of the current top level #document
-	topFrameID            atomic.Value           // the frameID of the current top level #document
-	baseHref              atomic.Value           // the base href for the current top document
-	isNavigatingFlag      atomic.Value           // are we currently navigating (between Page.Navigate -> page.loadEventFired)
-	isTransitioningFlag   atomic.Value           // has navigation occurred on the top frame (not due to Navigate() being called)
+	topNodeID           atomic.Value // the nodeID of the current top level #document
+	topFrameID          atomic.Value // the frameID of the current top level #document
+	baseHref            atomic.Value // the base href for the current top document
+	isNavigatingFlag    atomic.Value // are we currently navigating (between Page.Navigate -> page.loadEventFired)
+	isTransitioningFlag atomic.Value // has navigation occurred on the top frame (not due to Navigate() being called)
+
 	debug                 bool                   // for debug printing
 	nodeChange            chan *NodeChangeEvent  // for receiving node change events from tab_subscribers
 	navigationCh          chan int               // for receiving navigation complete messages while isNavigating is true
@@ -103,21 +104,27 @@ func (t *Tab) Close() {
 
 // InjectRequest from the browser, meant to be captured in a hook
 func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
-	_, err := t.t.Page.CreateIsolatedWorld(t.getTopFrameID(), "injection", true)
+
+	ctxID, err := t.t.Page.CreateIsolatedWorld(ctx, t.getTopFrameID(), "injection", true)
 	if err != nil {
+		t.ctx.Log.Error().Err(err).Msg("failed to create isolated world")
 		return err
 	}
+
 	script := fmt.Sprintf("fetch(\"%s\", {method: \"%s\", credentials: \"include\"})", URI, method)
+	//script := fmt.Sprintf("try{var x = new XMLHttpRequest();x.timeout=500;x.open(\"%s\", \"%s\");x.send(null)}catch(e){}", method, URI)
 
 	params := &gcdapi.RuntimeEvaluateParams{
 		Expression:            script,
 		ObjectGroup:           "injection",
 		IncludeCommandLineAPI: false,
 		Silent:                false,
-		//ContextId:             ctxID,
-		Timeout: 60000,
+		AwaitPromise:          false,
+		ContextId:             ctxID,
+		Timeout:               45000,
 	}
-	_, _, err = t.t.Runtime.EvaluateWithParams(params)
+
+	_, _, err = t.t.Runtime.EvaluateWithParams(ctx, params)
 	return err
 }
 
@@ -198,7 +205,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	//	t.ctx.Log.Debug().Str("action", act.String()).Msg("IsTransitioning after action")
 	if err := t.waitStable(ctx, waitFor); err == ErrTimedOut {
 		t.ctx.Log.Debug().Str("action", act.String()).Msg("Still transitioning after stability timeout, calling stop load")
-		t.t.Page.StopLoading()
+		t.t.Page.StopLoading(ctx)
 	}
 	//}
 
@@ -306,7 +313,7 @@ func (t *Tab) Navigate(ctx context.Context, url string) error {
 	defer t.setIsNavigating(false)
 	t.ctx.Log.Debug().Msgf("navigating to %s", url)
 	navParams := &gcdapi.PageNavigateParams{Url: url, TransitionType: "typed"}
-	frameID, _, errText, err := t.t.Page.NavigateWithParams(navParams)
+	frameID, _, errText, err := t.t.Page.NavigateWithParams(ctx, navParams)
 	if err != nil {
 		return err
 	}
@@ -527,7 +534,7 @@ func (t *Tab) InjectJS(inject string) (interface{}, error) {
 		ThrowOnSideEffect:     false,
 		Timeout:               1000,
 	}
-	r, exp, err := t.t.Runtime.EvaluateWithParams(params)
+	r, exp, err := t.t.Runtime.EvaluateWithParams(t.ctx.Ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +547,7 @@ func (t *Tab) InjectJS(inject string) (interface{}, error) {
 
 // GetNavURL by looking at the navigation history
 func (t *Tab) GetNavURL() string {
-	_, entries, err := t.t.Page.GetNavigationHistory()
+	_, entries, err := t.t.Page.GetNavigationHistory(t.ctx.Ctx)
 	if err != nil || len(entries) == 0 {
 		return ""
 	}
@@ -692,7 +699,7 @@ func (t *Tab) DidNavigationFail() (bool, string) {
 
 // GetCookies from the browser
 func (t *Tab) GetCookies() ([]*browserk.Cookie, error) {
-	cookies, err := t.t.Page.GetCookies()
+	cookies, err := t.t.Page.GetCookies(t.ctx.Ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -733,7 +740,7 @@ func (t *Tab) evaluateScript(scriptSource string, awaitPromise bool) (*gcdapi.Ru
 		ThrowOnSideEffect:     false,
 		Timeout:               1000,
 	}
-	r, exp, err := t.t.Runtime.EvaluateWithParams(params)
+	r, exp, err := t.t.Runtime.EvaluateWithParams(t.ctx.Ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -746,13 +753,13 @@ func (t *Tab) evaluateScript(scriptSource string, awaitPromise bool) (*gcdapi.Ru
 
 // NavigationHistory the current navigation index, history entries or error
 func (t *Tab) NavigationHistory() (int, []*gcdapi.PageNavigationEntry, error) {
-	return t.t.Page.GetNavigationHistory()
+	return t.t.Page.GetNavigationHistory(t.ctx.Ctx)
 }
 
 // Reload the page injecting evalScript to run on load. set ignoreCache to true
 // to have it act like ctrl+f5.
 func (t *Tab) Reload(ignoreCache bool, evalScript string) error {
-	_, err := t.t.Page.Reload(ignoreCache, evalScript)
+	_, err := t.t.Page.Reload(t.ctx.Ctx, ignoreCache, evalScript)
 	return err
 }
 
@@ -763,7 +770,7 @@ func (t *Tab) Forward() error {
 	if err != nil {
 		return err
 	}
-	_, err = t.t.Page.NavigateToHistoryEntry(next.Id)
+	_, err = t.t.Page.NavigateToHistoryEntry(t.ctx.Ctx, next.Id)
 	return err
 }
 
@@ -788,7 +795,7 @@ func (t *Tab) Back() error {
 	if err != nil {
 		return err
 	}
-	_, err = t.t.Page.NavigateToHistoryEntry(prev.Id)
+	_, err = t.t.Page.NavigateToHistoryEntry(t.ctx.Ctx, prev.Id)
 	return err
 }
 
@@ -809,7 +816,7 @@ func (t *Tab) BackEntry() (*gcdapi.PageNavigationEntry, error) {
 
 // GetScriptSource of a script by its scriptID.
 func (t *Tab) GetScriptSource(scriptID string) (string, error) {
-	scriptSrc, wasmSource, err := t.t.Debugger.GetScriptSource(scriptID)
+	scriptSrc, wasmSource, err := t.t.Debugger.GetScriptSource(t.ctx.Ctx, scriptID)
 	if wasmSource != "" {
 		return wasmSource, err
 	}
@@ -819,7 +826,7 @@ func (t *Tab) GetScriptSource(scriptID string) (string, error) {
 // Gets the top document and updates our list of elements it creates all new nodeIDs.
 func (t *Tab) getDocument() (*Element, error) {
 	//t.ctx.Log.Debug().Msgf("getDocument doc id was: %d", t.getTopNodeID())
-	doc, err := t.t.DOM.GetDocument(-1, true)
+	doc, err := t.t.DOM.GetDocument(t.ctx.Ctx, -1, true)
 	if err != nil {
 		return nil, err
 	}
@@ -860,7 +867,7 @@ func (t *Tab) getElementByNodeID(nodeID int) (*Element, bool) {
 
 // GetElementByLocation returns the element given the x, y coordinates on the page, or returns error.
 func (t *Tab) GetElementByLocation(x, y int) (*Element, error) {
-	_, _, nodeID, err := t.t.DOM.GetNodeForLocation(x, y, false, false)
+	_, _, nodeID, err := t.t.DOM.GetNodeForLocation(t.ctx.Ctx, x, y, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -897,7 +904,7 @@ func (t *Tab) getDocumentElementByID(docNodeID int, attributeID string) (*Elemen
 
 	selector := "#" + attributeID
 
-	nodeID, err := t.t.DOM.QuerySelector(docNode.ID, selector)
+	nodeID, err := t.t.DOM.QuerySelector(t.ctx.Ctx, docNode.ID, selector)
 	if err != nil {
 		return nil, false, err
 	}
@@ -987,7 +994,7 @@ func (t *Tab) recursivelyGetChildren(children []*gcdapi.DOMNode, elements *[]*El
 
 // GetDocumentElementsBySelector same as GetChildElementsBySelector
 func (t *Tab) GetDocumentElementsBySelector(docNodeID int, selector string) ([]*Element, error) {
-	nodeIDs, errQuery := t.t.DOM.QuerySelectorAll(docNodeID, selector)
+	nodeIDs, errQuery := t.t.DOM.QuerySelectorAll(t.ctx.Ctx, docNodeID, selector)
 	if errQuery != nil {
 		t.ctx.Log.Info().Msgf("QuerySelectorAll Err: searching for %s %d", selector, docNodeID)
 		return nil, errQuery
@@ -1008,7 +1015,7 @@ func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM boo
 	s.Query = selector
 	s.IncludeUserAgentShadowDOM = includeUserAgentShadowDOM
 	t.ctx.Log.Debug().Msgf("searching for %s via search", selector)
-	ID, count, err := t.t.DOM.PerformSearchWithParams(&s)
+	ID, count, err := t.t.DOM.PerformSearchWithParams(t.ctx.Ctx, &s)
 	if err != nil {
 		return nil, err
 	}
@@ -1021,7 +1028,7 @@ func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM boo
 	r.SearchId = ID
 	r.FromIndex = 0
 	r.ToIndex = count
-	nodeIDs, errQuery := t.t.DOM.GetSearchResultsWithParams(&r)
+	nodeIDs, errQuery := t.t.DOM.GetSearchResultsWithParams(t.ctx.Ctx, &r)
 	if errQuery != nil {
 		return nil, errQuery
 	}
@@ -1037,11 +1044,11 @@ func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM boo
 
 // GetDOM in serialized form
 func (t *Tab) GetDOM() (string, error) {
-	node, err := t.t.DOM.GetDocument(-1, true)
+	node, err := t.t.DOM.GetDocument(t.ctx.Ctx, -1, true)
 	if err != nil {
 		return "", err
 	}
-	html, err := t.t.DOM.GetOuterHTMLWithParams(&gcdapi.DOMGetOuterHTMLParams{
+	html, err := t.t.DOM.GetOuterHTMLWithParams(t.ctx.Ctx, &gcdapi.DOMGetOuterHTMLParams{
 		NodeId: node.NodeId,
 	})
 	return html, err
@@ -1057,7 +1064,7 @@ func (t *Tab) GetPageSource(docNodeID int) (string, error) {
 		return "", &ErrElementNotFound{Message: fmt.Sprintf("docNodeID %d not found", docNodeID)}
 	}
 	outerParams := &gcdapi.DOMGetOuterHTMLParams{NodeId: doc.ID}
-	return t.t.DOM.GetOuterHTMLWithParams(outerParams)
+	return t.t.DOM.GetOuterHTMLWithParams(t.ctx.Ctx, outerParams)
 }
 
 // GetURL returns the current url of the top level document
@@ -1088,7 +1095,7 @@ func (t *Tab) Screenshot() (string, error) {
 		FromSurface: true,
 	}
 
-	return t.t.Page.CaptureScreenshotWithParams(params)
+	return t.t.Page.CaptureScreenshotWithParams(t.ctx.Ctx, params)
 }
 
 // Sets the element as invalid and removes it from our elements map
@@ -1108,7 +1115,7 @@ func (t *Tab) documentUpdated() {
 
 // Ask the debugger service for child nodes.
 func (t *Tab) requestChildNodes(nodeID, depth int) {
-	_, err := t.t.DOM.RequestChildNodes(nodeID, depth, false)
+	_, err := t.t.DOM.RequestChildNodes(t.ctx.Ctx, nodeID, depth, false)
 	if err != nil {
 		t.ctx.Log.Debug().Msgf("error requesting child nodes: %s\n", err)
 	}
@@ -1364,21 +1371,21 @@ func (t *Tab) invalidateChildren(node *gcdapi.DOMNode) {
 }
 
 func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
-	t.t.DOM.Enable()
-	t.t.Inspector.Enable()
-	t.t.Page.Enable()
-	t.t.Security.Enable()
-	t.t.Console.Enable()
-	t.t.Debugger.Enable(-1)
-	t.t.Page.SetInterceptFileChooserDialog(true)
+	t.t.DOM.Enable(ctx.Ctx)
+	t.t.Inspector.Enable(ctx.Ctx)
+	t.t.Page.Enable(ctx.Ctx)
+	t.t.Security.Enable(ctx.Ctx)
+	t.t.Console.Enable(ctx.Ctx)
+	t.t.Debugger.Enable(ctx.Ctx, -1)
+	t.t.Page.SetInterceptFileChooserDialog(ctx.Ctx, true)
 
-	t.t.Network.EnableWithParams(&gcdapi.NetworkEnableParams{
+	t.t.Network.EnableWithParams(ctx.Ctx, &gcdapi.NetworkEnableParams{
 		MaxPostDataSize:       -1,
 		MaxResourceBufferSize: -1,
 		MaxTotalBufferSize:    -1,
 	})
 
-	t.t.Security.SetOverrideCertificateErrors(true)
+	t.t.Security.SetOverrideCertificateErrors(ctx.Ctx, true)
 
 	t.t.Subscribe("Security.certificateError", func(target *gcd.ChromeTarget, payload []byte) {
 		resp := &gcdapi.SecurityCertificateErrorEvent{}
@@ -1392,7 +1399,7 @@ func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
 			Action:  "continue",
 		}
 
-		t.t.Security.HandleCertificateErrorWithParams(p)
+		t.t.Security.HandleCertificateErrorWithParams(ctx.Ctx, p)
 		t.ctx.Log.Info().Msg("certificate error handled")
 	})
 
@@ -1409,7 +1416,7 @@ func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
 				RequestStage: "Response",
 			},
 		}
-		t.t.Fetch.EnableWithParams(&gcdapi.FetchEnableParams{
+		t.t.Fetch.EnableWithParams(ctx.Ctx, &gcdapi.FetchEnableParams{
 			Patterns:           patterns,
 			HandleAuthRequests: false,
 		})

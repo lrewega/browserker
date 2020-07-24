@@ -3,7 +3,6 @@ package headers
 import (
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -51,7 +50,6 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 
 // OnEvent handles passive events
 func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
-	log.Info().Msg("GOT HEADER EVENT")
 	if evt.Type != browserk.EvtHTTPResponse {
 		return
 	}
@@ -73,11 +71,12 @@ func createReport(evt *browserk.PluginEvent) *browserk.Report {
 		CWE:         16,
 		Description: "Missing x-content-type-nosniff",
 		Remediation: "Add the header dummy",
+		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
 		Evidence: &browserk.Evidence{
 			ID:     nil,
-			String: "",
+			String: evt.Response().StrHeaders(),
 		},
 		Reported: time.Now(),
 	}
