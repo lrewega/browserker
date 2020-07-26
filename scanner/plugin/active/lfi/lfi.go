@@ -74,7 +74,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 		}
 		if strings.Contains(body, "root:") {
 			injector.BCtx().Reporter.Add(&browserk.Report{
-				CheckID:     "1",
+				CheckID:     1,
 				CWE:         73,
 				Description: "you have lfi",
 				Remediation: "don't have lfi",

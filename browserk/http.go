@@ -129,9 +129,9 @@ func (h *HTTPResponse) StrHeaders() string {
 	for n, v := range h.Response.Headers {
 		switch t := v.(type) {
 		case string:
-			headers += n + ": " + t
+			headers += n + ": " + t + "\n"
 		case []string:
-			headers += n + ": " + strings.Join(t, ", ")
+			headers += n + ": " + strings.Join(t, ", ") + "\n"
 		}
 	}
 	return headers

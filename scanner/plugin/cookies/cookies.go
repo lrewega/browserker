@@ -69,7 +69,7 @@ func (h *Plugin) httpCookieCheck(evt *browserk.PluginEvent) {
 	}
 
 	report := &browserk.Report{
-		CheckID:     "1",
+		CheckID:     1,
 		CWE:         1,
 		Description: "secure cookie not set",
 		Remediation: "don't do that",
@@ -87,7 +87,7 @@ func (h *Plugin) secureCookieCheck(evt *browserk.PluginEvent) {
 	}
 
 	report := &browserk.Report{
-		CheckID:     "2",
+		CheckID:     2,
 		CWE:         1,
 		Description: "httponly directive not set on cookie",
 		Remediation: "you should do that",

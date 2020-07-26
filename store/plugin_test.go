@@ -16,7 +16,7 @@ func TestReporting(t *testing.T) {
 	result := mock.MakeMockResult([]byte{4, 5, 6})
 	r := &browserk.Report{
 		ID:          []byte{1, 2, 3},
-		CheckID:     "1",
+		CheckID:     1,
 		CWE:         79,
 		Description: "xss",
 		Remediation: "don't have xss",

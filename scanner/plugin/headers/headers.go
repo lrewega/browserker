@@ -67,9 +67,9 @@ func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
 
 func createReport(evt *browserk.PluginEvent) *browserk.Report {
 	report := &browserk.Report{
-		CheckID:     "1",
+		CheckID:     1,
 		CWE:         16,
-		Description: "Missing x-content-type-nosniff",
+		Description: "Missing x-content-type-nosniff header",
 		Remediation: "Add the header dummy",
 		URL:         evt.URL,
 		Nav:         evt.Nav,
