@@ -67,7 +67,11 @@ func (it *InjectionIterator) parseURI() {
 		it.invalidParse = true
 	}
 	log.Debug().Int("uri_inj_count", len(it.uri.Fields)).Msg("parsed URI for injection")
-	it.locs = append(it.locs, it.uri.Fields...)
+	for _, f := range it.uri.Fields {
+		all := Collect(f)
+		it.locs = append(it.locs, all...)
+	}
+	//it.locs = append(it.locs, it.uri.Fields...)
 }
 
 func (it *InjectionIterator) parseBody() {
@@ -83,6 +87,10 @@ func (it *InjectionIterator) parseBody() {
 		return
 	}
 	log.Debug().Int("body_inj_count", len(it.body.Fields)).Msg("parsed body for injection")
+	for _, f := range it.body.Fields {
+		all := Collect(f)
+		it.locs = append(it.locs, all...)
+	}
 	it.locs = append(it.locs, it.body.Fields...)
 }
 

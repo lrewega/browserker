@@ -25,6 +25,7 @@ type InjectionExpr interface {
 	Inject(string, InjectionType) bool
 	Reset()
 	Loc() InjectionLocation
+	//Next() InjectionExpr
 }
 
 // InjectionLocation for configuring plugins where they will attack
