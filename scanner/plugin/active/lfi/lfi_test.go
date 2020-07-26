@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"gitlab.com/browserker/browserk"
 	"gitlab.com/browserker/mock"
@@ -20,6 +21,7 @@ import (
 var leaser = browser.NewLocalLeaser()
 
 func init() {
+	//leaser.SetProxy("http://127.0.0.1:9000")
 	leaser.SetHeadless()
 }
 
@@ -59,6 +61,10 @@ haldaemon:x:68:68:HAL daemon:/:/sbin/nologin
 avahi-autoipd:x:100:156:avahi-autoipd:/var/lib/avahi-autoipd:/sbin/nologin
 gdm:x:42:42::/var/gdm:/sbin/nologin`
 
+type u struct {
+	Username string `json:"username"`
+}
+
 func TestLFI(t *testing.T) {
 	pool := browser.NewGCDBrowserPool(1, leaser)
 	if err := pool.Init(); err != nil {
@@ -70,6 +76,25 @@ func TestLFI(t *testing.T) {
 	called := false
 
 	toTest := [...]plugintest.AttackTests{
+		{
+			FormHandler: func(c *gin.Context) {
+				var user *u
+				if err := c.ShouldBindJSON(&user); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+				spew.Dump(user)
+				resp := "<html><body>You made it!</body></html>"
+				if user.Username == "../../../../../../../../etc/passwd" {
+					resp = passwdContents
+					called = true
+				}
+
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			URL: "http://localhost:%s/forms/simpleJSON.html",
+		},
 		{
 			FormHandler: func(c *gin.Context) {
 				user, _ := c.GetQuery("username")
@@ -84,6 +109,7 @@ func TestLFI(t *testing.T) {
 			},
 			URL: "http://localhost:%s/forms/simpleGET.html",
 		},
+
 		{
 			FormHandler: func(c *gin.Context) {
 				user := c.PostForm("username")

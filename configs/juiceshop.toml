@@ -1,8 +1,8 @@
 URL = "http://localhost:3000/#/login"
 AllowedHosts = ["localhost"]
 DataPath = "browserktmp"
-DisableHeadless = true
-NumBrowsers = 10
+DisableHeadless = false
+NumBrowsers = 7
 MaxDepth = 25
 JSPluginPath = "plugins/"
 

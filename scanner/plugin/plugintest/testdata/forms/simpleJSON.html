@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Simple JSON</title>
+    <script>
+        window.addEventListener('load', function () {
+            let loginBtn = document.getElementById('login');
+            loginBtn.addEventListener('click', function () {
+                let data = {
+                    username: document.getElementById('username').value
+                };
+                fetch("/form/result", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                        // 'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: JSON.stringify(data)
+                }).then(r => {
+                    console.log(r);
+                }).catch(e => {
+                    console.log(e);
+                });
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div id="wrapper">
+        <div id="content">
+            <div id="form">
+                <label for="user">Username</label> <input type="text" id="username" size="20" name="username"><br />
+                <p class="submit"><button id="login">Login</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
