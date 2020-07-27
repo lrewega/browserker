@@ -23,10 +23,12 @@ func (e *Evidence) Hash() []byte {
 
 type Report struct {
 	ID          []byte
+	Plugin      string
 	CheckID     int
 	CWE         int
 	Description string
 	Remediation string
+	Severity    string
 	URL         string
 	Nav         *Navigation
 	Result      *NavigationResult

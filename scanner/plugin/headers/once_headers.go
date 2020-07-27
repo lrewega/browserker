@@ -1,42 +1,43 @@
 package headers
 
 import (
+	"strings"
 	"time"
 
 	"gitlab.com/browserker/browserk"
 )
 
-type Plugin struct {
+type OnceHeaderPlugin struct {
 	service browserk.PluginServicer
 }
 
-func New(service browserk.PluginServicer) *Plugin {
-	p := &Plugin{service: service}
+func NewOnceHeader(service browserk.PluginServicer) *OnceHeaderPlugin {
+	p := &OnceHeaderPlugin{service: service}
 	service.Register(p)
 	return p
 }
 
 // Name of the plugin
-func (h *Plugin) Name() string {
-	return "HeaderPlugin"
+func (h *OnceHeaderPlugin) Name() string {
+	return "OnceHeaderPlugin"
 }
 
 // ID unique to browserker
-func (h *Plugin) ID() string {
+func (h *OnceHeaderPlugin) ID() string {
 	return "BR-P-0002"
 }
 
 // Config for this plugin
-func (h *Plugin) Config() *browserk.PluginConfig {
+func (h *OnceHeaderPlugin) Config() *browserk.PluginConfig {
 	return nil
 }
 
-func (h *Plugin) InitContext(bctx *browserk.Context) {
+func (h *OnceHeaderPlugin) InitContext(bctx *browserk.Context) {
 
 }
 
 // Options for the plugin manager to take into consideration when dispatching
-func (h *Plugin) Options() *browserk.PluginOpts {
+func (h *OnceHeaderPlugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenResponses: true,
 		ExecutionType:   browserk.ExecOnce,
@@ -44,33 +45,35 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 }
 
 // Ready to attack
-func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
+func (h *OnceHeaderPlugin) Ready(injector browserk.Injector) (bool, error) {
 	return false, nil
 }
 
 // OnEvent handles passive events
-func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
+func (h *OnceHeaderPlugin) OnEvent(evt *browserk.PluginEvent) {
 	if evt.Type != browserk.EvtHTTPResponse {
 		return
 	}
 	resp := evt.Response()
 	if resp.Type == "Document" {
-		if v, exist := resp.Response.Headers["x-content-type-options"]; !exist {
+		if v := resp.GetHeader("x-content-type-options"); v == "" {
 			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
-			evt.BCtx.Reporter.Add(createReport(evt))
-		} else if v != "nosniff" {
+			evt.BCtx.Reporter.Add(h.createReport(evt))
+		} else if strings.ToLower(strings.TrimSpace(v)) != "nosniff" {
 			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
-			evt.BCtx.Reporter.Add(createReport(evt))
+			evt.BCtx.Reporter.Add(h.createReport(evt))
 		}
 	}
 }
 
-func createReport(evt *browserk.PluginEvent) *browserk.Report {
+func (h *OnceHeaderPlugin) createReport(evt *browserk.PluginEvent) *browserk.Report {
 	report := &browserk.Report{
+		Plugin:      h.Name(),
 		CheckID:     1,
 		CWE:         16,
 		Description: "Missing x-content-type-nosniff header",
-		Remediation: "Add the header dummy",
+		Remediation: "Add the X-Content-Type-Options header with the value 'nosniff' without quotes.",
+		Severity:    "INFO",
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,

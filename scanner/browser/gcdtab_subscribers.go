@@ -186,7 +186,7 @@ func (t *Tab) subscribeDocumentUpdated() {
 }
 
 func (t *Tab) subscribeStorageEvents() {
-	t.t.Subscribe("Storage.domStorageItemsCleared", func(target *gcd.ChromeTarget, payload []byte) {
+	t.t.Subscribe("DOMStorage.domStorageItemsCleared", func(target *gcd.ChromeTarget, payload []byte) {
 		message := &gcdapi.DOMStorageDomStorageItemsClearedEvent{}
 		if err := json.Unmarshal(payload, message); err == nil {
 			p := message.Params
@@ -200,7 +200,7 @@ func (t *Tab) subscribeStorageEvents() {
 
 		}
 	})
-	t.t.Subscribe("Storage.domStorageItemRemoved", func(target *gcd.ChromeTarget, payload []byte) {
+	t.t.Subscribe("DOMStorage.domStorageItemRemoved", func(target *gcd.ChromeTarget, payload []byte) {
 		message := &gcdapi.DOMStorageDomStorageItemRemovedEvent{}
 		if err := json.Unmarshal(payload, message); err == nil {
 			p := message.Params
@@ -214,7 +214,7 @@ func (t *Tab) subscribeStorageEvents() {
 			t.container.AddStorageEvent(evt)
 		}
 	})
-	t.t.Subscribe("Storage.domStorageItemAdded", func(target *gcd.ChromeTarget, payload []byte) {
+	t.t.Subscribe("DOMStorage.domStorageItemAdded", func(target *gcd.ChromeTarget, payload []byte) {
 		message := &gcdapi.DOMStorageDomStorageItemAddedEvent{}
 		if err := json.Unmarshal(payload, message); err == nil {
 			p := message.Params
@@ -227,11 +227,12 @@ func (t *Tab) subscribeStorageEvents() {
 				Type:           browserk.StorageAddedEvt,
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", t.nav, evt))
+			url, _ := t.GetURL()
+			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
 			t.container.AddStorageEvent(evt)
 		}
 	})
-	t.t.Subscribe("Storage.domStorageItemUpdated", func(target *gcd.ChromeTarget, payload []byte) {
+	t.t.Subscribe("DOMStorage.domStorageItemUpdated", func(target *gcd.ChromeTarget, payload []byte) {
 		message := &gcdapi.DOMStorageDomStorageItemUpdatedEvent{}
 		if err := json.Unmarshal(payload, message); err == nil {
 			p := message.Params
@@ -245,7 +246,8 @@ func (t *Tab) subscribeStorageEvents() {
 				Type:           browserk.StorageUpdatedEvt,
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, "", t.nav, evt))
+			url, _ := t.GetURL()
+			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
 			t.container.AddStorageEvent(evt)
 		}
 	})
@@ -266,7 +268,7 @@ func (t *Tab) subscribeConsoleEvents() {
 				Observed: time.Now(),
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, t.nav, evt))
+			t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, t.Nav().Copy(), evt))
 			t.container.AddConsoleEvent(evt)
 		}
 	})
@@ -301,7 +303,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		}
 		req := GCDRequestToBrowserk(message)
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, t.nav, req))
+		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, t.Nav().Copy(), req))
 
 		if message.Params.Type == "Document" {
 			//t.ctx.Log.Info().Str("request_id", message.Params.RequestId).Msg("is Document request")
@@ -314,7 +316,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			resp := GCDResponseToBrowserk(fake, body)
 
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, req.Request.Url, t.nav, resp))
+			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, req.Request.Url, t.Nav().Copy(), resp))
 			t.container.AddResponse(resp)
 		}
 		t.container.AddRequest(req)
@@ -358,7 +360,7 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		resp := GCDResponseToBrowserk(message, body)
 
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.nav, resp))
+		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.Nav().Copy(), resp))
 
 		t.container.AddResponse(resp)
 		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")

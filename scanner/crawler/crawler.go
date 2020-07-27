@@ -66,7 +66,7 @@ func (b *BrowserkCrawler) Process(bctx *browserk.Context, browser browserk.Brows
 
 	// dispatch new cookie event
 	for _, cookie := range result.Cookies {
-		bctx.PluginServicer.DispatchEvent(browserk.CookiePluginEvent(bctx, result.EndURL, entry, cookie))
+		bctx.PluginServicer.DispatchEvent(browserk.CookiePluginEvent(bctx, result.EndURL, entry.Copy(), cookie))
 	}
 
 	// find new potential navigation entries (if isFinal)
