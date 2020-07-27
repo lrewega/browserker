@@ -200,7 +200,9 @@ func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedH
 
 func (s *Service) importPlugins() {
 	s.Register(cookies.New(s))
-	s.Register(headers.New(s))
+	s.Register(headers.NewOnceHeader(s))
+	s.Register(headers.NewPerPathHeader(s))
+	s.Register(headers.NewPerFileHeader(s))
 	s.Register(storage.New(s))
 	s.Register(sqli.New(s))
 	s.Register(oscmd.New(s))

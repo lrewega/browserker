@@ -143,7 +143,7 @@ func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) 
 
 func (p *Plugin) reportTimingSuccess(injector browserk.Injector, attack *SQLIAttack) {
 	injector.BCtx().Reporter.Add(&browserk.Report{
-		CheckID:     "2",
+		CheckID:     2,
 		CWE:         89,
 		URL:         injector.Message().Request.Request.Url,
 		Description: fmt.Sprintf("you have sql injection in %s. %s", attack.DBTech.String(), attack.Description),

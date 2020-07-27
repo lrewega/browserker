@@ -74,7 +74,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 		}
 		if strings.Contains(body, "root:") {
 			injector.BCtx().Reporter.Add(&browserk.Report{
-				CheckID:     "1",
+				CheckID:     1,
 				CWE:         78,
 				URL:         m.Request.Modified.Url,
 				Description: "you have oscmd injection",

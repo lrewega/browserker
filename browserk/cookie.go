@@ -1,6 +1,9 @@
 package browserk
 
-import "time"
+import (
+	"bytes"
+	"time"
+)
 
 // Cookie properties
 type Cookie struct {
@@ -16,6 +19,37 @@ type Cookie struct {
 	SameSite     string    `json:"sameSite,omitempty"` // Cookie SameSite type. enum values: Strict, Lax, None
 	Priority     string    `json:"priority"`           // Cookie Priority enum values: Low, Medium, High
 	ObservedTime time.Time `json:"time_observed"`      // When the cookie was observed being set
+}
+
+func (c *Cookie) String() string {
+	buf := &bytes.Buffer{}
+	buf.WriteString(c.Name)
+	buf.WriteRune('=')
+	buf.WriteString(c.Value)
+
+	if c.Domain != "" {
+		buf.WriteString("; domain=")
+		buf.WriteString(c.Domain)
+	}
+
+	if c.Path != "" {
+		buf.WriteString("; path=")
+		buf.WriteString(c.Path)
+	}
+
+	// todo: we lose if it was actually set or not...
+	// assume if 0 it wasn't set and don't include in string
+	if c.Expires != 0 {
+		expr := time.Unix(int64(c.Expires), 0)
+		buf.WriteString("; expires=")
+		buf.WriteString(expr.String())
+	}
+
+	if c.HTTPOnly {
+		buf.WriteString("; HttpOnly")
+	}
+
+	return buf.String()
 }
 
 // CookieAfterTime returns cookies that were observed after t

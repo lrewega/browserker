@@ -129,12 +129,35 @@ func (h *HTTPResponse) StrHeaders() string {
 	for n, v := range h.Response.Headers {
 		switch t := v.(type) {
 		case string:
-			headers += n + ": " + t
+			headers += n + ": " + t + "\n"
 		case []string:
-			headers += n + ": " + strings.Join(t, ", ")
+			headers += n + ": " + strings.Join(t, ", ") + "\n"
 		}
 	}
 	return headers
+}
+
+func (h *HTTPResponse) GetHeader(name string) string {
+	if h.Response == nil || h.Response.Headers == nil {
+		return ""
+	}
+	headerValue := ""
+	for k, v := range h.Response.Headers {
+		lower := strings.ToLower(k)
+		if lower != name {
+			continue
+		}
+
+		switch t := v.(type) {
+		case string:
+			headerValue = t
+		case []string:
+			headerValue = strings.Join(t, ", ")
+		}
+		return headerValue
+	}
+
+	return headerValue
 }
 
 // ResponseTimeMs returns how long the response took from when we finished sending

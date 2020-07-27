@@ -1,7 +1,10 @@
 package storage
 
 import (
-	"github.com/rs/zerolog/log"
+	"encoding/json"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -49,5 +52,55 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 
 // OnEvent handles passive events
 func (h *Plugin) OnEvent(evt *browserk.PluginEvent) {
-	log.Info().Msg("GOT STORAGE EVENT")
+	h.checkJWTTokens(evt)
+}
+
+// Checks storage updates for JWT tokens being added to local/sessionStorage
+func (h *Plugin) checkJWTTokens(evt *browserk.PluginEvent) {
+	tokenData := ""
+	jwt.Parse(evt.EventData.Storage.NewValue, func(token *jwt.Token) (interface{}, error) {
+		if _, valid := token.Header["alg"]; valid {
+			header, _ := json.Marshal(token.Header)
+			claims, _ := json.Marshal(token.Claims)
+			tokenData = string(token.Raw) + "\nheader: " + string(header) + "\nclaims: " + string(claims)
+		}
+		return nil, nil
+	})
+
+	if tokenData == "" {
+		return
+	}
+
+	storageType := "sessionStorage"
+	remediation := "Be extremely careful that no XSS vulnerabilities exist as it will be possible to extract the JWT tokens directly from the sessionStorage"
+	severity := "LOW"
+	checkID := 1
+	cwe := 200
+
+	if evt.EventData.Storage.IsLocalStorage {
+		storageType = "localStorage"
+		remediation = "JWT tokens should be stored in sessionStorage, not localStorage as they persist in the browser until they are cleared."
+		severity = "MEDIUM"
+		cwe = 922
+		checkID = 2
+	}
+
+	report := &browserk.Report{
+		Plugin:      h.Name(),
+		CheckID:     checkID,
+		CWE:         cwe,
+		Description: "JWT Token found in " + storageType,
+		Remediation: remediation,
+		Severity:    severity,
+		URL:         evt.URL,
+		Nav:         evt.Nav,
+		Result:      nil,
+		Evidence: &browserk.Evidence{
+			ID:     nil,
+			String: tokenData,
+		},
+		Reported: time.Now(),
+	}
+	report.Hash()
+	evt.BCtx.Reporter.Add(report)
 }

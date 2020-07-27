@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vmihailenco/msgpack/v4"
 )
 
 // TriggeredBy stores what caused a navigation attempt
@@ -73,6 +75,22 @@ func NewNavigation(triggeredBy TriggeredBy, action *Action) *Navigation {
 	h.Write([]byte{byte(n.Action.Type)})
 	n.ID = h.Sum(nil)
 	return n
+}
+
+func (n *Navigation) Copy() *Navigation {
+	if n == nil {
+		return nil
+	}
+	d, err := msgpack.Marshal(n)
+	if err != nil {
+		panic("failed to copy Navigation: " + err.Error())
+	}
+
+	c := &Navigation{}
+	if err = msgpack.Unmarshal(d, c); err != nil {
+		panic("failed to copy Navigation: " + err.Error())
+	}
+	return c
 }
 
 func (n *Navigation) String() string {

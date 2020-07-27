@@ -3,6 +3,7 @@ package mock
 import (
 	"io"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/browserker/browserk"
 )
 
@@ -37,6 +38,7 @@ func MakeMockReporter() *Reporter {
 	r := &Reporter{}
 
 	r.AddFn = func(report *browserk.Report) {
+		log.Debug().Msgf("added report: %#v %#v", report, report.Evidence)
 		reports[string(report.ID)] = report
 	}
 

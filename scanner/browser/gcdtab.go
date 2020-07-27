@@ -34,6 +34,7 @@ type Tab struct {
 	baseHref            atomic.Value // the base href for the current top document
 	isNavigatingFlag    atomic.Value // are we currently navigating (between Page.Navigate -> page.loadEventFired)
 	isTransitioningFlag atomic.Value // has navigation occurred on the top frame (not due to Navigate() being called)
+	nav                 atomic.Value
 
 	debug                 bool                   // for debug printing
 	nodeChange            chan *NodeChangeEvent  // for receiving node change events from tab_subscribers
@@ -50,9 +51,9 @@ type Tab struct {
 	lastNodeChangeTimeVal atomic.Value           // timestamp of when the last node change occurred atomic because multiple go routines will modify
 	domChangeHandler      DomChangeHandlerFunc   // allows the caller to be notified of DOM change events.
 	docWasUpdated         atomic.Value           // for tracking if an execution caused a new page load/transition
-	nav                   *browserk.Navigation
-	frameMutex            *sync.RWMutex
-	frames                map[string]int // frames
+
+	frameMutex *sync.RWMutex
+	frames     map[string]int // frames
 }
 
 // NewTab to use
@@ -102,6 +103,12 @@ func (t *Tab) Close() {
 	close(t.exitCh)
 }
 
+func (t *Tab) Nav() *browserk.Navigation {
+	nav := t.nav.Load()
+	currentNav, _ := nav.(*browserk.Navigation)
+	return currentNav
+}
+
 // InjectRequest from the browser, meant to be captured in a hook
 func (t *Tab) InjectRequest(ctx context.Context, method, URI string) error {
 
@@ -133,10 +140,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	var err error
 	var ele *Element
 	causedLoad := false
-	t.nav = nav
-	defer func() {
-		t.nav = nil
-	}()
+	t.nav.Store(nav)
 	waitFor := time.Millisecond * 400
 	act := nav.Action
 	// Call JSBefore hooks
@@ -1376,6 +1380,7 @@ func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
 	t.t.Page.Enable(ctx.Ctx)
 	t.t.Security.Enable(ctx.Ctx)
 	t.t.Console.Enable(ctx.Ctx)
+	t.t.DOMStorage.Enable(ctx.Ctx)
 	t.t.Debugger.Enable(ctx.Ctx, -1)
 	t.t.Page.SetInterceptFileChooserDialog(ctx.Ctx, true)
 

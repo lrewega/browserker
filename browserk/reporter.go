@@ -23,10 +23,12 @@ func (e *Evidence) Hash() []byte {
 
 type Report struct {
 	ID          []byte
-	CheckID     string
+	Plugin      string
+	CheckID     int
 	CWE         int
 	Description string
 	Remediation string
+	Severity    string
 	URL         string
 	Nav         *Navigation
 	Result      *NavigationResult
@@ -40,7 +42,7 @@ func (r *Report) Hash() []byte {
 		return r.ID
 	}
 	hash := md5.New()
-	hash.Write([]byte(r.CheckID))
+	hash.Write([]byte{byte(r.CheckID)})
 	hash.Write([]byte{byte(r.CWE)})
 	hash.Write(r.Nav.ID)
 	hash.Write([]byte(r.URL))
