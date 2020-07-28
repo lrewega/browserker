@@ -8,7 +8,7 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	t.Skip()
+	//t.Skip()
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{
 		{
@@ -19,7 +19,7 @@ func TestRun(t *testing.T) {
 			Flags:   clicmds.RunnerFlags(),
 		},
 	}
-	err := app.Run([]string{"app", "run", "--config", "../configs/dvwa_lowdepth.toml"})
+	err := app.Run([]string{"app", "run", "--config", "../configs/juiceshop.toml"})
 	if err != nil {
 		t.Fatalf("err: %s\n", err)
 	}

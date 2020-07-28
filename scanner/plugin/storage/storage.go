@@ -41,7 +41,7 @@ func (h *Plugin) InitContext(bctx *browserk.Context) {
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenStorage: true,
-		ExecutionType: browserk.ExecOncePerFile,
+		ExecutionType: browserk.ExecOncePerURL,
 	}
 }
 
@@ -67,6 +67,7 @@ func (h *Plugin) checkJWTTokens(evt *browserk.PluginEvent) {
 		return nil, nil
 	})
 
+	evt.BCtx.Log.Debug().Str("tokenData", tokenData).Msg("FOUND TOKEN???")
 	if tokenData == "" {
 		return
 	}
@@ -102,5 +103,6 @@ func (h *Plugin) checkJWTTokens(evt *browserk.PluginEvent) {
 		Reported: time.Now(),
 	}
 	report.Hash()
+	evt.BCtx.Log.Debug().Msg("REPORTING TOKEN")
 	evt.BCtx.Reporter.Add(report)
 }
