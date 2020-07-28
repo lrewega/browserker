@@ -33,6 +33,7 @@ type Service struct {
 	hostPlugins     *Container
 	pathPlugins     *Container
 	filePlugins     *Container
+	urlPlugins      *Container
 	pagePlugins     *Container
 	requestPlugins  *Container
 	responsePlugins *Container
@@ -52,6 +53,7 @@ func New(cfg *browserk.Config, pluginStore browserk.PluginStorer) *Service {
 		pathPlugins:     NewContainer(),
 		filePlugins:     NewContainer(),
 		pagePlugins:     NewContainer(),
+		urlPlugins:      NewContainer(),
 		requestPlugins:  NewContainer(),
 		responsePlugins: NewContainer(),
 		alwaysPlugins:   NewContainer(),
@@ -84,6 +86,8 @@ func (s *Service) getPluginsOfType(pluginType browserk.PluginExecutionType) *Con
 		return s.pathPlugins
 	case browserk.ExecOncePerFile:
 		return s.filePlugins
+	case browserk.ExecOncePerURL:
+		return s.urlPlugins
 	case browserk.ExecOncePerNavPath:
 		return s.pagePlugins
 	case browserk.ExecPerRequest:
@@ -98,6 +102,7 @@ func (s *Service) Inject(mainContext *browserk.Context, injector browserk.Inject
 	s.hostPlugins.Inject(mainContext, injector)
 	s.pagePlugins.Inject(mainContext, injector)
 	s.filePlugins.Inject(mainContext, injector)
+	s.urlPlugins.Inject(mainContext, injector)
 	s.requestPlugins.Inject(mainContext, injector)
 	s.responsePlugins.Inject(mainContext, injector)
 	s.alwaysPlugins.Inject(mainContext, injector)
@@ -147,6 +152,9 @@ func (s *Service) listenForEvents() {
 			}
 			if u.Page() {
 				s.pagePlugins.Call(evt)
+			}
+			if u.Fragment() {
+				s.urlPlugins.Call(evt)
 			}
 			if u.Request() {
 				s.requestPlugins.Call(evt)

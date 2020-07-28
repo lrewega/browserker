@@ -228,6 +228,7 @@ func (t *Tab) subscribeStorageEvents() {
 			}
 			// Plugin Dispatch
 			url, _ := t.GetURL()
+			//t.ctx.Log.Debug().Msgf("STORAGE ITEM ADDED: %#v", evt)
 			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
 			t.container.AddStorageEvent(evt)
 		}

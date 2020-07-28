@@ -134,6 +134,7 @@ func (s *PluginStore) makeUniqueEventKeys(evt *browserk.PluginEvent) map[string]
 		case "fragment":
 			key.WriteString(fragment)
 		}
+
 		switch evt.Type {
 		case browserk.EvtCookie:
 			key.Write(evt.EventData.ID)
@@ -157,7 +158,7 @@ func (s *PluginStore) makeUniqueEventKeys(evt *browserk.PluginEvent) map[string]
 			}
 		case browserk.EvtJSResponse:
 		case browserk.EvtStorage:
-			key.Write(evt.EventData.ID)
+			key.Write([]byte(evt.EventData.Storage.Key))
 		case browserk.EvtURL:
 		case browserk.EvtWebSocketRequest:
 		case browserk.EvtWebSocketResponse:
