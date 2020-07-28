@@ -154,7 +154,6 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 			if !ele.Hidden {
 				diff.Add(ele.Type, ele.Hash())
 			}
-
 		}
 	}
 

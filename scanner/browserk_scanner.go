@@ -326,6 +326,12 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 		log.Error().Err(err).Msg("failed to take browser")
 		return
 	}
+
+	if err := browser.Init(b.cfg); err != nil {
+		log.Error().Err(err).Msg("failed to Init browser")
+		return
+	}
+
 	logger := log.With().
 		Int64("browser_id", browser.ID()).
 		Str("path", b.printAttackActionStep(navs)).

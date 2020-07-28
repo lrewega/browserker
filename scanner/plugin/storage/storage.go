@@ -41,7 +41,7 @@ func (h *Plugin) InitContext(bctx *browserk.Context) {
 func (h *Plugin) Options() *browserk.PluginOpts {
 	return &browserk.PluginOpts{
 		ListenStorage: true,
-		ExecutionType: browserk.ExecAlways,
+		ExecutionType: browserk.ExecOncePerFile,
 	}
 }
 
