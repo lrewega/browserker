@@ -76,7 +76,6 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 		attackID := fmt.Sprintf("/injection%d", id)
 
 		host, _ := iterator.SplitHost(i.req.Request.Url)
-		// TODO: replace headers with injIterator.Headers body with injIterator.Body (those three should be separate)
 		i.bCtx.Log.Debug().Str("location", i.injIterator.Expr().Loc().String()).
 			Str("attack_METHOD", i.injIterator.Method()).
 			Str("attack_URL", host+i.injIterator.URI().String()).

@@ -5,10 +5,7 @@ import (
 	"regexp"
 )
 
-// TODO: Should probably expose these as a config option to modify
-
 // taken from https://source.chromium.org/chromium/chromium/src/+/master:components/autofill/core/common/autofill_regex_constants.cc?originalUrl=https:%2F%2Fcs.chromium.org%2F
-// TODO: Fix up and replace with more relevant
 var DateStartRe = regexp.MustCompile("start|depart|leave|begin|from")
 var DateEndRe = regexp.MustCompile("end|arrive|return|final|to")
 

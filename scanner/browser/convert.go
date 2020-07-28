@@ -112,7 +112,6 @@ func GCDRequestToBrowserk(req *gcdapi.NetworkRequestWillBeSentEvent) *browserk.H
 }
 
 // GCDResponseToBrowserk convert resp with body
-// TODO: have a service check if we already have this body (via hash) and don't bother storing
 func GCDResponseToBrowserk(resp *gcdapi.NetworkResponseReceivedEvent, body []byte) *browserk.HTTPResponse {
 	p := resp.Params
 	h := sha1.New()

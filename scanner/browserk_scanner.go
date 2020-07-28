@@ -227,7 +227,6 @@ func (b *Browserk) processEntries() {
 	for {
 		select {
 		case <-b.stateMonitor.C:
-			// TODO: check graph for inprocess values that never made it and reset them to unvisited
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping")
 			if b.browsers.Leased() == 0 && pings == 3 {
 				log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping, something is blocking readyCh, sending <-")
