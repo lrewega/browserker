@@ -14,7 +14,7 @@ func main() {
 	app.Name = "Browserker Web App Scanner"
 	app.Version = "0.1"
 	app.Authors = []*cli.Author{{Name: "isaac dawson", Email: "isaac.dawson@gmail.com"}}
-	app.Usage = "Run some DAST goodness baby!"
+	app.Usage = "Analyzes a Web Site for Vulnerabilities"
 	app.Commands = []*cli.Command{
 		/*
 			Enable when auth is ready
@@ -27,11 +27,11 @@ func main() {
 				},
 		*/
 		{
-			Name:    "crawl",
-			Aliases: []string{"c"},
-			Usage:   "crawl only",
-			Action:  clicmds.Crawler,
-			Flags:   clicmds.CrawlerFlags(),
+			Name:    "run",
+			Aliases: []string{"r"},
+			Usage:   "run browserker",
+			Action:  clicmds.Run,
+			Flags:   clicmds.RunnerFlags(),
 		},
 		{
 			Name:    "replay",

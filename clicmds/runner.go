@@ -23,7 +23,8 @@ import (
 	"gitlab.com/browserker/store"
 )
 
-func CrawlerFlags() []cli.Flag {
+// RunnerFlags configures how to run browserker
+func RunnerFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:  "url",
@@ -34,6 +35,11 @@ func CrawlerFlags() []cli.Flag {
 			Name:  "config",
 			Usage: "config to use",
 			Value: "",
+		},
+		&cli.BoolFlag{
+			Name:  "crawl",
+			Usage: "only crawl, do not attack",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:  "datadir",
@@ -73,8 +79,8 @@ func CrawlerFlags() []cli.Flag {
 	}
 }
 
-// Crawler runs browserker crawler
-func Crawler(cliCtx *cli.Context) error {
+// Run browserker
+func Run(cliCtx *cli.Context) error {
 	if cliCtx.Bool("profile") {
 		go func() {
 			http.ListenAndServe(":6060", nil)
@@ -83,6 +89,7 @@ func Crawler(cliCtx *cli.Context) error {
 
 	cfg := &browserk.Config{}
 	cfg.FormData = &browserk.DefaultFormValues
+	cfg.CrawlOnly = cliCtx.Bool("crawl")
 
 	if cliCtx.String("config") == "" {
 		cfg = &browserk.Config{
@@ -107,7 +114,10 @@ func Crawler(cliCtx *cli.Context) error {
 			cfg.DataPath = cliCtx.String("datadir")
 		}
 	}
+
+	// TODO: remove this line after stabalizing, as it blows away all previous results
 	os.RemoveAll(cfg.DataPath)
+
 	crawl := store.NewCrawlGraph(cfg, cfg.DataPath+"/crawl")
 	pluginStore := store.NewPluginStore(cfg.DataPath + "/plugin")
 	browserk := scanner.New(cfg, crawl, pluginStore)

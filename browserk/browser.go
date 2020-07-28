@@ -19,6 +19,7 @@ type BrowserOpts struct {
 // Browser interface
 type Browser interface {
 	ID() int64
+	Init(*Config) error
 	GetURL() (string, error)
 	GetDOM() (string, error)
 	GetCookies() ([]*Cookie, error)

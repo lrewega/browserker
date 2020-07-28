@@ -2,9 +2,18 @@ URL = "http://localhost:3000/#/login"
 AllowedHosts = ["localhost"]
 DataPath = "browserktmp"
 DisableHeadless = false
+Proxy = "http://127.0.0.1:9090"
 NumBrowsers = 7
 MaxDepth = 25
 JSPluginPath = "plugins/"
+
+[CustomHeaders]
+X-Some-Header = "SomeValue"
+X-Some-Header2 = "SomeValue2"
+
+[CustomCookies]
+welcomebanner_status = "dismiss"
+cookieconsent_status = "dismiss"
 
 [FormData]
 UserName  = "test@test.com"

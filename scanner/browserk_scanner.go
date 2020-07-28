@@ -183,7 +183,6 @@ func (b *Browserk) Start() error {
 		if entries == nil || len(entries) == 0 && b.browsers.Leased() == 0 {
 			log.Info().Msg("no more crawler entries or active browsers, activating attack phase")
 			break
-
 		}
 		log.Info().Int("entries", len(entries)).Msg("Found entries")
 		for _, nav := range entries {
@@ -196,6 +195,11 @@ func (b *Browserk) Start() error {
 		case <-b.mainContext.Ctx.Done():
 			break
 		}
+	}
+
+	// if just crawling, we're done
+	if b.cfg.CrawlOnly {
+		return nil
 	}
 
 	for {
@@ -251,6 +255,11 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	browser, port, err := b.browsers.Take(navCtx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to take browser")
+		return
+	}
+
+	if err := browser.Init(b.cfg); err != nil {
+		log.Error().Err(err).Msg("failed to Init browser")
 		return
 	}
 
