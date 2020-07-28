@@ -435,6 +435,12 @@ func (t *Tab) FindElements(querySelector string, canRefreshDocument bool) ([]*br
 		if err != nil {
 			return bElements, err
 		}
+		// find floating menus
+		menuElements, err := t.GetElementsBySearch("//attribute::*[contains(., 'menu')]/", false)
+		if err != nil {
+			return bElements, err
+		}
+		elements = append(elements, menuElements...)
 	} else {
 		elements, err = t.GetElementsBySelector(querySelector, canRefreshDocument)
 		if err != nil {

@@ -36,7 +36,7 @@ You can override all of the default FormData fields with whatever you think fits
 
 - A proxy-less scanner, based entirely off injecting and instrumenting chromium via the dev tools protocol.
   - If chromium removes specific interception features, plans are in place to create a custom chromium build.
-- Allows for plugins to be written in Go or JS (coming soon)
+- Allows for plugins to be written in Go or JS
 - Allows plugins to be notified of various browser events:
   - Network requests
   - Network responses
