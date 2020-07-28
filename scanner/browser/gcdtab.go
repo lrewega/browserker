@@ -97,6 +97,40 @@ func (t *Tab) defaultDisconnectedHandler(tab *Tab, reason string) {
 	t.ctx.Log.Debug().Msgf("tab %s tabID: %s", reason, tab.t.Target.Id)
 }
 
+func (t *Tab) Init(cfg *browserk.Config) error {
+	if cfg.CustomHeaders != nil && len(cfg.CustomHeaders) != 0 {
+		_, err := t.t.Network.SetExtraHTTPHeaders(t.ctx.Ctx, cfg.CustomHeaders)
+		if err != nil {
+			return err
+		}
+	}
+
+	if cfg.CustomCookies == nil || len(cfg.CustomCookies) == 0 {
+		return nil
+	}
+
+	for cookieName, cookieValue := range cfg.CustomCookies {
+		val := cookieValue.(string)
+		for _, host := range cfg.AllowedHosts {
+			param := &gcdapi.NetworkSetCookieParams{
+				Name:   cookieName,
+				Value:  val,
+				Domain: host,
+			}
+			set, err := t.t.Network.SetCookieWithParams(t.ctx.Ctx, param)
+			if err != nil {
+				return err
+			}
+			if !set {
+				t.ctx.Log.Warn().Str("cookie_name", cookieName).Str("cookie_value", val).Msg("failed to set cookie")
+			}
+
+		}
+
+	}
+	return nil
+}
+
 // Close the exit channel and tab
 func (t *Tab) Close() {
 	t.g.CloseTab(t.t)

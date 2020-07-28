@@ -113,6 +113,7 @@ var DefaultFormValues = FormData{
 // Config for browserker
 type Config struct {
 	URL             string
+	CrawlOnly       bool     // only crawl/passive plugins do not attack
 	AllowedHosts    []string // considered 'in scope' for testing/access
 	Proxy           string
 	DisableHeadless bool     // disables headless mode for debugging/watching
@@ -125,8 +126,10 @@ type Config struct {
 	AuthType        AuthType
 	Credentials     *Credentials
 	NumBrowsers     int
-	MaxDepth        int       // maximum distance of paths we will traverse
-	FormData        *FormData // config form data
-	JSPluginPath    string    // path to javascript plugins (will walk sub directories)
-	DisabledPlugins []string  // plugins we will not load
+	MaxDepth        int                    // maximum distance of paths we will traverse
+	FormData        *FormData              // config form data
+	CustomHeaders   map[string]interface{} // list of custom headers to attach to every request
+	CustomCookies   map[string]interface{} // list of custom cookies to attach to every request
+	JSPluginPath    string                 // path to javascript plugins (will walk sub directories)
+	DisabledPlugins []string               // plugins we will not load
 }

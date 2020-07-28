@@ -7,19 +7,19 @@ import (
 	"gitlab.com/browserker/clicmds"
 )
 
-func TestCrawler(t *testing.T) {
+func TestRun(t *testing.T) {
 	t.Skip()
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{
 		{
-			Name:    "crawl",
-			Aliases: []string{"c"},
-			Usage:   "crawl only",
-			Action:  clicmds.Crawler,
-			Flags:   clicmds.CrawlerFlags(),
+			Name:    "run",
+			Aliases: []string{"r"},
+			Usage:   "run",
+			Action:  clicmds.Run,
+			Flags:   clicmds.RunnerFlags(),
 		},
 	}
-	err := app.Run([]string{"app", "c", "--config", "../configs/dvwa_lowdepth.toml"})
+	err := app.Run([]string{"app", "run", "--config", "../configs/dvwa_lowdepth.toml"})
 	if err != nil {
 		t.Fatalf("err: %s\n", err)
 	}
