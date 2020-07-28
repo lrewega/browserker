@@ -15,7 +15,6 @@ type URIParser struct {
 }
 
 // Parse a uri into it's parts
-// TODO: Clean this up it's a disaster
 func (u *URIParser) Parse(uri string) (*injast.URI, error) {
 	u.s = scanner.New()
 	u.s.Init([]byte(uri), scanner.URI)

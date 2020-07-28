@@ -33,10 +33,6 @@ type PluginServicer struct {
 	InjectCalled bool
 }
 
-func (p *PluginServicer) Name() string {
-	return "PluginService"
-}
-
 func (p *PluginServicer) Init(ctx context.Context) error {
 	p.InitCalled = true
 	return p.InitFn(ctx)

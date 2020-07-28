@@ -78,8 +78,6 @@ type Key struct {
 }
 
 // KeyEncodeUnidentified encodes a keyDown, char, and keyUp sequence for an unidentified rune.
-//
-// TODO: write unit tests for non-latin/ascii unicode characters.
 func KeyEncodeUnidentified(r rune) []*gcdapi.InputDispatchKeyEventParams {
 	// create
 	keyDown := gcdapi.InputDispatchKeyEventParams{
