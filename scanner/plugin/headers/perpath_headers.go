@@ -55,7 +55,6 @@ func (h *PerPathHeaderPlugin) OnEvent(evt *browserk.PluginEvent) {
 		return
 	}
 
-	// TODO: Reporter should filter out
 	h.checkXPoweredBy(evt)
 	h.checkServer(evt)
 	h.checkDotNetHeaders(evt)

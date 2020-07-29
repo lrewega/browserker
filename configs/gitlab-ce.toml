@@ -1,0 +1,12 @@
+URL = "http://browserker.gitlab.pwn/users/sign_in"
+AllowedHosts = ["browserker.gitlab.pwn"]
+ExcludedURIs = ["/help", "/help/"]
+DataPath = "browserktmp"
+DisableHeadless = false
+NumBrowsers = 5
+MaxDepth = 5
+JSPluginPath = "plugins/"
+
+[FormData]
+UserName  = "test@test.com"
+Password = "testpass123"

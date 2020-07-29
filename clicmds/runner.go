@@ -202,15 +202,22 @@ func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 		return fmt.Errorf("No result entries found")
 	}
 	fmt.Printf("Had %d results\n", len(results))
+	uniq := make(map[string]struct{})
 	for _, entry := range results {
 		if entry.Messages != nil {
 			for _, m := range entry.Messages {
-				if m.Request == nil || !strings.HasSuffix(m.Request.DocumentURL, "http") {
+				if m.Request == nil {
 					continue
 				}
+				uniq[m.Request.Request.Url+m.Request.Request.UrlFragment] = struct{}{}
 				fmt.Printf("URL visited: (DOC %s) %s\n", m.Request.DocumentURL, m.Request.Request.Url+m.Request.Request.UrlFragment)
 			}
 		}
+	}
+
+	fmt.Printf("Had %d unique URLs\n", len(uniq))
+	for u := range uniq {
+		fmt.Printf("%s\n", u)
 	}
 
 	visitedEntries := crawl.Find(nil, browserk.NavVisited, browserk.NavVisited, 999)
