@@ -19,6 +19,16 @@ import (
 	"gitlab.com/browserker/scanner/report"
 )
 
+type crawlEvt struct {
+	nav []*browserk.Navigation
+	wg  *sync.WaitGroup
+}
+
+type attackEvt struct {
+	nav []*browserk.NavigationWithResult
+	wg  *sync.WaitGroup
+}
+
 // Browserk is our engine
 type Browserk struct {
 	cfg          *browserk.Config
@@ -27,9 +37,8 @@ type Browserk struct {
 	reporter     browserk.Reporter
 	browsers     browserk.BrowserPool
 	formHandler  browserk.FormHandler
-	navCh        chan []*browserk.Navigation
-	attackCh     chan []*browserk.NavigationWithResult
-	readyCh      chan struct{}
+	navCh        chan *crawlEvt
+	attackCh     chan *attackEvt
 	stateMonitor *time.Ticker
 	mainContext  *browserk.Context
 
@@ -45,10 +54,9 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		crawlGraph:       crawl,
 		leasedBrowserIDs: make(map[int64]struct{}),
 		idMutex:          &sync.RWMutex{},
-		navCh:            make(chan []*browserk.Navigation, cfg.NumBrowsers),
-		attackCh:         make(chan []*browserk.NavigationWithResult, cfg.NumBrowsers),
+		navCh:            make(chan *crawlEvt, cfg.NumBrowsers),
+		attackCh:         make(chan *attackEvt, cfg.NumBrowsers),
 		reporter:         report.New(crawl, pluginStore),
-		readyCh:          make(chan struct{}),
 	}
 }
 
@@ -134,7 +142,9 @@ func (b *Browserk) Init(ctx context.Context) error {
 	pool := browser.NewGCDBrowserPool(b.cfg.NumBrowsers, leaser)
 	b.browsers = pool
 	log.Logger.Info().Msg("starting browser pool")
-	go b.processEntries()
+	for i := 0; i < b.cfg.NumBrowsers; i++ {
+		go b.processEntries()
+	}
 	return pool.Init()
 }
 
@@ -185,18 +195,18 @@ func (b *Browserk) Start() error {
 			break
 		}
 		log.Info().Int("entries", len(entries)).Msg("Found entries")
+		wg := &sync.WaitGroup{}
 		for _, nav := range entries {
-			b.navCh <- nav
+			wg.Add(1)
+			select {
+			case b.navCh <- &crawlEvt{nav: nav, wg: wg}:
+			case <-b.mainContext.Ctx.Done():
+			}
 		}
-		log.Info().Msg("Waiting for crawler to complete")
-		select {
-		case <-b.readyCh:
-			break
-		case <-b.mainContext.Ctx.Done():
-			break
-		}
+		wg.Wait()
 	}
 
+	log.Info().Msg("Crawler to complete")
 	// if just crawling, we're done
 	if b.cfg.CrawlOnly {
 		return nil
@@ -209,46 +219,40 @@ func (b *Browserk) Start() error {
 			return nil
 		}
 		log.Info().Int("entries", len(entries)).Msg("Found entries")
+		wg := &sync.WaitGroup{}
 		for _, nav := range entries {
-			b.attackCh <- nav
+			wg.Add(1)
+			select {
+			case b.attackCh <- &attackEvt{nav: nav, wg: wg}:
+			case <-b.mainContext.Ctx.Done():
+			}
 		}
-		log.Info().Msg("Waiting for crawler to complete")
-		select {
-		case <-b.readyCh:
-			break
-		case <-b.mainContext.Ctx.Done():
-			break
-		}
+		wg.Wait()
 	}
 }
 
 func (b *Browserk) processEntries() {
-	pings := 0
 	for {
 		select {
 		case <-b.stateMonitor.C:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping")
-			if b.browsers.Leased() == 0 && pings == 3 {
-				log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping, something is blocking readyCh, sending <-")
-				b.readyCh <- struct{}{}
-				pings = 0
-			} else if b.browsers.Leased() == 0 {
-				pings++
-			}
 		case <-b.mainContext.Ctx.Done():
 			log.Info().Msg("scan finished due to context complete")
 			return
 		case nav := <-b.navCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing nav")
-			go b.crawl(nav)
+			b.crawl(nav.nav)
+			nav.wg.Done()
 		case nav := <-b.attackCh:
 			log.Info().Int("leased_browsers", b.browsers.Leased()).Msg("processing attack nav")
-			go b.attack(nav)
+			b.attack(nav.nav)
+			nav.wg.Done()
 		}
 	}
 }
 
 func (b *Browserk) crawl(navs []*browserk.Navigation) {
+
 	navCtx := b.mainContext.Copy()
 
 	browser, port, err := b.browsers.Take(navCtx)
@@ -310,14 +314,11 @@ func (b *Browserk) crawl(navs []*browserk.Navigation) {
 	navCtx.Log.Info().Msg("closing browser")
 	browser.Close()
 	b.browsers.Return(navCtx.Ctx, port)
-
-	b.readyCh <- struct{}{}
 }
 
 // attack iterates over the plugin, giving it it's own browser since we need to add
 // the context specific to that plugin
 func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
-
 	navCtx := b.mainContext.Copy()
 
 	browser, port, err := b.browsers.Take(navCtx)
@@ -403,7 +404,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 	b.browsers.Return(navCtx.Ctx, port)
 
 	b.removeLeased(browser.ID())
-	b.readyCh <- struct{}{}
 }
 
 // Stop the browsers
