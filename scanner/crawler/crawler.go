@@ -107,10 +107,6 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 			if !ele.Hidden {
 				diff.Add(ele.ElementType(), ele.Hash())
 			}
-
-			//for _, child := range ele.ChildElements {
-			//diff.Add(child.Type, child.Hash())
-			//}
 		}
 	}
 
@@ -160,7 +156,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 	if imgElements, err := browser.FindElements("img", true); err == nil {
 		for _, ele := range imgElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
-			if ele.Hidden {
+			if !ele.Hidden {
 				diff.Add(browserk.IMG, ele.Hash())
 			}
 		}
@@ -233,6 +229,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 
 	bctx.Log.Debug().Int("link_count", len(aElements)).Msg("found links")
 	for _, a := range aElements {
+		bctx.Log.Debug().Msgf("link %#v\n", a)
 		// don't want to re-add the same elements
 		if navDiff.Has(a.ElementType(), a.Hash()) || diff.Has(browserk.A, a.Hash()) || a.Hidden {
 			bctx.Log.Warn().Str("ele", browserk.HTMLTypeToStrMap[a.Type]).Msgf("element was hidden or existed in diffs %+v", a.Attributes)
@@ -250,7 +247,7 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 	}
 
 	cElements, err := browser.FindInteractables()
-	log.Debug().Int("interactable_count", len(cElements)).Msg("found interactables")
+	log.Debug().Int("interactable_count", len(cElements)).Msgf("found interactables %#v", cElements)
 	if err == nil {
 		for _, ele := range cElements {
 			// don't want to re-add the same elements
