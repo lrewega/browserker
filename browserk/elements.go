@@ -286,6 +286,11 @@ func ImportantAttributeValues(elementType HTMLElementType, attrs map[string]stri
 		vals = append(vals, class)
 	}
 
+	// TODO: make sure we test other frameworks that may make IDs dynamic
+	if id, ok := attrs["id"]; ok {
+		vals = append(vals, id)
+	}
+
 	return vals
 }
 
@@ -474,6 +479,7 @@ const (
 	// Custom/Non-standard
 	CUSTOM
 	HASHTEXT
+	SVG
 )
 
 // HTMLTypeMap for taking in tag name -> outputing HTMLElementType
@@ -651,6 +657,7 @@ var HTMLTypeMap = map[string]HTMLElementType{
 	"STRIKE":    STRIKE,
 	"TT":        TT,
 	"XMP":       XMP,
+	"SVG":       SVG,
 }
 
 var HTMLTypeToStrMap = map[HTMLElementType]string{
@@ -827,6 +834,7 @@ var HTMLTypeToStrMap = map[HTMLElementType]string{
 	STRIKE:    "STRIKE",
 	TT:        "TT",
 	XMP:       "XMP",
+	SVG:       "SVG",
 }
 
 // HTMLEventType for various HTML events

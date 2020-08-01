@@ -1,6 +1,6 @@
 URL = "http://browserker.gitlab.pwn/users/sign_in"
 AllowedHosts = ["browserker.gitlab.pwn"]
-ExcludedURIs = ["/help", "/help/", "/profile/password/edit", "/users/sign_out"]
+ExcludedURIs = ["/help", "/help/", "/profile/password/edit", "/users/sign_out", "/explore"]
 DataPath = "browserktmp"
 DisableHeadless = false
 NumBrowsers = 6
@@ -8,5 +8,6 @@ MaxDepth = 10
 JSPluginPath = "plugins/"
 
 [FormData]
-UserName  = "test2@test.com"
-Password = "testpass123"
+Email = "test@test.com"
+UserName  = "test@test.com"
+Password = "testpass"
