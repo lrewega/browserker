@@ -235,7 +235,7 @@ func (b *Browserk) processEntries() {
 	for {
 		select {
 		case <-b.stateMonitor.C:
-			log.Info().Int("leased_browsers", b.browsers.Leased()).Ints64("leased_browsers", b.getLeased()).Msg("state monitor ping")
+			log.Info().Int("leased_browsers", b.browsers.Leased()).Int("nav_action_count", b.crawlGraph.NavCount()).Msg("state monitor ping")
 		case <-b.mainContext.Ctx.Done():
 			log.Info().Msg("scan finished due to context complete")
 			return

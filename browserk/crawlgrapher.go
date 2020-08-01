@@ -6,6 +6,7 @@ import "context"
 type CrawlGrapher interface {
 	Init() error
 	Close() error
+	NavCount() int
 	Find(ctx context.Context, byState, setState NavState, limit int64) [][]*Navigation
 	FindWithResults(ctx context.Context, byState, setState NavState, limit int64) [][]*NavigationWithResult
 	FindPathByNavID(ctx context.Context, navID []byte) []*Navigation

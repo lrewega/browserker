@@ -220,17 +220,21 @@ func printSummary(crawl *store.CrawlGraph, dotFile string) error {
 		fmt.Printf("%s\n", u)
 	}
 
-	visitedEntries := crawl.Find(nil, browserk.NavVisited, browserk.NavVisited, 999)
+	visitedEntries := crawl.Find(nil, browserk.NavVisited, browserk.NavVisited, 5000)
 	printEntries(visitedEntries, "visited")
 
-	unvisitedEntries := crawl.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, 999)
+	unvisitedEntries := crawl.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, 5000)
 	printEntries(unvisitedEntries, "unvisited")
-	inProcessEntries := crawl.Find(nil, browserk.NavInProcess, browserk.NavInProcess, 999)
+
+	inProcessEntries := crawl.Find(nil, browserk.NavInProcess, browserk.NavInProcess, 5000)
 	printEntries(inProcessEntries, "in process")
-	failedEntries := crawl.Find(nil, browserk.NavFailed, browserk.NavFailed, 999)
+
+	failedEntries := crawl.Find(nil, browserk.NavFailed, browserk.NavFailed, 5000)
 	printEntries(failedEntries, "nav failed")
-	auditedEntries := crawl.Find(nil, browserk.NavAudited, browserk.NavAudited, 9999)
+
+	auditedEntries := crawl.Find(nil, browserk.NavAudited, browserk.NavAudited, 5000)
 	printEntries(auditedEntries, "audited")
+
 	if dotFile != "" {
 		printDOT(dotFile, auditedEntries, visitedEntries, unvisitedEntries, inProcessEntries, failedEntries)
 	}

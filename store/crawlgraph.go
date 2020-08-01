@@ -86,16 +86,16 @@ func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
 		return nil
 	}
 
-	if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
-		log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
-		return nil
-	}
-
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		existKey := MakeKey(nav.ID, "id")
 		_, err := txn.Get(existKey)
 		if err == nil {
 			log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
+			return nil
+		}
+
+		if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
+			log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
 			return nil
 		}
 
@@ -114,6 +114,11 @@ func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
 	})
 }
 
+// NavCount of navs
+func (g *CrawlGraph) NavCount() int {
+	return int(atomic.LoadInt32(&g.navActionCount))
+}
+
 // AddNavigations entries into our graph and requests into request store in
 // a single transaction
 func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
@@ -128,16 +133,16 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 				return nil
 			}
 
-			if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
-				log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
-				return nil
-			}
-
 			existKey := MakeKey(nav.ID, "id")
 			_, err := txn.Get(existKey)
 			if err == nil {
 				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it already exists")
 				continue
+			}
+
+			if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
+				log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
+				return nil
 			}
 
 			for i := 0; i < len(g.navPredicates); i++ {
