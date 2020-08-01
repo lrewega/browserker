@@ -5,6 +5,7 @@ DataPath = "browserktmp"
 DisableHeadless = false
 NumBrowsers = 6
 MaxDepth = 10
+MaxActions = 100
 JSPluginPath = "plugins/"
 
 [FormData]

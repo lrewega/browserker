@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync/atomic"
 
 	badger "github.com/dgraph-io/badger/v2"
 	"github.com/pkg/errors"
@@ -24,11 +25,16 @@ type CrawlGraph struct {
 	filepath            string
 	navPredicates       []*NavGraphField
 	navResultPredicates []*NavGraphField
+	navActionCount      int32
+	maxActions          int32
 }
 
 // NewCrawlGraph creates a new crawl graph and request store
 func NewCrawlGraph(cfg *browserk.Config, filepath string) *CrawlGraph {
-	return &CrawlGraph{cfg: cfg, filepath: filepath}
+	if cfg.MaxActions <= 0 {
+		cfg.MaxActions = 2000 // TODO: see how wild 2k actions would be on terms of disk
+	}
+	return &CrawlGraph{cfg: cfg, filepath: filepath, maxActions: int32(cfg.MaxActions)}
 }
 
 // Init the crawl graph and request store
@@ -79,6 +85,12 @@ func (g *CrawlGraph) AddNavigation(nav *browserk.Navigation) error {
 		log.Debug().Bytes("nav", nav.ID).Msg("not adding nav as it exceeds max depth")
 		return nil
 	}
+
+	if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
+		log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
+		return nil
+	}
+
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		existKey := MakeKey(nav.ID, "id")
 		_, err := txn.Get(existKey)
@@ -115,6 +127,12 @@ func (g *CrawlGraph) AddNavigations(navs []*browserk.Navigation) error {
 				log.Debug().Str("nav", nav.String()).Msg("not adding nav as it exceeds max depth")
 				return nil
 			}
+
+			if atomic.AddInt32(&g.navActionCount, 1) > g.maxActions {
+				log.Debug().Bytes("nav", nav.ID).Int32("max", g.maxActions).Msg("not adding nav as it exceeds max actions")
+				return nil
+			}
+
 			existKey := MakeKey(nav.ID, "id")
 			_, err := txn.Get(existKey)
 			if err == nil {
