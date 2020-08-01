@@ -1114,7 +1114,8 @@ func (t *Tab) GetPageSource(docNodeID int) (string, error) {
 
 // GetURL returns the current url of the top level document
 func (t *Tab) GetURL() (string, error) {
-	return t.GetDocumentCurrentURL(t.getTopNodeID())
+	//return t.GetDocumentCurrentURL(t.getTopNodeID())
+	return t.GetNavURL(), nil
 }
 
 // GetDocumentCurrentURL returns the current url of the provided docNodeID
