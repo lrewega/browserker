@@ -203,6 +203,8 @@ func (g *CrawlGraph) GetNavigation(id []byte) (*browserk.Navigation, error) {
 // For the original navigation ID we want to store:
 // r_nav_id:<nav id> = result.ID so we can GetNavigationResult(nav_id) to get
 // the node ID for this result then look up <predicate>:resultID = ... values ...
+// for response bodies we store them seperately, using the body hash as a key so
+// we don't unnecessarily store multiple copies.
 // set the nav state to visited
 func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 
@@ -211,13 +213,14 @@ func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 			var bytez []byte
 			var err error
 			key := MakeKey(result.ID, g.navResultPredicates[i].name)
-			rv := reflect.ValueOf(*result)
+
 			switch g.navResultPredicates[i].name {
 			case "r_nav_id":
 				navKey := MakeKey(result.NavigationID, g.navResultPredicates[i].name)
 				enc, _ := EncodeBytes(result.ID)
 				// store this separately so we can it look it up (values are always encoded)
 				txn.Set(navKey, enc)
+				rv := reflect.ValueOf(*result)
 				bytez, err = Encode(rv, g.navResultPredicates[i].index)
 			case "r_messages":
 				for _, m := range result.Messages {
@@ -231,10 +234,11 @@ func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 						m.Response.Body = nil // set it to nil so we don't have unnecessary copies
 					}
 				}
+				rv := reflect.ValueOf(*result)
 				bytez, err = Encode(rv, g.navResultPredicates[i].index)
 			default:
+				rv := reflect.ValueOf(*result)
 				bytez, err = Encode(rv, g.navResultPredicates[i].index)
-
 			}
 
 			if err != nil {
@@ -245,7 +249,6 @@ func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 			txn.Set(key, bytez)
 		}
 		// set the navigation id to visited
-		// TODO: track failures
 		navIDkey := MakeKey(result.NavigationID, "state")
 		value, _ := EncodeState(browserk.NavVisited)
 		return txn.Set(navIDkey, value)
