@@ -160,6 +160,40 @@ func TestCrawlAddNavigations(t *testing.T) {
 	testGetNavResults(t, g)
 }
 
+func TestCrawlAddNavigationsWithMax(t *testing.T) {
+	path := "testdata/navis/crawl"
+	os.RemoveAll(path)
+	cfg := mock.MakeMockConfig()
+	cfg.MaxActions = 5
+	g := store.NewCrawlGraph(cfg, path)
+	if err := g.Init(); err != nil {
+		t.Fatalf("error init graph: %s\n", err)
+	}
+	defer g.Close()
+
+	navs := make([]*browserk.Navigation, 0)
+	for i := 1; i < 11; i++ {
+		nav := mock.MakeMockNavi([]byte{0, byte(i), 2})
+		nav.OriginID = []byte{0, byte(i - 1), 2}
+		nav.Distance = i - 1
+
+		if i == 1 {
+			nav.OriginID = []byte{} // signals root
+		}
+		navs = append(navs, nav)
+	}
+
+	if err := g.AddNavigations(navs); err != nil {
+		t.Fatalf("error calling  add navigations: %s\n", err)
+	}
+
+	limit := 10
+	entries := g.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, int64(limit))
+	if len(entries) != cfg.MaxActions {
+		t.Fatalf("entries did not match matx got %d\n", len(entries))
+	}
+
+}
 func testGetNavResults(t *testing.T, g browserk.CrawlGrapher) {
 	limit := 5
 	entries := g.Find(nil, browserk.NavUnvisited, browserk.NavUnvisited, int64(limit))

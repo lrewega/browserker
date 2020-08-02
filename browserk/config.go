@@ -125,8 +125,9 @@ type Config struct {
 	AuthScript      string
 	AuthType        AuthType
 	Credentials     *Credentials
-	NumBrowsers     int
-	MaxDepth        int                    // maximum distance of paths we will traverse
+	NumBrowsers     int                    // number of concurrent browsers to use, > 7-ish not recommended
+	MaxDepth        int                    // maximum distance of paths we will traverse (limit depth)
+	MaxActions      int                    // maximum number of actions we should take (limit breadth)
 	FormData        *FormData              // config form data
 	CustomHeaders   map[string]interface{} // list of custom headers to attach to every request
 	CustomCookies   map[string]interface{} // list of custom cookies to attach to every request
