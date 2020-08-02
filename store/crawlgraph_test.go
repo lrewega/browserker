@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"bytes"
 	"os"
 	"testing"
 
@@ -250,5 +251,10 @@ func TestCrawlAddResults(t *testing.T) {
 	}
 	if res.DOM != "<html>nav result</html>" {
 		t.Fatalf("expected %s got [%s]", "<html>nav result</html>", res.DOM)
+	}
+	expectedBody := []byte("this is a body 0")
+
+	if bytes.Compare(expectedBody, res.Messages[0].Response.Body) != 0 {
+		t.Fatalf("expected body %s got %s", expectedBody, res.Messages[0].Response.Body)
 	}
 }

@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"time"
 
@@ -92,6 +93,10 @@ func MakeMockLabel(forElement, text string) *browserk.HTMLElement {
 func MakeMockMessages() []*browserk.HTTPMessage {
 	m := make([]*browserk.HTTPMessage, 0)
 	for i := 0; i < 3; i++ {
+		body := []byte(fmt.Sprintf("this is a body %d", i))
+		h := sha1.New()
+		h.Write(body)
+
 		message := &browserk.HTTPMessage{
 			RequestTime: time.Now(),
 			Request: &browserk.HTTPRequest{
@@ -182,8 +187,8 @@ func MakeMockMessages() []*browserk.HTTPMessage {
 					},
 				},
 				FrameId:  "",
-				Body:     nil,
-				BodyHash: nil,
+				Body:     body,
+				BodyHash: h.Sum(nil),
 			},
 		}
 		m = append(m, message)

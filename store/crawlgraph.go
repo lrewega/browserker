@@ -208,15 +208,33 @@ func (g *CrawlGraph) AddResult(result *browserk.NavigationResult) error {
 
 	return g.GraphStore.Update(func(txn *badger.Txn) error {
 		for i := 0; i < len(g.navResultPredicates); i++ {
+			var bytez []byte
+			var err error
 			key := MakeKey(result.ID, g.navResultPredicates[i].name)
 			rv := reflect.ValueOf(*result)
-			bytez, err := Encode(rv, g.navResultPredicates[i].index)
-
-			if g.navResultPredicates[i].name == "r_nav_id" {
+			switch g.navResultPredicates[i].name {
+			case "r_nav_id":
 				navKey := MakeKey(result.NavigationID, g.navResultPredicates[i].name)
 				enc, _ := EncodeBytes(result.ID)
 				// store this separately so we can it look it up (values are always encoded)
 				txn.Set(navKey, enc)
+				bytez, err = Encode(rv, g.navResultPredicates[i].index)
+			case "r_messages":
+				for _, m := range result.Messages {
+					if m.Response != nil {
+						// only add if it doesn't exist
+						if _, err := txn.Get(m.Response.BodyHash); err == badger.ErrKeyNotFound {
+							bodyData, _ := EncodeBytes(m.Response.Body)
+							// bodyhash = body
+							txn.Set(m.Response.BodyHash, bodyData)
+						}
+						m.Response.Body = nil // set it to nil so we don't have unnecessary copies
+					}
+				}
+				bytez, err = Encode(rv, g.navResultPredicates[i].index)
+			default:
+				bytez, err = Encode(rv, g.navResultPredicates[i].index)
+
 			}
 
 			if err != nil {

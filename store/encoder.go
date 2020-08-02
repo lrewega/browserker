@@ -113,7 +113,7 @@ func DecodeNavigationResult(txn *badger.Txn, predicates []*NavGraphField, result
 		if err != nil {
 			return nil, err
 		}
-		if err := DecodeNavigationResultItem(item, nav, pred.name); err != nil {
+		if err := DecodeNavigationResultItem(txn, item, nav, pred.name); err != nil {
 			log.Error().Err(err).Str("predicate", pred.name).Msg("unable to decode result item:")
 			return nil, err
 		}
@@ -124,7 +124,7 @@ func DecodeNavigationResult(txn *badger.Txn, predicates []*NavGraphField, result
 
 // DecodeNavigationResultItem of the predicate value into the navigation result object.
 // TODO autogenerate this
-func DecodeNavigationResultItem(item *badger.Item, nav *browserk.NavigationResult, pred string) error {
+func DecodeNavigationResultItem(txn *badger.Txn, item *badger.Item, nav *browserk.NavigationResult, pred string) error {
 	var err error
 
 	switch pred {
@@ -175,6 +175,19 @@ func DecodeNavigationResultItem(item *badger.Item, nav *browserk.NavigationResul
 			v := make([]*browserk.HTTPMessage, 0)
 			err := msgpack.Unmarshal(val, &v)
 			nav.Messages = v
+			for _, m := range nav.Messages {
+				if m.Response == nil {
+					continue
+				}
+				bodyItem, err := txn.Get(m.Response.BodyHash)
+				if err != nil {
+					log.Debug().Err(err).Msg("failed to find body via body hash")
+				}
+				bodyData, _ := bodyItem.ValueCopy(nil)
+				b := make([]byte, 0)
+				err = msgpack.Unmarshal(bodyData, &b)
+				m.Response.Body = b
+			}
 			return err
 		})
 	case "r_cookies":
