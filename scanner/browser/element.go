@@ -62,6 +62,7 @@ func (e *ErrInvalidDimensions) Error() string {
 // If you need this information, wait for IsReady() to return true
 type Element struct {
 	lock           *sync.RWMutex     // for protecting read/write access to this Element
+	root           *gcdapi.DOMNode   // the root node (which this node belongs to)
 	attributes     map[string]string // dom attributes
 	nodeName       string            // the DOM tag name
 	characterData  string            // the character data (if any, #text only)
@@ -87,21 +88,23 @@ func newElement(tab *Tab, nodeID, depth int) *Element {
 	return e
 }
 
-func newReadyElement(tab *Tab, node *gcdapi.DOMNode, depth int) *Element {
+func newReadyElement(tab *Tab, root, node *gcdapi.DOMNode, depth int) *Element {
 	e := &Element{}
 	e.tab = tab
+	e.root = root
 	e.attributes = make(map[string]string)
 	e.readyGate = make(chan struct{})
 	e.nodeName = strings.ToLower(node.NodeName)
 	e.lock = &sync.RWMutex{}
-	e.populateElement(node, depth)
+	e.populateElement(root, node, depth)
 	return e
 }
 
 // populate the Element with node data.
-func (e *Element) populateElement(node *gcdapi.DOMNode, depth int) {
+func (e *Element) populateElement(root, node *gcdapi.DOMNode, depth int) {
 	e.lock.Lock()
 	e.node = node
+	e.root = root
 	e.ID = node.NodeId
 	e.depth = depth
 	e.nodeType = node.NodeType
@@ -157,6 +160,21 @@ func (e *Element) setInvalidated(invalid bool) {
 // Depth of this node as relative to the <html> doc
 func (e *Element) Depth() int {
 	return e.depth
+}
+
+func (e *Element) GetRootNode() *gcdapi.DOMNode {
+	return e.root
+}
+
+func (e *Element) GetURLForElement() string {
+	e.lock.RLock()
+	root := e.root
+	e.lock.RUnlock()
+
+	if root != nil {
+		return root.DocumentURL
+	}
+	return ""
 }
 
 // WaitForReady If we are ready, just return, if we are not, wait for the readyGate
@@ -269,6 +287,7 @@ func (e *Element) GetEventListeners() ([]*gcdapi.DOMDebuggerEventListener, error
 	if err != nil {
 		return nil, err
 	}
+
 	return eventListeners, nil
 }
 

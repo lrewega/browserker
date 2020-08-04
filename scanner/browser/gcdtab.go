@@ -875,9 +875,10 @@ func (t *Tab) getDocument() (*Element, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	t.setTopNodeID(doc.NodeId)
 	//t.ctx.Log.Debug().Msgf("getDocument doc id is now: %d", t.getTopNodeID())
-	t.addNodes(doc, 0)
+	t.addNodes(doc, doc, 0)
 	eleDoc, _ := t.getElement(doc.NodeId)
 	return eleDoc, nil
 }
@@ -1169,12 +1170,12 @@ func (t *Tab) requestChildNodes(nodeID, depth int) {
 
 // Called if the element is known about but not yet populated. If it is not
 // known, we create a new element. If it is known we populate it and return it.
-func (t *Tab) nodeToElement(node *gcdapi.DOMNode, depth int) *Element {
+func (t *Tab) nodeToElement(root, node *gcdapi.DOMNode, depth int) *Element {
 	if ele, ok := t.getElement(node.NodeId); ok {
-		ele.populateElement(node, depth)
+		ele.populateElement(root, node, depth)
 		return ele
 	}
-	newEle := newReadyElement(t, node, depth)
+	newEle := newReadyElement(t, root, node, depth)
 	return newEle
 }
 
@@ -1190,8 +1191,8 @@ func (t *Tab) getElement(nodeID int) (*Element, bool) {
 // iterates over children and contentdocuments (if they exist)
 // Calls requestchild nodes for each node so we can receive setChildNode
 // events for even more nodes
-func (t *Tab) addNodes(node *gcdapi.DOMNode, depth int) {
-	newEle := t.nodeToElement(node, depth)
+func (t *Tab) addNodes(root, node *gcdapi.DOMNode, depth int) {
+	newEle := t.nodeToElement(root, node, depth)
 
 	t.eleMutex.Lock()
 	t.elements[newEle.ID] = newEle
@@ -1200,7 +1201,7 @@ func (t *Tab) addNodes(node *gcdapi.DOMNode, depth int) {
 	if node.Children != nil {
 		// add child nodes
 		for _, v := range node.Children {
-			t.addNodes(v, depth+1)
+			t.addNodes(root, v, depth+1)
 		}
 	}
 
@@ -1216,7 +1217,7 @@ func (t *Tab) addNodes(node *gcdapi.DOMNode, depth int) {
 		t.frames[node.FrameId] = node.ContentDocument.NodeId
 		t.frameMutex.Unlock()
 
-		t.addNodes(node.ContentDocument, depth+1)
+		t.addNodes(node.ContentDocument, node.ContentDocument, depth+1)
 	}
 	t.lastNodeChangeTimeVal.Store(time.Now())
 }
@@ -1332,7 +1333,7 @@ func (t *Tab) handleSetChildNodes(parentNodeID int, nodes []*gcdapi.DOMNode) {
 	parent, ok := t.getElementByNodeID(parentNodeID)
 	depth := parent.Depth() + 1
 	for _, node := range nodes {
-		t.addNodes(node, depth)
+		t.addNodes(parent.GetRootNode(), node, depth)
 	}
 	if ok {
 		if err := parent.WaitForReady(); err == nil {
@@ -1351,7 +1352,7 @@ func (t *Tab) handleChildNodeInserted(parentNodeID int, node *gcdapi.DOMNode) {
 	}
 	parent, _ := t.getElementByNodeID(parentNodeID)
 	depth := parent.Depth() + 1
-	t.addNodes(node, depth)
+	t.addNodes(parent.GetRootNode(), node, depth)
 
 	// make sure we have the parent before we add children
 	if err := parent.WaitForReady(); err == nil {

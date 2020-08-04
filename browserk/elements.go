@@ -28,6 +28,7 @@ type HTMLElement struct {
 	NodeDepth     int
 	ID            []byte
 	Value         string // value to set if it's an input field or whatever
+	DocURL        string // which document/url this form element belongs to
 }
 
 func (h *HTMLElement) IsForm() bool {
@@ -117,6 +118,7 @@ const (
 // HTMLFormElement and it's children
 type HTMLFormElement struct {
 	Type           HTMLElementType
+	DocURL         string // which document/url this form element belongs to
 	CustomTagName  string
 	FormType       FormType
 	Events         map[string]HTMLEventType
@@ -137,15 +139,15 @@ func (h *HTMLFormElement) Hash() []byte {
 	hash := md5.New()
 
 	vals := ImportantAttributeValues(h.Type, h.Attributes)
-	/*
-		adds too much variabliity possibly...
-		for _, child := range h.ChildElements {
-			if child.Type != INPUT {
-				continue
-			}
-			vals = append(vals, ImportantAttributeValues(INPUT, child.Attributes)...)
+
+	//adds too much variabliity possibly...
+	for _, child := range h.ChildElements {
+		if child.Type != INPUT || child.Type != SELECT || child.Type != BUTTON {
+			continue
 		}
-	*/
+		vals = append(vals, ImportantAttributeValues(child.Type, child.Attributes)...)
+	}
+
 	sort.StringSlice(vals).Sort()
 	sorted := strings.Join(vals, "")
 	hash.Write([]byte(sorted))

@@ -98,7 +98,7 @@ func (n *Navigation) String() string {
 }
 
 // NewNavigationFromForm creates a new navigation entry from forms
-func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, url string, form *HTMLFormElement) *Navigation {
+func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, form *HTMLFormElement) *Navigation {
 
 	action := &Action{
 		Type:    ActFillForm,
@@ -123,7 +123,7 @@ func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, url string
 	h.Write(n.Action.Form.Hash())
 	// if the action is # and there are no bound events, that means this form is specific to this page
 	if (form.GetAttribute("action") == "#" || form.GetAttribute("action") == "") && len(form.Events) == 0 {
-		h.Write([]byte(url))
+		h.Write([]byte(n.Action.Form.DocURL))
 	}
 	n.ID = h.Sum(nil)
 	return n
