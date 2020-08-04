@@ -1277,7 +1277,10 @@ func (t *Tab) handleDocumentUpdated() {
 		case t.docUpdateCh <- struct{}{}:
 		case <-t.exitCh:
 			return
+		case <-t.ctx.Ctx.Done():
+			return
 		}
+
 	}
 }
 
@@ -1476,6 +1479,7 @@ func (t *Tab) subscribeBrowserEvents(ctx *browserk.Context, intercept bool) {
 
 	// load releated events
 	t.subscribeLoadEvent()
+	t.subscribeWindowOpenEvent()
 	t.subscribeFrameLoadingEvent()
 	t.subscribeFrameFinishedEvent()
 

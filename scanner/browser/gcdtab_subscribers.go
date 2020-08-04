@@ -43,6 +43,33 @@ func (t *Tab) subscribeTargetDetached() {
 	})
 }
 
+func (t *Tab) subscribeWindowOpenEvent() {
+	t.t.Subscribe("Page.windowOpen", func(target *gcd.ChromeTarget, payload []byte) {
+		opened := &gcdapi.PageWindowOpenEvent{}
+		err := json.Unmarshal(payload, opened)
+		if err != nil {
+			return
+		}
+
+		u, err := url.Parse(opened.Params.Url)
+		if err != nil {
+			t.ctx.Log.Error().Err(err).Str("url", opened.Params.Url).Msg("window opened, but failed to parse!")
+			return
+		}
+
+		if t.ctx.Scope.Check(u) == browserk.InScope {
+			action := &browserk.Action{
+				Type:  browserk.ActLoadURL,
+				Input: []byte(opened.Params.Url),
+			}
+			t.ctx.Log.Info().Str("url", opened.Params.Url).Msg("window opened!")
+			t.ctx.Crawl.AddNavigation(browserk.NewNavigationFromBrowser(t.Nav().Copy(), browserk.TrigAutoBrowser, action))
+		} else {
+			t.ctx.Log.Info().Str("url", opened.Params.Url).Msg("window opened was out of scope!")
+		}
+	})
+}
+
 // our default loadFiredEvent handler, returns a response to resp channel to navigate once complete.
 func (t *Tab) subscribeLoadEvent() {
 	t.t.Subscribe("Page.loadEventFired", func(target *gcd.ChromeTarget, payload []byte) {
@@ -51,8 +78,8 @@ func (t *Tab) subscribeLoadEvent() {
 			select {
 			case t.navigationCh <- 0:
 			case <-t.exitCh:
+			case <-t.ctx.Ctx.Done():
 			}
-
 		}
 	})
 }

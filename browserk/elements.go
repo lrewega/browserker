@@ -140,14 +140,6 @@ func (h *HTMLFormElement) Hash() []byte {
 
 	vals := ImportantAttributeValues(h.Type, h.Attributes)
 
-	//adds too much variabliity possibly...
-	for _, child := range h.ChildElements {
-		if child.Type != INPUT || child.Type != SELECT || child.Type != BUTTON {
-			continue
-		}
-		vals = append(vals, ImportantAttributeValues(child.Type, child.Attributes)...)
-	}
-
 	sort.StringSlice(vals).Sort()
 	sorted := strings.Join(vals, "")
 	hash.Write([]byte(sorted))
