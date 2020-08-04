@@ -4,10 +4,10 @@ An open source web application scanner built for 2020, meant for SPAs and CI/CD 
 
 ## Running Quick Tips:
 
-- Start a scan: `go build ; .\browserker.exe crawl --config .\configs\juiceshop.toml --dot juiceshop.dot --profile *> debug.log`
+- Start a scan: `go build ; .\browserker.exe run --config .\configs\juiceshop.toml --dot juiceshop.dot --profile *> debug.log`
 - List NavIDs: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --list`
 - Replay a NavID: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --navID {hash}`
-- Export DOT file: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --list --dot juiceshop.dot`
+- Export DOT file of crawl graph: `go build ; .\browserker.exe replay --config .\configs\juiceshop.toml --list --dot juiceshop.dot`
 
 Just run `./browserker --help` or `./browserker <cmd> --help` for more details on switches. Note --profile will start a webserver on http://localhost:6060/debug/pprof where you can inspect go routines / memory allocations take cpu snapshots etc.
 
@@ -22,6 +22,7 @@ DataPath = "browserktmp"
 DisableHeadless = true
 NumBrowsers = 10
 MaxDepth = 25
+MaxActions = 700
 JSPluginPath = "plugins/"
 
 [FormData]
