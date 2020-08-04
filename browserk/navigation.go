@@ -97,8 +97,28 @@ func (n *Navigation) String() string {
 	return fmt.Sprintf("%s %s", ActionTypeMap[n.Action.Type], n.Action)
 }
 
+// NewNavigationFromBrowser(from *Navigation)
+func NewNavigationFromBrowser(from *Navigation, triggeredBy TriggeredBy, action *Action) *Navigation {
+	n := &Navigation{
+		OriginID:         from.ID,
+		Distance:         from.Distance + 1,
+		Action:           action,
+		TriggeredBy:      triggeredBy,
+		State:            NavUnvisited,
+		StateUpdatedTime: time.Now(),
+		Scope:            InScope,
+	}
+
+	// TODO: add originID as part of new nav id for uniqueness?
+	h := md5.New()
+	h.Write(n.Action.Input)
+	h.Write([]byte{byte(n.Action.Type)})
+	n.ID = h.Sum(nil)
+	return n
+}
+
 // NewNavigationFromForm creates a new navigation entry from forms
-func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, url string, form *HTMLFormElement) *Navigation {
+func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, form *HTMLFormElement) *Navigation {
 
 	action := &Action{
 		Type:    ActFillForm,
@@ -123,7 +143,7 @@ func NewNavigationFromForm(from *Navigation, triggeredBy TriggeredBy, url string
 	h.Write(n.Action.Form.Hash())
 	// if the action is # and there are no bound events, that means this form is specific to this page
 	if (form.GetAttribute("action") == "#" || form.GetAttribute("action") == "") && len(form.Events) == 0 {
-		h.Write([]byte(url))
+		h.Write([]byte(n.Action.Form.DocURL))
 	}
 	n.ID = h.Sum(nil)
 	return n

@@ -19,7 +19,7 @@ func ElementToHTMLElement(ele *Element) *browserk.HTMLElement {
 
 	ele.WaitForReady()
 	tag, _ := ele.GetTagName()
-
+	b.DocURL = ele.GetURLForElement()
 	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
 	if !ok {
 		b.CustomTagName = tag
@@ -66,7 +66,7 @@ func ElementToHTMLFormElement(ele *Element) *browserk.HTMLFormElement {
 	b := &browserk.HTMLFormElement{Events: make(map[string]browserk.HTMLEventType, 0)}
 	ele.WaitForReady()
 	tag, _ := ele.GetTagName()
-
+	b.DocURL = ele.GetURLForElement()
 	b.Type, ok = browserk.HTMLTypeMap[strings.ToUpper(tag)]
 	if !ok {
 		b.CustomTagName = tag

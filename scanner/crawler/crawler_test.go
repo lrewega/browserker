@@ -29,7 +29,7 @@ type crawlerTests struct {
 var leaser = browser.NewLocalLeaser()
 
 func init() {
-	leaser.SetHeadless()
+	//leaser.SetHeadless()
 }
 
 func testServer(path string, fn gin.HandlerFunc) (string, *http.Server) {
@@ -78,7 +78,10 @@ func TestCrawler(t *testing.T) {
 	}
 
 	toTest := [...]crawlerTests{
-
+		{
+			simpleCallFunc,
+			"http://localhost:%s/forms/target.html",
+		},
 		{
 			func(c *gin.Context) {
 				buf, err := ioutil.ReadAll(c.Request.Body)
