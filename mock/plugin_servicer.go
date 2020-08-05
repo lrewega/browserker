@@ -74,6 +74,7 @@ func (p *PluginServicer) Inject(mainContext *browserk.Context, injector browserk
 
 func MakeMockPluginServicer() *PluginServicer {
 	p := &PluginServicer{}
+
 	p.InitFn = func(ctx context.Context) error {
 		return nil
 	}
@@ -134,8 +135,9 @@ func MakeMockPluginServicer() *PluginServicer {
 		interceptedMsgs[requestID] = &intercepted{respCh: respCh, req: injection}
 	}
 
+	pstore := MakeMockPluginStore()
 	p.StoreFn = func() browserk.PluginStorer {
-		return nil
+		return pstore
 	}
 
 	return p

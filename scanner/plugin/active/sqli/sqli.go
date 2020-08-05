@@ -142,7 +142,7 @@ func (p *Plugin) doTimingAttack(injector browserk.Injector, attack *SQLIAttack) 
 }
 
 func (p *Plugin) reportTimingSuccess(injector browserk.Injector, attack *SQLIAttack) {
-	injector.BCtx().Reporter.Add(&browserk.Report{
+	injector.BCtx().PluginServicer.Store().AddReport(&browserk.Report{
 		CheckID:     2,
 		CWE:         89,
 		URL:         injector.Message().Request.Request.Url,
@@ -150,10 +150,8 @@ func (p *Plugin) reportTimingSuccess(injector browserk.Injector, attack *SQLIAtt
 		Remediation: "don't have sqli injection",
 		Nav:         injector.Nav(),
 		NavResultID: injector.NavResultID(),
-		Evidence: &browserk.Evidence{
-			String: fmt.Sprintf("%s", attack.Prefix+attack.Attack+attack.Suffix),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewEvidence(fmt.Sprintf("%s", attack.Prefix+attack.Attack+attack.Suffix)),
+		Reported:    time.Now(),
 	})
 }
 

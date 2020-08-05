@@ -30,7 +30,6 @@ type Context struct {
 	Auth           AuthService
 	Scope          ScopeService
 	FormHandler    FormHandler
-	Reporter       Reporter
 	Crawl          CrawlGrapher
 	PluginServicer PluginServicer
 
@@ -66,7 +65,6 @@ func (c *Context) Copy() *Context {
 		CtxComplete:     c.CtxComplete,
 		Scope:           c.Scope,
 		FormHandler:     c.FormHandler,
-		Reporter:        c.Reporter,
 		Crawl:           c.Crawl,
 		PluginServicer:  c.PluginServicer,
 		jsBeforeLock:    &sync.RWMutex{},

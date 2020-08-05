@@ -219,6 +219,7 @@ func (s *PluginStore) SetRequestAudit(request *browserk.HTTPRequest) (browserk.A
 }
 
 // AddReport to the plugin store
+// note if evidence has a Uniqueness value, we will only use that (plus CWE/Check ID) to create the hash
 func (s *PluginStore) AddReport(report *browserk.Report) {
 	var err error
 	report.Hash()

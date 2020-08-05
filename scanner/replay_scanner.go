@@ -13,15 +13,13 @@ import (
 	"gitlab.com/browserker/scanner/auth"
 	"gitlab.com/browserker/scanner/browser"
 	"gitlab.com/browserker/scanner/crawler"
-	"gitlab.com/browserker/scanner/report"
 )
 
-// Browserk is our engine
+// Replayer replays specific navigations
 type Replayer struct {
 	cfg         *browserk.Config
 	pluginStore browserk.PluginStorer
 	crawlGraph  browserk.CrawlGrapher
-	reporter    browserk.Reporter
 	browsers    browserk.BrowserPool
 	formHandler browserk.FormHandler
 
@@ -36,7 +34,6 @@ func NewReplayer(cfg *browserk.Config, crawl browserk.CrawlGrapher, navID []byte
 		pluginStore: mock.MakeMockPluginStore(),
 		crawlGraph:  crawl,
 		navID:       navID,
-		reporter:    report.New(crawl, mock.MakeMockPluginStore()),
 	}
 }
 
@@ -55,7 +52,6 @@ func (b *Replayer) Init(ctx context.Context) error {
 	b.mainContext.Auth = auth.New(b.cfg)
 	b.mainContext.Scope = b.scopeService(target)
 	b.mainContext.FormHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
-	b.mainContext.Reporter = b.reporter
 	b.mainContext.Crawl = b.crawlGraph
 	b.mainContext.PluginServicer = pluginService
 

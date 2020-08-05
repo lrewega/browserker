@@ -16,7 +16,6 @@ import (
 	"gitlab.com/browserker/scanner/injections"
 	"gitlab.com/browserker/scanner/iterator"
 	"gitlab.com/browserker/scanner/plugin"
-	"gitlab.com/browserker/scanner/report"
 )
 
 type crawlEvt struct {
@@ -34,7 +33,6 @@ type Browserk struct {
 	cfg          *browserk.Config
 	pluginStore  browserk.PluginStorer
 	crawlGraph   browserk.CrawlGrapher
-	reporter     browserk.Reporter
 	browsers     browserk.BrowserPool
 	formHandler  browserk.FormHandler
 	navCh        chan *crawlEvt
@@ -56,14 +54,7 @@ func New(cfg *browserk.Config, crawl browserk.CrawlGrapher, pluginStore browserk
 		idMutex:          &sync.RWMutex{},
 		navCh:            make(chan *crawlEvt, cfg.NumBrowsers),
 		attackCh:         make(chan *attackEvt, cfg.NumBrowsers),
-		reporter:         report.New(crawl, pluginStore),
 	}
-}
-
-// SetReporter overrides the default reporter
-func (b *Browserk) SetReporter(reporter browserk.Reporter) *Browserk {
-	b.reporter = reporter
-	return b
 }
 
 func (b *Browserk) addLeased(id int64) {
@@ -78,7 +69,7 @@ func (b *Browserk) removeLeased(id int64) {
 	b.idMutex.Unlock()
 }
 
-func (b *Browserk) getLeased() []int64 {
+func (b *Browserk) getLeasedIDs() []int64 {
 	leased := make([]int64, 0)
 	b.idMutex.RLock()
 	for k := range b.leasedBrowserIDs {
@@ -106,7 +97,6 @@ func (b *Browserk) Init(ctx context.Context) error {
 	b.mainContext.Auth = auth.New(b.cfg)
 	b.mainContext.Scope = b.scopeService(target)
 	b.mainContext.FormHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
-	b.mainContext.Reporter = b.reporter
 	b.mainContext.Crawl = b.crawlGraph
 	b.mainContext.PluginServicer = pluginService
 
@@ -122,7 +112,6 @@ func (b *Browserk) Init(ctx context.Context) error {
 		return err
 	}
 
-	b.reporter = report.New(b.crawlGraph, b.pluginStore)
 	b.formHandler = crawler.NewCrawlerFormHandler(b.cfg.FormData)
 
 	b.initNavigation()
@@ -235,7 +224,7 @@ func (b *Browserk) processEntries() {
 	for {
 		select {
 		case <-b.stateMonitor.C:
-			log.Info().Int("leased_browsers", b.browsers.Leased()).Int("nav_action_count", b.crawlGraph.NavCount()).Msg("state monitor ping")
+			log.Info().Ints64("browser_ids", b.getLeasedIDs()).Int("leased_browsers", b.browsers.Leased()).Int("nav_action_count", b.crawlGraph.NavCount()).Msg("state monitor ping")
 		case <-b.mainContext.Ctx.Done():
 			log.Info().Msg("scan finished due to context complete")
 			return
@@ -381,10 +370,6 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 			injIt := iterator.NewInjectionIter(req)
 			injector := injections.New(navCtx, browser, nav, mIt, injIt)
 
-			// if we are stuck on a slow path, let's spread out the work load
-			if b.browsers.Leased() < b.cfg.NumBrowsers {
-
-			}
 			// Iterate over injection expressions
 			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
 				navCtx.Log.Info().

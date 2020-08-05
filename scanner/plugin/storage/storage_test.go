@@ -48,6 +48,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	pluginServicer := mock.MakeMockPluginServicer()
+
 	plug := storage.New(pluginServicer)
 	pluginServicer.Register(plug)
 
@@ -61,7 +62,6 @@ func TestStorage(t *testing.T) {
 		bCtx := mock.MakeMockContext(ctx, targetURL)
 		bCtx.FormHandler = crawler.NewCrawlerFormHandler(&browserk.DefaultFormValues)
 		bCtx.Scope = scanner.NewScopeService(targetURL)
-		bCtx.Reporter = mock.MakeMockReporter()
 		bCtx.PluginServicer = pluginServicer
 
 		pluginServicer.DispatchEventFn = func(evt *browserk.PluginEvent) {

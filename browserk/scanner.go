@@ -8,5 +8,4 @@ type Scanner interface {
 	Pause() error
 	Stop() error
 	Plugins() map[string]Plugin
-	Reporter() Reporter
 }
