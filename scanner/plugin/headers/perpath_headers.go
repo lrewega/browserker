@@ -78,14 +78,11 @@ func (h *PerPathHeaderPlugin) checkXPoweredBy(evt *browserk.PluginEvent) {
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: fmt.Sprintf("x-powered-by: %s", v),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewUniqueEvidence(fmt.Sprintf("x-powered-by: %s", v), []byte(v)),
+		Reported:    time.Now(),
 	}
 	report.Hash()
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }
 
 func (h *PerPathHeaderPlugin) checkServer(evt *browserk.PluginEvent) {
@@ -107,14 +104,11 @@ func (h *PerPathHeaderPlugin) checkServer(evt *browserk.PluginEvent) {
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: fmt.Sprintf("server: %s", v),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewUniqueEvidence(fmt.Sprintf("server: %s", v), []byte(v)),
+		Reported:    time.Now(),
 	}
 	report.Hash()
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }
 
 func (h *PerPathHeaderPlugin) checkDotNetHeaders(evt *browserk.PluginEvent) {
@@ -133,14 +127,11 @@ func (h *PerPathHeaderPlugin) checkDotNetHeaders(evt *browserk.PluginEvent) {
 			URL:         evt.URL,
 			Nav:         evt.Nav,
 			Result:      nil,
-			Evidence: &browserk.Evidence{
-				ID:     nil,
-				String: fmt.Sprintf("x-aspnet-version: %s", v),
-			},
-			Reported: time.Now(),
+			Evidence:    browserk.NewUniqueEvidence(fmt.Sprintf("x-aspnet-version: %s", v), []byte(v)),
+			Reported:    time.Now(),
 		}
 		report.Hash()
-		evt.BCtx.Reporter.Add(report)
+		evt.BCtx.PluginServicer.Store().AddReport(report)
 	}
 
 	v = resp.GetHeader("x-aspnetmvc-version")
@@ -158,12 +149,9 @@ func (h *PerPathHeaderPlugin) checkDotNetHeaders(evt *browserk.PluginEvent) {
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: fmt.Sprintf("x-aspnetmvc-version: %s", v),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewUniqueEvidence(fmt.Sprintf("x-aspnetmvc-version: %s", v), []byte(v)),
+		Reported:    time.Now(),
 	}
 	report.Hash()
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }

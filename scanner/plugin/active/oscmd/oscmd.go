@@ -73,7 +73,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 			}
 		}
 		if strings.Contains(body, "root:") {
-			injector.BCtx().Reporter.Add(&browserk.Report{
+			injector.BCtx().PluginServicer.Store().AddReport(&browserk.Report{
 				CheckID:     1,
 				CWE:         78,
 				URL:         m.Request.Modified.Url,
@@ -81,10 +81,8 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 				Remediation: "don't have oscmd injection",
 				Nav:         injector.Nav(),
 				NavResultID: injector.NavResultID(),
-				Evidence: &browserk.Evidence{
-					String: body,
-				},
-				Reported: time.Now(),
+				Evidence:    browserk.NewEvidence(body),
+				Reported:    time.Now(),
 			})
 			return true, nil
 		}

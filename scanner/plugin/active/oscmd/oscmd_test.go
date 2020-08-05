@@ -110,7 +110,6 @@ func TestOSCMD(t *testing.T) {
 		bCtx := mock.MakeMockContext(ctx, targetURL)
 		bCtx.FormHandler = crawler.NewCrawlerFormHandler(&browserk.DefaultFormValues)
 		bCtx.Scope = scanner.NewScopeService(targetURL)
-		bCtx.Reporter = mock.MakeMockReporter()
 
 		browser, port, navResults, err := plugintest.GetNewNavPaths(bCtx, pool, target)
 		if err != nil {

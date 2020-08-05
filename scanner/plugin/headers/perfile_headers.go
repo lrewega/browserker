@@ -76,12 +76,9 @@ func (h *PerFileHeaderPlugin) checkContentType(evt *browserk.PluginEvent) {
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: evt.Response().StrHeaders(),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewEvidence(evt.Response().StrHeaders()),
+		Reported:    time.Now(),
 	}
 	report.Hash()
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }

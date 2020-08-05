@@ -2,13 +2,13 @@ package browserk
 
 import (
 	"crypto/md5"
-	"io"
 	"time"
 )
 
 type Evidence struct {
-	ID     []byte
-	String string
+	ID         []byte
+	String     string
+	Uniqueness []byte
 }
 
 func (e *Evidence) Hash() []byte {
@@ -16,9 +16,21 @@ func (e *Evidence) Hash() []byte {
 		return e.ID
 	}
 	hash := md5.New()
-	hash.Write([]byte(e.String))
+	if e.Uniqueness != nil {
+		hash.Write(e.Uniqueness)
+	} else {
+		hash.Write([]byte(e.String))
+	}
 	e.ID = hash.Sum(nil)
 	return e.ID
+}
+
+func NewEvidence(evidence string) *Evidence {
+	return &Evidence{String: evidence}
+}
+
+func NewUniqueEvidence(evidence string, uniqueness []byte) *Evidence {
+	return &Evidence{String: evidence, Uniqueness: uniqueness}
 }
 
 type Report struct {
@@ -44,6 +56,12 @@ func (r *Report) Hash() []byte {
 	hash := md5.New()
 	hash.Write([]byte{byte(r.CheckID)})
 	hash.Write([]byte{byte(r.CWE)})
+	if r.Evidence.Uniqueness != nil {
+		hash.Write(r.Evidence.Uniqueness)
+		r.ID = hash.Sum(nil)
+		return r.ID
+	}
+
 	hash.Write(r.Nav.ID)
 	hash.Write([]byte(r.URL))
 	if r.Result != nil && r.Result.ID != nil {
@@ -54,10 +72,4 @@ func (r *Report) Hash() []byte {
 	hash.Write(r.Evidence.Hash())
 	r.ID = hash.Sum(nil)
 	return r.ID
-}
-
-type Reporter interface {
-	Add(report *Report)
-	Get(reportID []byte) *Report
-	Print(writer io.Writer)
 }

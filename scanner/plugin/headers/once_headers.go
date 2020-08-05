@@ -58,10 +58,10 @@ func (h *OnceHeaderPlugin) OnEvent(evt *browserk.PluginEvent) {
 	if resp.Type == "Document" {
 		if v := resp.GetHeader("x-content-type-options"); v == "" {
 			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
-			evt.BCtx.Reporter.Add(h.createReport(evt))
+			evt.BCtx.PluginServicer.Store().AddReport(h.createReport(evt))
 		} else if strings.ToLower(strings.TrimSpace(v)) != "nosniff" {
 			evt.BCtx.Log.Info().Str("url", evt.URL).Msg("adding report")
-			evt.BCtx.Reporter.Add(h.createReport(evt))
+			evt.BCtx.PluginServicer.Store().AddReport(h.createReport(evt))
 		}
 	}
 }
@@ -77,11 +77,8 @@ func (h *OnceHeaderPlugin) createReport(evt *browserk.PluginEvent) *browserk.Rep
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: evt.Response().StrHeaders(),
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewEvidence(evt.Response().StrHeaders()),
+		Reported:    time.Now(),
 	}
 	report.Hash()
 	return report

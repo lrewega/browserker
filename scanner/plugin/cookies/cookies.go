@@ -78,11 +78,11 @@ func (h *Plugin) httpCookieCheck(evt *browserk.PluginEvent) {
 		CWE:         614,
 		Description: "secure directive not set on cookie",
 		Remediation: "don't do that",
-		Evidence:    &browserk.Evidence{String: cookie.String()},
+		Evidence:    browserk.NewEvidence(cookie.String()),
 		Reported:    time.Now(),
 	}
 
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }
 
 func (h *Plugin) secureCookieCheck(evt *browserk.PluginEvent) {
@@ -96,11 +96,11 @@ func (h *Plugin) secureCookieCheck(evt *browserk.PluginEvent) {
 		CWE:         1004,
 		Description: "HttpOnly directive not set on cookie",
 		Remediation: "you should do that",
-		Evidence:    &browserk.Evidence{String: cookie.String()},
+		Evidence:    browserk.NewEvidence(cookie.String()),
 		Reported:    time.Now(),
 	}
 
-	evt.BCtx.Reporter.Add(report)
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }
 
 func (h *Plugin) sameSiteCheck(evt *browserk.PluginEvent) {
@@ -117,10 +117,10 @@ func (h *Plugin) sameSiteCheck(evt *browserk.PluginEvent) {
 			Severity:    "INFO",
 			Description: "SameSite directive set to None on cookie",
 			Remediation: "Consider setting SameSite=Lax or SameSite=Strict on all session cookies",
-			Evidence:    &browserk.Evidence{String: cookie.String()},
+			Evidence:    browserk.NewEvidence(cookie.String()),
 			Reported:    time.Now(),
 		}
-		evt.BCtx.Reporter.Add(report)
+		evt.BCtx.PluginServicer.Store().AddReport(report)
 	default:
 		report := &browserk.Report{
 			CheckID:     4,
@@ -128,9 +128,9 @@ func (h *Plugin) sameSiteCheck(evt *browserk.PluginEvent) {
 			Severity:    "INFO",
 			Description: "SameSite directive not set on cookie",
 			Remediation: "Consider setting SameSite=Lax or SameSite=Strict on all session cookies",
-			Evidence:    &browserk.Evidence{String: cookie.String()},
+			Evidence:    browserk.NewEvidence(cookie.String()),
 			Reported:    time.Now(),
 		}
-		evt.BCtx.Reporter.Add(report)
+		evt.BCtx.PluginServicer.Store().AddReport(report)
 	}
 }

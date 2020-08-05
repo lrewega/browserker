@@ -96,13 +96,10 @@ func (h *Plugin) checkJWTTokens(evt *browserk.PluginEvent) {
 		URL:         evt.URL,
 		Nav:         evt.Nav,
 		Result:      nil,
-		Evidence: &browserk.Evidence{
-			ID:     nil,
-			String: tokenData,
-		},
-		Reported: time.Now(),
+		Evidence:    browserk.NewUniqueEvidence(tokenData, []byte(evt.EventData.Storage.Key)),
+		Reported:    time.Now(),
 	}
 	report.Hash()
-	evt.BCtx.Log.Debug().Msg("REPORTING TOKEN")
-	evt.BCtx.Reporter.Add(report)
+
+	evt.BCtx.PluginServicer.Store().AddReport(report)
 }

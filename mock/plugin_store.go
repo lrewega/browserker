@@ -16,6 +16,9 @@ type PluginStore struct {
 	AddReportFn     func(report *browserk.Report)
 	AddReportCalled bool
 
+	AddReportIfUniqueFn     func(report *browserk.Report)
+	AddReportIfUniqueCalled bool
+
 	GetReportsFn     func() ([]*browserk.Report, error)
 	GetReportsCalled bool
 
