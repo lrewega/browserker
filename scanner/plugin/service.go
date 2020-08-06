@@ -184,15 +184,18 @@ func (s *Service) DispatchResponse(requestID string, resp *browserk.InterceptedH
 	}
 	delete(s.respDispatcher, requestID)
 	s.respLock.Unlock()
-	t := time.NewTimer(time.Second * 5)
 
 	respMsg := &browserk.InterceptedHTTPMessage{Request: inj.req, Response: resp}
+
+	respTimer := time.NewTimer(time.Second * 5)
+	defer respTimer.Stop()
+
 	select {
 	case <-s.ctx.Done():
 		return
 	case inj.respCh <- respMsg:
 		return
-	case <-t.C:
+	case <-respTimer.C:
 		log.Warn().Str("url", resp.Request.Url).
 			Str("frameID", resp.FrameId).
 			Str("networkId", resp.NetworkId).

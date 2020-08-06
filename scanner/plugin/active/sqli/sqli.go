@@ -159,7 +159,7 @@ func (p *Plugin) sendTiming(timeout time.Duration, injector browserk.Injector) (
 	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, timeout+(time.Second*5)) // give it 5 extra seconds to timeout
 	defer cancel()
 	start := time.Now()
-	m, err := injector.Send(ctx, false)
+	m, err := injector.SendWithCtx(ctx, false)
 	log.Info().Err(ctx.Err()).Msg("ctx error?")
 	if err != nil && err != browserk.ErrInjectionTimeout {
 		return 0, false

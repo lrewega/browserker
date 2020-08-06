@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,12 +13,13 @@ import (
 )
 
 type BrowserkerInjector struct {
-	nav         *browserk.NavigationWithResult
-	browser     browserk.Browser
-	msgIterator *iterator.MessageIterator
-	injIterator *iterator.InjectionIterator
-	req         *browserk.HTTPRequest
-	bCtx        *browserk.Context
+	nav              *browserk.NavigationWithResult
+	browser          browserk.Browser
+	msgIterator      *iterator.MessageIterator
+	injIterator      *iterator.InjectionIterator
+	req              *browserk.HTTPRequest
+	bCtx             *browserk.Context
+	timeoutFailCount int32
 }
 
 func New(bCtx *browserk.Context, browser browserk.Browser, nav *browserk.NavigationWithResult, msgIterator *iterator.MessageIterator, injIterator *iterator.InjectionIterator) *BrowserkerInjector {
@@ -63,12 +65,21 @@ func (i *BrowserkerInjector) AddHeader(name, value string)           {}
 func (i *BrowserkerInjector) RemoveHeader(name string)               {}
 func (i *BrowserkerInjector) ReplaceBody(newBody []byte)             {}
 
+func (i *BrowserkerInjector) Send(withRender bool) (*browserk.InterceptedHTTPMessage, error) {
+	origRespTime := (time.Millisecond * time.Duration(i.Message().Response.ResponseTimeMs()))
+	if origRespTime > time.Second*30 {
+		origRespTime = time.Second * 28
+	}
+	ctx, cancel := context.WithTimeout(i.bCtx.Ctx, origRespTime+(time.Second*2))
+	defer cancel()
+	return i.SendWithCtx(ctx, withRender)
+}
+
 // Send this injection attack
-func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
+func (i *BrowserkerInjector) SendWithCtx(ctx context.Context, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
 	//i.injIterator.URI()
 	if withRender {
 		// inject <form>
-
 		i.bCtx.Log.Debug().Msg("injecting form")
 	} else {
 		respCh := make(chan *browserk.InterceptedHTTPMessage)
@@ -98,21 +109,36 @@ func (i *BrowserkerInjector) Send(ctx context.Context, withRender bool) (*browse
 		select {
 		case r := <-respCh:
 			i.bCtx.Log.Debug().Msg("got response from attack")
+			atomic.StoreInt32(&i.timeoutFailCount, 0)
 			return r, nil
 		case <-ctx.Done():
-			i.bCtx.Log.Error().Int64("attack_id", id).Msg("injection timeout")
+			i.bCtx.Log.Error().Int64("attack_id", id).Int32("timeout_fail_count", atomic.AddInt32(&i.timeoutFailCount, 1)).Msg("injection timeout")
 			return nil, browserk.ErrInjectionTimeout
 		}
 	}
 	return nil, nil
 }
 
-// SendNew request instead of the modified one
-func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
+func (i *BrowserkerInjector) GetTimeoutFailures() int32 {
+	return atomic.LoadInt32(&i.timeoutFailCount)
+}
+
+// SendNew calculates a timeout based off base response time
+func (i *BrowserkerInjector) SendNew(req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
+	origRespTime := (time.Millisecond * time.Duration(i.Message().Response.ResponseTimeMs()))
+	if origRespTime > time.Second*30 {
+		origRespTime = time.Second * 28
+	}
+	ctx, cancel := context.WithTimeout(i.bCtx.Ctx, origRespTime+(time.Second*2))
+	defer cancel()
+	return i.SendNewWithCtx(ctx, req, withRender)
+}
+
+// SendNewWithCtx request instead of the modified one
+func (i *BrowserkerInjector) SendNewWithCtx(ctx context.Context, req *browserk.HTTPRequest, withRender bool) (*browserk.InterceptedHTTPMessage, error) {
 	//i.injIterator.URI()
 	if withRender {
 		// inject <form>
-
 		i.bCtx.Log.Debug().Msg("injecting form")
 	} else {
 		// inject xhr
@@ -128,12 +154,15 @@ func (i *BrowserkerInjector) SendNew(ctx context.Context, req *browserk.HTTPRequ
 			i.bCtx.Log.Error().Err(err).Msg("failed to inject fetch attack")
 			return nil, errors.Wrap(err, "injection failed")
 		}
+
 		select {
 		case r := <-respCh:
-
+			i.bCtx.Log.Debug().Msg("got response from attack")
+			atomic.StoreInt32(&i.timeoutFailCount, 0)
 			return r, nil
 		case <-ctx.Done():
-			return nil, fmt.Errorf("failed to get response, context done")
+			i.bCtx.Log.Error().Int64("attack_id", id).Int32("timeout_fail_count", atomic.AddInt32(&i.timeoutFailCount, 1)).Msg("injection timeout")
+			return nil, browserk.ErrInjectionTimeout
 		}
 	}
 	return nil, nil

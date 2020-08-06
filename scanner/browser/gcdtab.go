@@ -601,11 +601,12 @@ func (t *Tab) GetNavURL() string {
 
 // WaitReady waits for the page to load, DOM to be stable, and no network traffic in progress
 func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
-	navTimer := time.After(45 * time.Second)
+	navTimer := time.NewTimer(45 * time.Second)
+	defer navTimer.Stop()
 	// wait navigation to complete.
 	t.ctx.Log.Info().Msg("waiting for nav to complete")
 	select {
-	case <-navTimer:
+	case <-navTimer.C:
 		return ErrNavigationTimedOut
 	case <-ctx.Done():
 		return ctx.Err()
@@ -624,7 +625,9 @@ func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
 func (t *Tab) waitStable(ctx context.Context, stableAfter time.Duration) error {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
-	stableTimer := time.After(5 * time.Second)
+
+	stableTimer := time.NewTimer(5 * time.Second)
+	defer stableTimer.Stop()
 
 	// wait for DOM & network stability
 	t.ctx.Log.Info().Msg("waiting for nav stability complete")
@@ -638,7 +641,7 @@ func (t *Tab) waitStable(ctx context.Context, stableAfter time.Duration) error {
 			return t.ctx.Ctx.Err()
 		case <-t.exitCh:
 			return ErrTabClosing
-		case <-stableTimer:
+		case <-stableTimer.C:
 			t.ctx.Log.Info().Msg("stability timed out")
 			return ErrTimedOut
 		case <-ticker.C:
