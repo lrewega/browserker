@@ -102,7 +102,10 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 	browser.RefreshDocument()
 	baseHref := browser.GetBaseHref()
 
-	if formElements, err := browser.FindForms(); err == nil {
+	ctx, cancel := context.WithTimeout(bctx.Ctx, time.Second*10)
+	defer cancel()
+
+	if formElements, err := browser.FindForms(ctx); err == nil {
 		for _, ele := range formElements {
 			if !ele.Hidden {
 				diff.Add(ele.ElementType(), ele.Hash())
@@ -110,7 +113,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if bElements, err := browser.FindElements("button", true); err == nil {
+	if bElements, err := browser.FindElements(ctx, "button", true); err == nil {
 		for _, ele := range bElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if !ele.Hidden {
@@ -119,7 +122,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if aElements, err := browser.FindElements("a", true); err == nil {
+	if aElements, err := browser.FindElements(ctx, "a", true); err == nil {
 		for _, ele := range aElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if ele.Hidden {
@@ -144,7 +147,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if txtElements, err := browser.FindElements("#text", true); err == nil {
+	if txtElements, err := browser.FindElements(ctx, "#text", true); err == nil {
 		for _, ele := range txtElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if !ele.Hidden {
@@ -153,7 +156,7 @@ func (b *BrowserkCrawler) snapshot(bctx *browserk.Context, browser browserk.Brow
 		}
 	}
 
-	if imgElements, err := browser.FindElements("img", true); err == nil {
+	if imgElements, err := browser.FindElements(ctx, "img", true); err == nil {
 		for _, ele := range imgElements {
 			// we want events that make elements visible to be executed first, so don't add 'em yet
 			if !ele.Hidden {
@@ -173,7 +176,9 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 	//docURL, _ := browser.GetURL()
 	navDiff := NewElementDiffer()
 	// Pull out forms (highest priority)
-	formElements, err := browser.FindForms()
+	ctx, cancel := context.WithTimeout(bctx.Ctx, time.Second*3)
+	defer cancel()
+	formElements, err := browser.FindForms(ctx)
 	if err != nil {
 		bctx.Log.Info().Err(err).Msg("error while extracting forms")
 	}
@@ -205,7 +210,10 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		}
 	}
 
-	bElements, err := browser.FindElements("button", true)
+	ctx, cancel = context.WithTimeout(bctx.Ctx, time.Second*3)
+	defer cancel()
+
+	bElements, err := browser.FindElements(ctx, "button", true)
 	if err != nil {
 		bctx.Log.Info().Err(err).Msg("error while extracting buttons")
 	}
@@ -222,7 +230,10 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		navs = append(navs, browserk.NewNavigationFromElement(entry, browserk.TrigCrawler, b, browserk.ActLeftClick))
 	}
 
-	aElements, err := browser.FindElements("a", true)
+	ctx, cancel = context.WithTimeout(bctx.Ctx, time.Second*3)
+	defer cancel()
+
+	aElements, err := browser.FindElements(ctx, "a", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting links")
 	}
@@ -296,8 +307,11 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		}
 	}
 
+	ctx, cancel = context.WithTimeout(bctx.Ctx, time.Second*3)
+	defer cancel()
+
 	// do last so our more focused actions are first, this is a catch all
-	imgElements, err := browser.FindElements("img", true)
+	imgElements, err := browser.FindElements(ctx, "img", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting images")
 	}
@@ -315,7 +329,10 @@ func (b *BrowserkCrawler) FindNewNav(bctx *browserk.Context, diff *ElementDiffer
 		navs = append(navs, nav)
 	}
 
-	textElements, err := browser.FindElements("#text", true)
+	ctx, cancel = context.WithTimeout(bctx.Ctx, time.Second*3)
+	defer cancel()
+
+	textElements, err := browser.FindElements(ctx, "#text", true)
 	if err != nil {
 		bctx.Log.Error().Err(err).Msg("error while extracting text")
 	} else if textElements == nil || len(textElements) == 0 {
