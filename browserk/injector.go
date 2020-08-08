@@ -154,7 +154,10 @@ type Injector interface {
 	AddHeader(name, value string)
 	RemoveHeader(name string)
 	ReplaceBody(newBody []byte)
-	Send(ctx context.Context, withRender bool) (*InterceptedHTTPMessage, error)
-	SendNew(ctx context.Context, req *HTTPRequest, withRender bool) (*InterceptedHTTPMessage, error)
+	GetTimeoutFailures() int32                                                         // so we can determine if we should stop attacking this due to excessive errors
+	Send(withRender bool) (*InterceptedHTTPMessage, error)                             // automatically calculates a timeout based on response time
+	SendWithCtx(ctx context.Context, withRender bool) (*InterceptedHTTPMessage, error) // allows caller to specify ctx
+	SendNew(req *HTTPRequest, withRender bool) (*InterceptedHTTPMessage, error)
+	SendNewWithCtx(ctx context.Context, req *HTTPRequest, withRender bool) (*InterceptedHTTPMessage, error)
 	// BrowserSend ..? (for xss/plugins that send through the current page).
 }

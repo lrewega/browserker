@@ -112,25 +112,26 @@ var DefaultFormValues = FormData{
 
 // Config for browserker
 type Config struct {
-	URL             string
-	CrawlOnly       bool     // only crawl/passive plugins do not attack
-	AllowedHosts    []string // considered 'in scope' for testing/access
-	Proxy           string
-	DisableHeadless bool     // disables headless mode for debugging/watching
-	IgnoredHosts    []string // will access, but not report/run tests against (this is the default for non AllowedURLs)
-	ExcludedHosts   []string // will be forcibly dropped by interceptors
-	ExcludedURIs    []string // will not access (logout/signout) can be relative, or absolute (relative will be from config URL base path)
-	ExcludedForms   []string // will not submit forms that have this id or name
-	DataPath        string
-	AuthScript      string
-	AuthType        AuthType
-	Credentials     *Credentials
-	NumBrowsers     int                    // number of concurrent browsers to use, > 7-ish not recommended
-	MaxDepth        int                    // maximum distance of paths we will traverse (limit depth)
-	MaxActions      int                    // maximum number of actions we should take (limit breadth)
-	FormData        *FormData              // config form data
-	CustomHeaders   map[string]interface{} // list of custom headers to attach to every request
-	CustomCookies   map[string]interface{} // list of custom cookies to attach to every request
-	JSPluginPath    string                 // path to javascript plugins (will walk sub directories)
-	DisabledPlugins []string               // plugins we will not load
+	URL               string
+	CrawlOnly         bool     // only crawl/passive plugins do not attack
+	AllowedHosts      []string // considered 'in scope' for testing/access
+	Proxy             string
+	DisableHeadless   bool     // disables headless mode for debugging/watching
+	IgnoredHosts      []string // will access, but not report/run tests against (this is the default for non AllowedURLs)
+	ExcludedHosts     []string // will be forcibly dropped by interceptors
+	ExcludedURIs      []string // will not access (logout/signout) can be relative, or absolute (relative will be from config URL base path)
+	ExcludedForms     []string // will not submit forms that have this id or name
+	DataPath          string
+	AuthScript        string
+	AuthType          AuthType
+	Credentials       *Credentials
+	NumBrowsers       int                    // number of concurrent browsers to use, > 7-ish not recommended
+	MaxDepth          int                    // maximum distance of paths we will traverse (limit depth) (default 10)
+	MaxActions        int                    // maximum number of actions we should take (limit breadth) (default 700)
+	MaxAttackFailures int                    // maximum number of timeout/connection errors during attacks where we stop attacking a particular path (default is 5)
+	FormData          *FormData              // config form data
+	CustomHeaders     map[string]interface{} // list of custom headers to attach to every request
+	CustomCookies     map[string]interface{} // list of custom cookies to attach to every request
+	JSPluginPath      string                 // path to javascript plugins (will walk sub directories)
+	DisabledPlugins   []string               // plugins we will not load
 }

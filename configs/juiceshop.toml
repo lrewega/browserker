@@ -3,7 +3,7 @@ AllowedHosts = ["localhost"]
 DataPath = "browserktmp"
 DisableHeadless = false
 NumBrowsers = 7
-MaxDepth = 25
+MaxDepth = 10
 JSPluginPath = "plugins/"
 
 [CustomCookies]

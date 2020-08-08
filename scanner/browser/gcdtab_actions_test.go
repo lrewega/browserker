@@ -36,7 +36,7 @@ func TestActionClick(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
-	eles, err := b.FindElements("button", true)
+	eles, err := b.FindElements(ctx, "button", true)
 	if err != nil {
 		t.Fatalf("error getting elements: %s\n", err)
 	}

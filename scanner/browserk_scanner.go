@@ -100,6 +100,19 @@ func (b *Browserk) Init(ctx context.Context) error {
 	b.mainContext.Crawl = b.crawlGraph
 	b.mainContext.PluginServicer = pluginService
 
+	// set some sane defaults
+	if b.cfg.MaxAttackFailures == 0 {
+		b.cfg.MaxAttackFailures = 5
+	}
+
+	if b.cfg.MaxActions == 0 {
+		b.cfg.MaxActions = 700
+	}
+
+	if b.cfg.MaxDepth == 0 {
+		b.cfg.MaxDepth = 10
+	}
+
 	log.Info().Int("num_browsers", b.cfg.NumBrowsers).Int("max_depth", b.cfg.MaxDepth).Msg("Initializing...")
 
 	log.Logger.Info().Msg("initializing attack graph")
@@ -372,15 +385,23 @@ func (b *Browserk) attack(navs []*browserk.NavigationWithResult) {
 
 			// Iterate over injection expressions
 			for injIt.Rewind(); injIt.Valid(); injIt.Next() {
+
+				if injector.GetTimeoutFailures() > int32(b.cfg.MaxAttackFailures) {
+					navCtx.Log.Info().Str("injection_url", injIt.SerializeURI()).Msg("too many failures")
+					break
+				}
+
 				navCtx.Log.Info().
 					Str("location", injIt.Expr().Loc().String()).
 					Str("method", req.Request.Method).
 					Str("url", req.Request.Url).
 					Str("body", req.Request.PostData).
 					Msgf("auditing this injection")
+
 				navCtx.PluginServicer.Inject(b.mainContext, injector)
 			}
 		}
+
 		b.crawlGraph.SetNavigationState(nav.Navigation.ID, browserk.NavAudited)
 	}
 

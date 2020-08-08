@@ -117,12 +117,15 @@ func TestSQLi(t *testing.T) {
 		plugintest.AttackWithPlugin(bCtx, browser, navResults)
 		callCnt := 0
 
+		respTimer := time.NewTimer(time.Second * 2)
+		defer respTimer.Stop()
+
 		for i := 0; i < 2; i++ {
 			select {
 			case <-calledCh:
 				t.Logf("got call from timing attack")
 				callCnt++
-			case <-time.After(time.Second * 20):
+			case <-respTimer.C:
 				t.Logf("timed out waiting for call: iter: %d, callCnt: %d", i, callCnt)
 				break
 			}

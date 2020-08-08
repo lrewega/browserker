@@ -184,7 +184,9 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 	errMsg := fmt.Sprintf("unable to find element for %s", browserk.ActionTypeMap[act.Type])
 
 	if act.Type > browserk.ActExecuteJS && act.Type < browserk.ActFillForm {
-		ele, err = t.FindByHTMLElement(act.Element, true)
+		findCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+		ele, err = t.FindByHTMLElement(findCtx, act.Element, true)
+		cancel()
 		if err != nil {
 			t.ctx.Log.Warn().Err(err).Msg(errMsg)
 			return nil, false, err
@@ -213,7 +215,7 @@ func (t *Tab) ExecuteAction(ctx context.Context, nav *browserk.Navigation) ([]by
 
 	case browserk.ActFillForm:
 		t.ctx.Log.Info().Str("action", act.String()).Msg("fill form action executing...")
-		err := t.FillForm(act)
+		err := t.FillForm(ctx, act)
 		if err != nil {
 			t.ctx.Log.Error().Err(err).Str("action", act.String()).Msg("fill form action failed")
 		}
@@ -273,13 +275,13 @@ func (t *Tab) clickParents(ele *Element) error {
 
 // FillForm for an action
 // TODO: handle checkbox, radio, selects etc
-func (t *Tab) FillForm(act *browserk.Action) error {
+func (t *Tab) FillForm(ctx context.Context, act *browserk.Action) error {
 	t.ctx.Log.Info().Msg("filling form:")
 	if act.Form == nil {
 		t.ctx.Log.Info().Msg("form was nil")
 		return &ErrInvalidElement{}
 	}
-	form, err := t.FindByHTMLElement(act.Form, true)
+	form, err := t.FindByHTMLElement(ctx, act.Form, true)
 	if err != nil {
 		t.ctx.Log.Error().Err(err).Msg("find form by html element failed")
 		return err
@@ -292,7 +294,7 @@ func (t *Tab) FillForm(act *browserk.Action) error {
 	checkboxClicked := false
 	for _, formChild := range act.Form.ChildElements {
 
-		actualElement, err := t.FindByHTMLElement(formChild, false) // we do not want to refresh the doc or we lose our nodeIDs
+		actualElement, err := t.FindByHTMLElement(ctx, formChild, false) // we do not want to refresh the doc or we lose our nodeIDs
 		if err != nil {
 			t.ctx.Log.Error().Err(err).Str("type", browserk.HTMLTypeToStrMap[formChild.Type]).Msg("failed to find")
 			continue
@@ -384,13 +386,13 @@ func (t *Tab) ID() int64 {
 }
 
 // FindByHTMLElement returns a gcd Element for interacting
-func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument bool) (*Element, error) {
+func (t *Tab) FindByHTMLElement(ctx context.Context, toFind browserk.ActHTMLElement, refreshDocument bool) (*Element, error) {
 	if toFind == nil {
 		return nil, &ErrInvalidElement{}
 	}
 	tag := toFind.Tag()
 
-	foundElements, err := t.GetElementsBySelector(tag, refreshDocument)
+	foundElements, err := t.GetElementsBySelector(ctx, tag, refreshDocument)
 	if err != nil {
 		t.ctx.Log.Error().Err(err).Msgf("searching for tag: %s failed", tag)
 		return nil, err
@@ -425,25 +427,25 @@ func (t *Tab) FindByHTMLElement(toFind browserk.ActHTMLElement, refreshDocument 
 }
 
 // FindElements elements via querySelector, does not pull out children
-func (t *Tab) FindElements(querySelector string, canRefreshDocument bool) ([]*browserk.HTMLElement, error) {
+func (t *Tab) FindElements(ctx context.Context, querySelector string, canRefreshDocument bool) ([]*browserk.HTMLElement, error) {
 	var err error
 	var elements []*Element
 
 	bElements := make([]*browserk.HTMLElement, 0)
 	if querySelector == "#text" {
-		elements, err = t.GetElementsBySearch("//body/*[text() != '']", false)
-		if err != nil {
-			return bElements, err
-		}
+		//elements, err = t.GetElementsBySearch("//body/*[text() != '']", false)
+		//if err != nil {
+		//	return bElements, err
+		//}
 
 		// find floating menus
-		menuElements, err := t.GetElementsBySearch("//attribute::*[contains(., 'menu')]/../* | //attribute::*[contains(., 'nav')]/../* | //attribute::*[contains(., 'dropdown')]/../*", false)
+		menuElements, err := t.GetElementsBySearch(ctx, "//attribute::*[contains(., 'menu')]/../* | //attribute::*[contains(., 'nav')]/../* | //attribute::*[contains(., 'dropdown')]/../*", false)
 		if err != nil {
 			return bElements, err
 		}
 		elements = append(elements, menuElements...)
 	} else {
-		elements, err = t.GetElementsBySelector(querySelector, canRefreshDocument)
+		elements, err = t.GetElementsBySelector(ctx, querySelector, canRefreshDocument)
 		if err != nil {
 			return bElements, err
 		}
@@ -481,10 +483,11 @@ func (t *Tab) GetBaseHref() string {
 
 // FindForms finds forms and pulls out all child elements.
 // we may need more than just input fields (labels) etc for context
-func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
+func (t *Tab) FindForms(ctx context.Context) ([]*browserk.HTMLFormElement, error) {
 	fElements := make([]*browserk.HTMLFormElement, 0)
 	refreshDocument := true
-	elements, err := t.GetElementsBySelector("form", refreshDocument)
+
+	elements, err := t.GetElementsBySelector(ctx, "form", refreshDocument)
 	if err != nil {
 		return fElements, err
 	}
@@ -501,8 +504,11 @@ func (t *Tab) FindForms() ([]*browserk.HTMLFormElement, error) {
 }
 
 func (t *Tab) findFloatingForms(elementsInForm []*Element) ([]*browserk.HTMLFormElement, error) {
+	ctx, cancel := context.WithTimeout(t.ctx.Ctx, time.Second*3)
+	defer cancel()
+
 	fElements := make([]*browserk.HTMLFormElement, 0)
-	elements, err := t.GetElementsBySearch("//attribute::*[contains(., 'form')]/../descendant::input | //attribute::*[contains(., 'form')]/../descendant::button | //attribute::*[contains(., 'form')]/../descendant::select", false)
+	elements, err := t.GetElementsBySearch(ctx, "//attribute::*[contains(., 'form')]/../descendant::input | //attribute::*[contains(., 'form')]/../descendant::button | //attribute::*[contains(., 'form')]/../descendant::select", false)
 	if err != nil || len(elements) == 0 {
 		return fElements, err
 	}
@@ -601,11 +607,12 @@ func (t *Tab) GetNavURL() string {
 
 // WaitReady waits for the page to load, DOM to be stable, and no network traffic in progress
 func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
-	navTimer := time.After(45 * time.Second)
+	navTimer := time.NewTimer(45 * time.Second)
+	defer navTimer.Stop()
 	// wait navigation to complete.
 	t.ctx.Log.Info().Msg("waiting for nav to complete")
 	select {
-	case <-navTimer:
+	case <-navTimer.C:
 		return ErrNavigationTimedOut
 	case <-ctx.Done():
 		return ctx.Err()
@@ -624,7 +631,9 @@ func (t *Tab) waitReady(ctx context.Context, stableAfter time.Duration) error {
 func (t *Tab) waitStable(ctx context.Context, stableAfter time.Duration) error {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
-	stableTimer := time.After(5 * time.Second)
+
+	stableTimer := time.NewTimer(5 * time.Second)
+	defer stableTimer.Stop()
 
 	// wait for DOM & network stability
 	t.ctx.Log.Info().Msg("waiting for nav stability complete")
@@ -638,7 +647,7 @@ func (t *Tab) waitStable(ctx context.Context, stableAfter time.Duration) error {
 			return t.ctx.Ctx.Err()
 		case <-t.exitCh:
 			return ErrTabClosing
-		case <-stableTimer:
+		case <-stableTimer.C:
 			t.ctx.Log.Info().Msg("stability timed out")
 			return ErrTimedOut
 		case <-ticker.C:
@@ -960,14 +969,14 @@ func (t *Tab) getDocumentElementByID(docNodeID int, attributeID string) (*Elemen
 
 // GetElementsBySelector all elements that match a selector from the top level document
 // also searches sub frames
-func (t *Tab) GetElementsBySelector(selector string, refreshDocument bool) ([]*Element, error) {
+func (t *Tab) GetElementsBySelector(ctx context.Context, selector string, refreshDocument bool) ([]*Element, error) {
 	t.ctx.Log.Debug().Msgf("searching for %s", selector)
-	elements, err := t.GetDocumentElementsBySelector(t.getTopNodeID(), selector)
+	elements, err := t.GetDocumentElementsBySelector(ctx, t.getTopNodeID(), selector)
 	if err != nil && refreshDocument {
 		// try again but refresh the doc
 		t.ctx.Log.Debug().Msg("failed to find element, refreshing document and trying again")
 		t.RefreshDocument()
-		elements, err = t.GetDocumentElementsBySelector(t.getTopNodeID(), selector)
+		elements, err = t.GetDocumentElementsBySelector(ctx, t.getTopNodeID(), selector)
 		if err != nil {
 			return nil, err
 		}
@@ -976,7 +985,7 @@ func (t *Tab) GetElementsBySelector(selector string, refreshDocument bool) ([]*E
 	// search frames too
 	frameNodeIDs := t.getFrameNodeIDs()
 	for _, id := range frameNodeIDs {
-		frameElements, err := t.GetDocumentElementsBySelector(id, selector)
+		frameElements, err := t.GetDocumentElementsBySelector(ctx, id, selector)
 		if err != nil {
 			t.ctx.Log.Warn().Msg("failed to search frame for elements")
 			continue
@@ -1031,7 +1040,7 @@ func (t *Tab) recursivelyGetChildren(children []*gcdapi.DOMNode, elements *[]*El
 			*elements = append(*elements, ele)
 		}
 		// not ready, or doesn't have children
-		if ready == false || ele.node.Children == nil || len(ele.node.Children) == 0 {
+		if ready == false || ele.node == nil || ele.node.Children == nil || len(ele.node.Children) == 0 {
 			continue
 		}
 		t.recursivelyGetChildren(ele.node.Children, elements, tagType)
@@ -1039,8 +1048,8 @@ func (t *Tab) recursivelyGetChildren(children []*gcdapi.DOMNode, elements *[]*El
 }
 
 // GetDocumentElementsBySelector same as GetChildElementsBySelector
-func (t *Tab) GetDocumentElementsBySelector(docNodeID int, selector string) ([]*Element, error) {
-	nodeIDs, errQuery := t.t.DOM.QuerySelectorAll(t.ctx.Ctx, docNodeID, selector)
+func (t *Tab) GetDocumentElementsBySelector(ctx context.Context, docNodeID int, selector string) ([]*Element, error) {
+	nodeIDs, errQuery := t.t.DOM.QuerySelectorAll(ctx, docNodeID, selector)
 	if errQuery != nil {
 		t.ctx.Log.Info().Msgf("QuerySelectorAll Err: searching for %s %d", selector, docNodeID)
 		return nil, errQuery
@@ -1056,12 +1065,12 @@ func (t *Tab) GetDocumentElementsBySelector(docNodeID int, selector string) ([]*
 }
 
 // GetElementsBySearch all elements that match a CSS or XPath selector
-func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM bool) ([]*Element, error) {
+func (t *Tab) GetElementsBySearch(ctx context.Context, selector string, includeUserAgentShadowDOM bool) ([]*Element, error) {
 	var s gcdapi.DOMPerformSearchParams
 	s.Query = selector
 	s.IncludeUserAgentShadowDOM = includeUserAgentShadowDOM
 	t.ctx.Log.Debug().Msgf("searching for %s via search", selector)
-	ID, count, err := t.t.DOM.PerformSearchWithParams(t.ctx.Ctx, &s)
+	ID, count, err := t.t.DOM.PerformSearchWithParams(ctx, &s)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,7 +1083,7 @@ func (t *Tab) GetElementsBySearch(selector string, includeUserAgentShadowDOM boo
 	r.SearchId = ID
 	r.FromIndex = 0
 	r.ToIndex = count
-	nodeIDs, errQuery := t.t.DOM.GetSearchResultsWithParams(t.ctx.Ctx, &r)
+	nodeIDs, errQuery := t.t.DOM.GetSearchResultsWithParams(ctx, &r)
 	if errQuery != nil {
 		return nil, errQuery
 	}
@@ -1230,7 +1239,7 @@ func (t *Tab) listenDebuggerEvents(ctx *browserk.Context) {
 		select {
 		case nodeChangeEvent := <-t.nodeChange:
 			t.lastNodeChangeTimeVal.Store(time.Now())
-			t.handleNodeChange(nodeChangeEvent)
+			go t.handleNodeChange(nodeChangeEvent)
 			// if the caller registered a dom change listener, call it
 			if t.domChangeHandler != nil {
 				t.domChangeHandler(t, nodeChangeEvent)
@@ -1395,6 +1404,10 @@ func (t *Tab) handleChildNodeRemoved(parentNodeID, nodeID int) {
 // when a childNodeRemoved event occurs, we need to set each child
 // to invalidated and remove it from our elements map.
 func (t *Tab) invalidateChildren(node *gcdapi.DOMNode) {
+	if node == nil {
+		return
+	}
+
 	// invalidate & remove ContentDocument node and children
 	if node.ContentDocument != nil {
 		ele, ok := t.getElement(node.ContentDocument.NodeId)

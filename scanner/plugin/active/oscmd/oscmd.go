@@ -1,7 +1,6 @@
 package oscmd
 
 import (
-	"context"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -54,13 +53,12 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	for _, attack := range []string{"cat /etc/passwd", "|cat /etc/passwd", ";cat /etc/passwd"} {
 		expr.Inject(attack, browserk.InjectValue)
 
-		ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, time.Second*15)
-		defer cancel()
-		m, err := injector.Send(ctx, false)
+		m, err := injector.Send(false)
 		if err != nil {
 			injector.BCtx().Log.Error().Err(err).Msg("failed to inject")
 			return false, nil
 		}
+
 		injector.BCtx().Log.Info().Msg("attacked!")
 		body := m.Response.Body
 		if m.Response.BodyEncoded {

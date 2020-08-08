@@ -111,7 +111,7 @@ func TestGetElements(t *testing.T) {
 
 	b.Navigate(ctx, "https://angularjs.org")
 
-	ele, err := b.FindElements("form", true)
+	ele, err := b.FindElements(ctx, "form", true)
 	if err != nil {
 		t.Fatalf("error getting elements: %s\n", err)
 	}
@@ -174,7 +174,7 @@ func TestBaseHref(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting url %s\n", err)
 	}
-	eles, _ := b.FindElements("base", true)
+	eles, _ := b.FindElements(ctx, "base", true)
 	if eles == nil {
 		t.Fatalf("expected eles")
 	}
@@ -219,7 +219,7 @@ func TestInjectJS(t *testing.T) {
 		t.Fatalf("expected console events")
 	}
 	//spew.Dump(c)
-	eles, _ := b.FindElements("base", true)
+	eles, _ := b.FindElements(ctx, "base", true)
 	if eles == nil {
 		t.Fatalf("expected eles")
 	}

@@ -1,7 +1,6 @@
 package lfi
 
 import (
-	"context"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -50,18 +49,19 @@ func (h *Plugin) Options() *browserk.PluginOpts {
 // Ready to attack
 func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 	// msg := injector.Message() // get original req/resp
+	injector.Message().Response.ResponseTimeMs()
 	expr := injector.InjectionExpr()
 	for _, attack := range []string{"../../../../../../../../etc/passwd", "./../././../././../././../././../././../././../././.././etc/passwd"} {
 		expr.Inject(attack, browserk.InjectValue)
 
-		ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, time.Second*15)
-		defer cancel()
-		m, err := injector.Send(ctx, false)
+		m, err := injector.Send(false)
 		if err != nil {
 			injector.BCtx().Log.Error().Err(err).Msg("failed to inject")
 			return false, nil
 		}
+
 		injector.BCtx().Log.Info().Msg("attacked!")
+
 		body := m.Response.Body
 		if m.Response.BodyEncoded {
 			b, err := base64.StdEncoding.DecodeString(m.Response.Body)
@@ -72,6 +72,7 @@ func (h *Plugin) Ready(injector browserk.Injector) (bool, error) {
 				body = string(b)
 			}
 		}
+
 		if strings.Contains(body, "root:") {
 			injector.BCtx().PluginServicer.Store().AddReport(&browserk.Report{
 				CheckID:     1,
