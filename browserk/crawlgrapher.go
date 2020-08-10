@@ -16,4 +16,5 @@ type CrawlGrapher interface {
 	AddResult(result *NavigationResult) error
 	NavExists(nav *Navigation) bool
 	GetNavigation(id []byte) (*Navigation, error)
+	GetNavigationResults() ([]*NavigationResult, error)
 }

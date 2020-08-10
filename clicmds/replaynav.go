@@ -42,6 +42,11 @@ func ReplayNavFlags() []cli.Flag {
 			Usage: "max number of browsers to use in parallel",
 			Value: 1,
 		},
+		&cli.StringFlag{
+			Name:  "report",
+			Usage: "findings report json file",
+			Value: "findings.json",
+		},
 		&cli.BoolFlag{
 			Name:  "list",
 			Usage: "list navs & navIDs",
