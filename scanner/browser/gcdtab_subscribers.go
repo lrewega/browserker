@@ -256,7 +256,9 @@ func (t *Tab) subscribeStorageEvents() {
 			// Plugin Dispatch
 			url, _ := t.GetURL()
 			//t.ctx.Log.Debug().Msgf("STORAGE ITEM ADDED: %#v", evt)
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
+			if t.ctx.Scope.CheckURL(url) == browserk.InScope {
+				t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
+			}
 			t.container.AddStorageEvent(evt)
 		}
 	})
@@ -275,7 +277,9 @@ func (t *Tab) subscribeStorageEvents() {
 			}
 			// Plugin Dispatch
 			url, _ := t.GetURL()
-			t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
+			if t.ctx.Scope.CheckURL(url) == browserk.InScope {
+				t.ctx.PluginServicer.DispatchEvent(browserk.StoragePluginEvent(t.ctx, url, t.Nav().Copy(), evt))
+			}
 			t.container.AddStorageEvent(evt)
 		}
 	})
@@ -296,7 +300,9 @@ func (t *Tab) subscribeConsoleEvents() {
 				Observed: time.Now(),
 			}
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, t.Nav().Copy(), evt))
+			if t.ctx.Scope.CheckURL(evt.URL) == browserk.InScope {
+				t.ctx.PluginServicer.DispatchEvent(browserk.ConsolePluginEvent(t.ctx, evt.URL, t.Nav().Copy(), evt))
+			}
 			t.container.AddConsoleEvent(evt)
 		}
 	})
@@ -331,7 +337,9 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		}
 		req := GCDRequestToBrowserk(message)
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, t.Nav().Copy(), req))
+		if t.ctx.Scope.CheckURL(req.Request.Url) == browserk.InScope {
+			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPRequestPluginEvent(t.ctx, req.Request.Url, t.Nav().Copy(), req))
+		}
 
 		if message.Params.Type == "Document" {
 			//t.ctx.Log.Info().Str("request_id", message.Params.RequestId).Msg("is Document request")
@@ -344,7 +352,9 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 			resp := GCDResponseToBrowserk(fake, body)
 
 			// Plugin Dispatch
-			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, req.Request.Url, t.Nav().Copy(), resp))
+			if t.ctx.Scope.CheckURL(message.Params.RedirectResponse.Url) == browserk.InScope {
+				t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, message.Params.RedirectResponse.Url, t.Nav().Copy(), resp))
+			}
 			t.container.AddResponse(resp)
 		}
 		t.container.AddRequest(req)
@@ -388,7 +398,10 @@ func (t *Tab) subscribeNetworkEvents(ctx *browserk.Context) {
 		resp := GCDResponseToBrowserk(message, body)
 
 		// Plugin Dispatch
-		t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.Nav().Copy(), resp))
+		if t.ctx.Scope.CheckURL(resp.Response.Url) == browserk.InScope {
+			t.ctx.Log.Debug().Str("url", resp.Response.Url).Msg("was in scope")
+			t.ctx.PluginServicer.DispatchEvent(browserk.HTTPResponsePluginEvent(t.ctx, resp.Response.Url, t.Nav().Copy(), resp))
+		}
 
 		t.container.AddResponse(resp)
 		//t.ctx.Log.Debug().Int32("pending", t.container.OpenRequestCount()).Str("url", p.Response.Url).Str("request_id", message.Params.RequestId).Msg("added")

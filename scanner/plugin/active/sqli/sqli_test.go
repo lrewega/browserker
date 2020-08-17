@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,40 +41,9 @@ func TestSQLi(t *testing.T) {
 	}
 	defer leaser.Cleanup()
 	ctx := context.Background()
-	calledCh := make(chan struct{})
+	calledCnt := 0
 
 	toTest := [...]plugintest.AttackTests{
-		{
-			FormHandler: func(c *gin.Context) {
-				user := c.PostForm("username")
-				resp := "<html><body>You made it!</body></html>"
-				if user == "'+(select(sleep(15)))+'" {
-					t.Logf("calling sleep...")
-					time.Sleep(time.Second * 15)
-					calledCh <- struct{}{}
-				}
-
-				c.Writer.WriteHeader(http.StatusOK)
-				c.Writer.Write([]byte(resp))
-			},
-			URL: "http://localhost:%s/forms/simplePOST.html",
-		},
-
-		{
-			FormHandler: func(c *gin.Context) {
-				user, _ := c.GetQuery("username")
-				resp := "<html><body>You made it!</body></html>"
-				if user == "'+(select(sleep(15)))+'" {
-					t.Logf("calling sleep...")
-					time.Sleep(time.Second * 2)
-					calledCh <- struct{}{}
-				}
-
-				c.Writer.WriteHeader(http.StatusOK)
-				c.Writer.Write([]byte(resp))
-			},
-			URL: "http://localhost:%s/forms/simpleGET.html",
-		},
 		{
 			FormHandler: func(c *gin.Context) {
 				user, _ := c.GetQuery("username")
@@ -81,13 +51,58 @@ func TestSQLi(t *testing.T) {
 				if user == "'+(select(sleep(15)))+'" {
 					t.Logf("calling sleep (for timeout)...")
 					time.Sleep(time.Second * 2)
-					calledCh <- struct{}{}
+					calledCnt++
 				}
 
 				c.Writer.WriteHeader(http.StatusOK)
 				c.Writer.Write([]byte(resp))
 			},
 			URL: "http://localhost:%s/forms/simpleGET.html#timeout",
+		},
+
+		{
+			FormHandler: func(c *gin.Context) {
+				user, _ := c.GetQuery("username")
+				resp := "<html><body>You made it!</body></html>"
+				if user == "'\"" {
+					t.Logf("user was error attack")
+					resp = "You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''\"' at line 1"
+				}
+
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			URL: "http://localhost:%s/forms/simpleGET.html#error",
+		},
+		{
+			FormHandler: func(c *gin.Context) {
+				user := c.PostForm("username")
+				resp := "<html><body>You made it!</body></html>"
+				if user == "'+(select(sleep(15)))+'" {
+					t.Logf("calling sleep...")
+					time.Sleep(time.Second * 15)
+					calledCnt++
+				}
+
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			URL: "http://localhost:%s/forms/simplePOST.html",
+		},
+		{
+			FormHandler: func(c *gin.Context) {
+				user, _ := c.GetQuery("username")
+				resp := "<html><body>You made it!</body></html>"
+				if user == "'+(select(sleep(15)))+'" {
+					t.Logf("calling sleep...")
+					time.Sleep(time.Second * 2)
+					calledCnt++
+				}
+
+				c.Writer.WriteHeader(http.StatusOK)
+				c.Writer.Write([]byte(resp))
+			},
+			URL: "http://localhost:%s/forms/simpleGET.html",
 		},
 	}
 
@@ -113,26 +128,26 @@ func TestSQLi(t *testing.T) {
 
 		bCtx.PluginServicer = mock.MakeMockPluginServicer()
 		bCtx.PluginServicer.Register(sqli.New(bCtx.PluginServicer))
+
 		t.Logf("Attacking With Plugin")
 		plugintest.AttackWithPlugin(bCtx, browser, navResults)
-		callCnt := 0
 
-		respTimer := time.NewTimer(time.Second * 2)
-		defer respTimer.Stop()
-
-		for i := 0; i < 2; i++ {
-			select {
-			case <-calledCh:
-				t.Logf("got call from timing attack")
-				callCnt++
-			case <-respTimer.C:
-				t.Logf("timed out waiting for call: iter: %d, callCnt: %d", i, callCnt)
-				break
+		// error based detection test first
+		if strings.HasSuffix(target, "error") {
+			rep, _ := bCtx.PluginServicer.Store().GetReports()
+			if rep == nil {
+				t.Fatalf("expected report got nil")
 			}
+			t.Logf("%v\n", rep[0])
+			pool.Return(ctx, port)
+			srv.Shutdown(ctx)
+			continue
 		}
-		if callCnt != 2 {
-			t.Fatalf("attack was not successful: %s, callcnt %d\n", target, callCnt)
+
+		if calledCnt != 2 {
+			t.Fatalf("attack was not successful: %s, callcnt %d\n", target, calledCnt)
 		}
+		calledCnt = 0
 
 		pool.Return(ctx, port)
 		srv.Shutdown(ctx)

@@ -1,6 +1,10 @@
 package mock
 
-import "gitlab.com/browserker/browserk"
+import (
+	"sync"
+
+	"gitlab.com/browserker/browserk"
+)
 
 // PluginStore saves plugin state and uniqueness
 type PluginStore struct {
@@ -91,12 +95,16 @@ func MakeMockPluginStore() *PluginStore {
 		return browserk.AuditInProgress, nil
 	}
 
+	reps := make([]*browserk.Report, 0)
+	repLock := &sync.RWMutex{}
 	p.AddReportFn = func(report *browserk.Report) {
-
+		repLock.Lock()
+		reps = append(reps, report)
+		repLock.Unlock()
 	}
 
 	p.GetReportsFn = func() ([]*browserk.Report, error) {
-		return nil, nil
+		return reps, nil
 	}
 
 	return p

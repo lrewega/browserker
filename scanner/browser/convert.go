@@ -2,6 +2,7 @@ package browser
 
 import (
 	"crypto/sha1"
+	"encoding/base64"
 	"strconv"
 	"strings"
 	"time"
@@ -180,6 +181,13 @@ func GCDFetchRequestToIntercepted(m *gcdapi.FetchRequestPausedEvent, container *
 // GCDFetchResponseToIntercepted FetchRequestPausedEvent -> InterceptedHTTPResponse
 func GCDFetchResponseToIntercepted(m *gcdapi.FetchRequestPausedEvent, body string, encoded bool) *browserk.InterceptedHTTPResponse {
 	p := m.Params
+	if encoded {
+		bodyData, err := base64.StdEncoding.DecodeString(body)
+		if err != nil {
+			log.Debug().Err(err).Msg("failed to decode body")
+		}
+		body = string(bodyData)
+	}
 	r := &browserk.InterceptedHTTPResponse{
 		RequestId:           p.RequestId,
 		Request:             p.Request,
