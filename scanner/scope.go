@@ -88,6 +88,12 @@ func (s *ScopeService) Check(target *url.URL) browserk.Scope {
 	return s.CheckRelative(host, target.Path)
 }
 
+// CheckURL an unparsed url to see if it's in scope
+func (s *ScopeService) CheckURL(targetURL string) browserk.Scope {
+	uri, _ := url.Parse(targetURL)
+	return s.Check(uri)
+}
+
 // ResolveBaseHref for html document links
 func (s *ScopeService) ResolveBaseHref(baseHref, candidate string) browserk.Scope {
 	var scope browserk.Scope

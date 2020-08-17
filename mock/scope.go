@@ -20,6 +20,9 @@ type ScopeService struct {
 	CheckFn     func(uri *url.URL) browserk.Scope
 	CheckCalled bool
 
+	CheckURLFn     func(url string) browserk.Scope
+	CheckURLCalled bool
+
 	CheckRelativeFn     func(base, relative string) browserk.Scope
 	CheckRelativeCalled bool
 
@@ -61,6 +64,13 @@ func (s *ScopeService) GetTargetHost() *url.URL {
 // Check a url to see if it's in scope
 func (s *ScopeService) Check(uri *url.URL) browserk.Scope {
 	s.CheckCalled = true
+	return s.CheckFn(uri)
+}
+
+// Check a url to see if it's in scope
+func (s *ScopeService) CheckURL(urlStr string) browserk.Scope {
+	s.CheckURLCalled = true
+	uri, _ := url.Parse(urlStr)
 	return s.CheckFn(uri)
 }
 

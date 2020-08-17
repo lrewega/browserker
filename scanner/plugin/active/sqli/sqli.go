@@ -22,10 +22,15 @@ type Plugin struct {
 	service      browserk.PluginServicer
 	sleepTimeSec time.Duration
 	attacks      []*SQLIAttack
+	detector     *Detector
 }
 
 func New(service browserk.PluginServicer) *Plugin {
-	p := &Plugin{service: service, attacks: make([]*SQLIAttack, 0), sleepTimeSec: 15}
+	p := &Plugin{
+		service:      service,
+		detector:     NewDetector(),
+		attacks:      make([]*SQLIAttack, 0),
+		sleepTimeSec: 15}
 	p.initAttacks()
 	service.Register(p)
 	return p
@@ -61,11 +66,18 @@ func (p *Plugin) Options() *browserk.PluginOpts {
 
 // Ready to attack
 func (p *Plugin) Ready(injector browserk.Injector) (bool, error) {
-	// msg := injector.Message() // get original req/resp
-	// expr := injector.InjectionExpr()
 	for _, attack := range p.attacks {
 		injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("attempting SQLi")
-		if attack.IsTiming {
+		if !attack.IsTiming {
+			found, err := p.doErrorDetection(injector, attack)
+			if err != nil {
+				injector.BCtx().Log.Warn().Err(err).Msg("attack failed")
+			}
+
+			if found {
+				return true, nil
+			}
+		} else {
 			found, err := p.doTimingAttack(injector, attack)
 			if err != nil {
 				injector.BCtx().Log.Warn().Err(err).Msg("attack failed")
@@ -74,11 +86,73 @@ func (p *Plugin) Ready(injector browserk.Injector) (bool, error) {
 				return true, nil
 			}
 		}
-		/*
-			TODO: handle generic sql i and match against common exceptions/error messages}
-		*/
 	}
 	return false, nil
+}
+
+func (p *Plugin) doErrorDetection(injector browserk.Injector, attack *SQLIAttack) (bool, error) {
+	// test if the response body already contained the error, in which case we can not safely
+	// say there was a SQL injection, but we can report that an exception was visible
+	originalResp := injector.Message().Response
+	if originalResp != nil && originalResp.Body != nil {
+		detectedTech, matched := p.detector.Detect(originalResp.Body)
+		if detectedTech != browserk.Unknown {
+			injector.BCtx().Log.Info().Str("attack", attack.Attack).Msg("response body already contained sql error")
+			p.reportSQLErrorExists(injector, attack, detectedTech, matched)
+			return false, nil
+		}
+	}
+
+	expr := injector.InjectionExpr()
+	originalBaseline := (time.Millisecond * time.Duration(injector.Message().Response.ResponseTimeMs()))
+
+	expr.Inject(attack.Prefix+attack.Attack+attack.Suffix, browserk.InjectValue)
+	ctx, cancel := context.WithTimeout(injector.BCtx().Ctx, originalBaseline+(time.Second*3)) // give it 3 extra seconds to timeout
+	defer cancel()
+
+	m, err := injector.SendWithCtx(ctx, false)
+	if err != nil {
+		return false, err
+	}
+
+	if m.Response == nil || m.Response.Body == "" {
+		return false, browserk.ErrEmptyInjectionResponse
+	}
+
+	detectedTech, matched := p.detector.Detect([]byte(m.Response.Body))
+	if detectedTech != browserk.Unknown {
+		p.reportSQLInjectionExists(injector, attack, detectedTech, matched)
+		return true, nil
+	}
+	return false, nil
+}
+
+func (p *Plugin) reportSQLInjectionExists(injector browserk.Injector, attack *SQLIAttack, detectedTech browserk.TechType, matched string) {
+	injector.BCtx().PluginServicer.Store().AddReport(&browserk.Report{
+		CheckID:     1,
+		CWE:         89,
+		URL:         injector.Message().Request.Request.Url,
+		Description: fmt.Sprintf("A %s sql error was detected in an HTTP response when searching for %s", detectedTech.String(), matched),
+		Remediation: "Don't have sql injection",
+		Nav:         injector.Nav(),
+		NavResultID: injector.NavResultID(),
+		Evidence:    browserk.NewEvidence(fmt.Sprintf("%s with %s", injector.InjectionExpr(), attack.Prefix+attack.Attack+attack.Suffix)),
+		Reported:    time.Now(),
+	})
+}
+
+func (p *Plugin) reportSQLErrorExists(injector browserk.Injector, attack *SQLIAttack, detectedTech browserk.TechType, matched string) {
+	injector.BCtx().PluginServicer.Store().AddReport(&browserk.Report{
+		CheckID:     1,
+		CWE:         209,
+		URL:         injector.Message().Request.Request.Url,
+		Description: fmt.Sprintf("A %s sql error was detected in an HTTP response when searching for %s", detectedTech.String(), matched),
+		Remediation: "Handle exceptions appropriately.",
+		Nav:         injector.Nav(),
+		NavResultID: injector.NavResultID(),
+		Evidence:    browserk.NewEvidence(fmt.Sprintf("%s with %s", injector.InjectionExpr(), attack.Prefix+attack.Attack+attack.Suffix)),
+		Reported:    time.Now(),
+	})
 }
 
 // TODO get 'median' response time for all requests by capturing stats across all response timing.

@@ -5,8 +5,12 @@ import "gitlab.com/browserker/browserk"
 func (p *Plugin) initAttacks() {
 	// generic error based
 	p.attacks = append(p.attacks, &SQLIAttack{
-		DBTech: browserk.Unknown,
-		Attack: "'\"",
+		DBTech:      browserk.Unknown,
+		Attack:      "'\"",
+		Prefix:      "",
+		Suffix:      "",
+		Description: "Error based detection attack string",
+		IsTiming:    false,
 	})
 
 	// mysql string
